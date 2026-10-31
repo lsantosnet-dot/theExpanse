@@ -337,6 +337,7 @@ class AppController(
             id.startsWith("warp_") -> sim.setWarp(id.removePrefix("warp_").toInt())
             id == "menu" -> screen = Screen.MENU
             id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null; cam.reset(); cinematic = null; wasDocked = false }
+            id == "rescue" -> s.callRescue()
             id == "continue" -> { s.continueFlying(); screen = Screen.FLIGHT }
             id == "undock" -> if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
             id == "skip" -> finishCinematic()
@@ -426,6 +427,7 @@ class AppController(
                         Hud.drawTop(d, g, view, animTime)
                         val l = ArrayList<Button>(Hud.drawPanel(d, g.sim, view, held, eta))
                         l.addAll(Hud.drawSceneButtons(d, g, cam, held, animTime, view))
+                        l.addAll(Hud.drawStranded(d, g))
                         l.addAll(Hud.drawCrash(d, g.sim))
                         l
                     }

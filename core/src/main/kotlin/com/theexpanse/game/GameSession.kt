@@ -350,6 +350,23 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
 
     // ---- efeitos ----
 
+    /** À deriva: sem combustível, em voo e sem final — a nave não consegue frear nem manobrar. */
+    val stranded: Boolean get() = sim.status == Status.FLYING && sim.ship.fuel <= 0.0 && story.ending == null
+
+    /** Pedido de resgate: um rebocador reabastece a nave parcialmente, cobrando créditos. */
+    fun callRescue() {
+        if (!stranded) return
+        val fee = minOf(story.credits, RESCUE_FEE)
+        story.credits -= fee
+        sim.ship.fuel = sim.ship.fuelCapacity * RESCUE_FUEL_PCT / 100.0
+        addMessage("Resgate: combustível reposto a ${RESCUE_FUEL_PCT.toInt()}%" + if (fee > 0) " (taxa de ${fee} ¢)." else ".")
+    }
+
+    companion object {
+        const val RESCUE_FEE = 500
+        const val RESCUE_FUEL_PCT = 25.0
+    }
+
     fun addMessage(text: String) {
         messages.add(Message(text, clock))
         if (messages.size > 40) messages.removeAt(0)

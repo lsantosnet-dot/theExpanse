@@ -86,4 +86,26 @@ class ContentTest {
         assertNotNull(r.pack, r.errors.toString())
         assertTrue(Validator.validate(r.pack!!, physics = false).ok)
     }
+
+    private fun packText(id: String) = Builtin.all().map { it.second }.first { Decoder.decode(it).pack?.id == id }
+
+    @Test
+    fun aMilitaryPackWithoutAmmoStartsWithTenMissilesAndTenDecoys() {
+        val full = packText("patrulha")
+        val noAmmo = full.replace("\"misseis\": 10, \"despistadores\": 10, ", "")
+        assertTrue(noAmmo != full, "o texto da Patrulha mudou de forma e o teste precisa acompanhar")
+        val ship = Decoder.decode(noAmmo).pack!!.ship
+        kotlin.test.assertEquals(10, ship.missiles)
+        kotlin.test.assertEquals(10, ship.decoys)
+    }
+
+    @Test
+    fun aMerchantPackKeepsNoMissilesAndItsOwnDecoyDefault() {
+        val full = packText("calice")
+        val noAmmo = full.replace("\"despistadores\": 4, ", "")
+        assertTrue(noAmmo != full)
+        val ship = Decoder.decode(noAmmo).pack!!.ship
+        kotlin.test.assertEquals(0, ship.missiles)
+        kotlin.test.assertEquals(4, ship.decoys)
+    }
 }

@@ -189,9 +189,12 @@ piloto automático), salvamento e carga, importação de pacotes válidos e queb
 "papel": {"tipo": "militar", "faccao": "coalizao"},
 "escalaTempo": 1440,
 "facoes": [{"id": "coalizao", "nome": "...", "cor": "#5B9BF0", "estilo": "terrano"}],
-"nave": {"misseis": 8, "despistadores": 2, "chanceDespistar": 0.4, "casco": 220, "...": "..."},
+"nave": {"misseis": 10, "despistadores": 10, "chanceDespistar": 0.4, "casco": 220, "...": "..."},
 "corpos": [{"id": "corvo", "tipo": "nave", "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "...": "..."}]
 ```
+
+No papel militar, se `nave.misseis` e `nave.despistadores` não forem informados, a nave começa com **10 mísseis e
+10 despistadores**. No mercador o padrão é 0 mísseis e 4 despistadores.
 
 Efeito `ia` com `atacar` libera uma nave hostil a perseguir e disparar; gatilho `corpo_destruido` e condição `papel`
 reagem ao combate. O validador confere o papel, a facção do militar e que só naves podem ser destruídas.

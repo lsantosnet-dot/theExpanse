@@ -186,10 +186,12 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 addMessage("A escolta ${world.body(e.escort)?.name ?: e.escort} interceptou um míssil!")
                 queue.add(GameEvent.EscortIntercepted)
             }
-            is SimEvent.DecoyResult ->
-                addMessage(if (e.diverted == e.total) "Despistador funcionou: ${e.diverted} míssil(is) desviado(s)!"
-                else if (e.diverted == 0) "O despistador falhou! O míssil continua vindo."
-                else "Despistador desviou ${e.diverted} de ${e.total} mísseis.")
+            is SimEvent.DecoyResult -> {
+                val odds = " (chance de ${(e.chance * 100).toInt()}%)"
+                addMessage(if (e.diverted == e.total) "Despistador funcionou: ${e.diverted} míssil(is) desviado(s)!$odds"
+                else if (e.diverted == 0) "O despistador falhou! O míssil continua vindo.$odds"
+                else "Despistador desviou ${e.diverted} de ${e.total} mísseis.$odds")
+            }
         }
         }
     }

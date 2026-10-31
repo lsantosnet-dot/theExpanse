@@ -139,6 +139,9 @@ object Space3DView {
             val rel = f.pos - ship.pos
             val q = rel.unit() * vr(rel.length, kv)
             val p = c.project(q.x, q.y, 0.0) ?: continue
+            val relTail = rel - (f.vel - ship.vel) * 4.0
+            val qt = relTail.unit() * vr(relTail.length, kv)
+            c.project(qt.x, qt.y, 0.0)?.let { tp -> d.line(tp[0], tp[1], p[0], p[1], 0xFFFFE9B0.toInt().alpha(0.5f), 1.2f) }
             val tw = 0.7f + 0.3f * sin(t * 25 + f.born).toFloat()
             d.glow(p[0], p[1], 20f, 0xFFFFE9B0.toInt().alpha(0.55f * tw))
             d.circle(p[0], p[1], 2.6f, fill = Palette.PLUME_CORE.alpha(tw))

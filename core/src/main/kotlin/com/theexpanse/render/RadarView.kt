@@ -210,6 +210,8 @@ object RadarView {
         for (f in sim.flares) {
             val rel = f.pos - ship.pos
             val px = sx(rel.x, k); val py = sy(rel.y, k)
+            val rv = f.vel - ship.vel
+            d.line(px, py, sx(rel.x - rv.x * 4.0, k), sy(rel.y - rv.y * 4.0, k), 0xFFFFE9B0.toInt().alpha(0.5f), 1.2f)
             val tw = 0.7f + 0.3f * sin(t * 25 + f.born).toFloat()
             d.glow(px, py, 14f, 0xFFFFE9B0.toInt().alpha(0.55f * tw))
             d.circle(px, py, 2.4f, fill = Palette.PLUME_CORE.alpha(tw))
@@ -339,9 +341,9 @@ object RadarView {
         val ready = sim.canFire() == FireResult.FIRED && sim.status == Status.FLYING
         val incoming = sim.incoming().isNotEmpty()
         val decoyOk = incoming && ship.decoys > 0 && sim.status == Status.FLYING
-        ui.add("target", PX, 314f, 58f, 38f, "ALVO")
-        ui.add("fire", PX + 62f, 314f, 66f, 38f, "MÍSSIL\n×${ship.missiles}", enabled = ready, accent = if (ready) Palette.RED else 0)
-        ui.add("decoy", PX + 132f, 314f, 64f, 38f, "DESPIST.\n×${ship.decoys}", enabled = decoyOk, active = decoyOk && sin(t * 12) > 0, accent = if (decoyOk) Palette.AMBER else 0)
+        ui.add("target", PX, 314f, 54f, 38f, "ALVO")
+        ui.add("fire", PX + 57f, 314f, 62f, 38f, "MÍSSIL\n×${ship.missiles}", enabled = ready, accent = if (ready) Palette.RED else 0)
+        ui.add("decoy", PX + 122f, 314f, 74f, 38f, "DESPIST.\n×${ship.decoys}" + Hud.oddsText(sim), enabled = decoyOk, active = decoyOk && sin(t * 12) > 0, accent = if (decoyOk) Palette.AMBER else 0)
 
         for (i in 0..2) {
             val f = sim.warpLevels[i]

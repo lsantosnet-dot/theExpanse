@@ -26,12 +26,13 @@ arquivos). Gere o APK no Android Studio (`app` → Run).
 
 ## 4. Emboscada (mercador, mísseis)
 - [ ] Rádio logo no início; **Cortar o rádio e acelerar**: surge **ALERTA DE MÍSSIL · IMPACTO EM …**.
-- [ ] **DESPISTADOR ×4** acende e funciona (cada míssil, ~50%); mensagem "funcionou" ou "falhou".
+- [ ] **DESPISTADOR ×4** acende e mostra a chance ("· 80%"): maior com o míssil entre 20 e 45 s do impacto, menor cedo demais
+      ou em cima da hora. Mensagem "funcionou" ou "falhou" com a chance usada. O despistador sai de lado e se afasta da nave.
 - [ ] Impacto: clarão vermelho, vibração e o casco cai; dois impactos destroem a nave.
 
 ## 5. Patrulha (militar)
 - [ ] Cruzador da Coalizão (desenho próprio). Chamado do Corvo perto dele: ordenar rendição, abrir fogo ou deixar passar.
-- [ ] **MÍSSIL ×8** acende quando o Corvo é alvo e está a menos de 150 km. **ABORDAR** acende a menos de 1 km e menos de 12 m/s.
+- [ ] **MÍSSIL ×10** acende quando o Corvo é alvo e está a menos de 150 km. **ABORDAR** acende a menos de 1 km e menos de 12 m/s.
 - [ ] Atracar na Doca Meridiano repara o casco e recarrega os mísseis.
 - [ ] Botão **RADAR** ao lado de MÍSSIL: **pisca** com míssil em voo (inclusive o seu) ou hostil armado a menos de 200 km.
 - [ ] No radar: alvo travado (**TRAVADO**), anéis de alcance verde (seu) e vermelho (deles), mísseis com tempo até o impacto,

@@ -20,7 +20,7 @@
     {"id": "porto_kaua", "nome": "Porto Kauã", "curto": "Porto", "tipo": "estacao", "faccao": "liga", "raioOrbita": 4.6e8, "fase": 1.4, "tamanho": 150},
     {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Arsenal", "tipo": "estacao", "faccao": "federacao", "raioOrbita": 6.1e8, "fase": 3.3, "tamanho": 150}
   ],
-  "nave": {"nome": "Cruzador Tribunal II", "massaSeca": 600000, "carga": 0, "combustivel": 90000, "nomeCarga": "sem carga", "perto": "doca_meridiano", "altitude": 40000, "alvo": "corvo", "casco": 220, "misseis": 8, "despistadores": 2, "chanceDespistar": 0.4},
+  "nave": {"nome": "Cruzador Tribunal II", "massaSeca": 600000, "carga": 0, "combustivel": 90000, "nomeCarga": "sem carga", "perto": "doca_meridiano", "altitude": 40000, "alvo": "corvo", "casco": 220, "misseis": 10, "despistadores": 10, "chanceDespistar": 0.4},
   "creditos": 0,
   "reputacao": {"coalizao": 20, "federacao": 0, "liga": -5, "corsarios": -50},
   "personagens": [

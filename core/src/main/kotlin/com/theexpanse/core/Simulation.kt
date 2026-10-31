@@ -34,7 +34,7 @@ class Dynamic(var pos: Vec2, var vel: Vec2, var mode: AiMode)
 class Simulation(val world: World, seed: Long = 1L) {
     var time = 0.0
         private set
-    val ship = Ship(world.ship.dryMass, world.ship.fuelMass, world.ship.cargoMass, world.ship.hull, world.ship.missiles, world.ship.decoys)
+    val ship = Ship(world.ship.dryMass, world.ship.fuelMass, world.ship.cargoMass, world.ship.hull, world.ship.missiles, world.ship.decoys, world.ship.maxAccel, world.ship.exhaustVelocity)
     var status = Status.FLYING
         private set
     var dockedAt: Body? = null
@@ -62,6 +62,10 @@ class Simulation(val world: World, seed: Long = 1L) {
     val flares = ArrayList<Flare>()
     val blasts = ArrayList<Blast>()
     val destroyed = HashSet<String>()
+    val hidden = HashSet<String>()
+    private val boarded = HashSet<String>()
+    var crashedInto: String? = null
+        private set
     private val arms = HashMap<String, NpcArms>()
     private val events = ArrayList<SimEvent>()
     private var nextId = 1
@@ -101,16 +105,19 @@ class Simulation(val world: World, seed: Long = 1L) {
         manualTurn = 0
         manualEngine = false
         effectiveWarp = 1.0
-        dynamics.clear(); missiles.clear(); flares.clear(); blasts.clear(); destroyed.clear(); arms.clear(); events.clear()
+        dynamics.clear(); missiles.clear(); flares.clear(); blasts.clear(); destroyed.clear(); arms.clear(); events.clear(); boarded.clear()
+        hidden.clear(); for (b in bodies) if (b.def.hidden) hidden.add(b.id)
+        crashedInto = null
         predictionCache = null
         val setup = world.ship
         targetIndex = bodies.indexOfFirst { it.id == setup.targetId }.takeIf { it >= 0 } ?: 0
         val s = ship
         val near = world.body(setup.startNear) ?: bodies.first()
         val nearPos = near.position(0.0)
-        val radial = nearPos.unit()
+        val parentPos = near.parent?.position(0.0) ?: Vec2.ZERO
+        val radial = (nearPos - parentPos).unit()
         s.pos = nearPos + radial * setup.startAltitude
-        s.vel = Vec2(-radial.y, radial.x) * sqrt(world.gm / s.pos.length) // prograde: anti-horário, tangente
+        s.vel = near.velocity(0.0) // acompanha o corpo de partida
         s.angle = s.vel.angle
         s.omega = 0.0
         s.fuel = s.fuelCapacity
@@ -133,7 +140,7 @@ class Simulation(val world: World, seed: Long = 1L) {
 
     // ---- posições (analíticas ou integradas) ----
 
-    fun alive(b: Body) = b.id !in destroyed
+    fun alive(b: Body) = b.id !in destroyed && b.id !in hidden
     fun position(b: Body): Vec2 = dynamics[b.id]?.pos ?: b.position(time)
     fun velocity(b: Body): Vec2 = dynamics[b.id]?.vel ?: b.velocity(time)
 
@@ -154,7 +161,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         return relativeVelocity(b) dot (rel / d)
     }
 
-    val accelLimit: Double get() = Config.MAX_ACCEL * thrustPct / 100.0
+    val accelLimit: Double get() = ship.maxAccel * thrustPct / 100.0
 
     /** Distância para frear até parar em relação ao alvo, com o empuxo escolhido. */
     fun brakingDistance(b: Body = target): Double {
@@ -262,19 +269,64 @@ class Simulation(val world: World, seed: Long = 1L) {
     fun fireMissile(): FireResult {
         val r = canFire()
         if (r != FireResult.FIRED || status != Status.FLYING) return r
-        val t = target
-        val a = armsOf(t)
-        val m = Missile(nextId++, Owner.PLAYER, ship.pos, ship.vel + Vec2.fromAngle(ship.angle) * 20.0, t.id, "jogador")
-        // o alvo pode soltar um despistador no meio do voo: sorteado agora, vale quando chegar a hora
-        if (a.decoys > 0) {
-            a.decoys--
-            if (rand() < t.def.decoyChance) m.decoyAt = 0.5 * sqrt(2 * distanceTo(t) / Config.MISSILE_ACCEL) + 2.0
-        }
-        missiles.add(m)
+        launchAt("jogador", ship.pos, ship.vel + Vec2.fromAngle(ship.angle) * 0.0, target)
         ship.missiles--
-        blasts.add(Blast(ship.pos, time, BlastKind.LAUNCH))
-        events.add(SimEvent.Launched(Owner.PLAYER, "jogador"))
         return FireResult.FIRED
+    }
+
+    // ---- abordagem ----
+
+    fun canBoard(): BoardCheck {
+        if (!world.isMilitary) return BoardCheck.NOT_MILITARY
+        val t = target
+        if (t.kind != BodyKind.SHIP || !alive(t)) return BoardCheck.NO_TARGET
+        if (t.faction.id == world.role.factionId) return BoardCheck.FRIENDLY
+        if (distanceTo(t) > Config.BOARD_RANGE) return BoardCheck.TOO_FAR
+        if (relativeVelocity(t).length > Config.BOARD_SPEED) return BoardCheck.TOO_FAST
+        return BoardCheck.OK
+    }
+
+    /** Tenta abordar o alvo. Sucesso: a nave é capturada; falha: o jogador sofre dano e o alvo reage. */
+    fun boardTarget(): BoardCheck {
+        val c = canBoard()
+        if (c != BoardCheck.OK || status != Status.FLYING) return c
+        val t = target
+        val ok = rand() >= t.def.defense
+        if (ok) {
+            destroyed.add(t.id)
+            dynamics.remove(t.id)
+            blasts.add(Blast(position(t), time, BlastKind.FLARE))
+            cycleTarget()
+        } else {
+            ship.hull = max(1.0, ship.hull - 25.0)
+            setAi(t, AiMode.ATTACK)
+            blasts.add(Blast(ship.pos, time, BlastKind.SHIP_HIT))
+        }
+        events.add(SimEvent.BoardingResult(t.id, ok))
+        return BoardCheck.OK
+    }
+
+    // ---- corpos escondidos e dano ----
+
+    /** A nave surge a [distance] m do jogador, na mesma velocidade, numa direção sorteada à frente. */
+    fun ambush(b: Body, distance: Double) {
+        hidden.remove(b.id)
+        destroyed.remove(b.id)
+        val dir = Vec2.fromAngle(ship.angle + (rand() - 0.5) * 1.2)
+        dynamics[b.id] = Dynamic(ship.pos + dir * distance, ship.vel, AiMode.ORBIT)
+    }
+
+    fun reveal(b: Body) { hidden.remove(b.id) }
+    fun conceal(b: Body) { hidden.add(b.id) }
+
+    /** Remove uma nave do jogo sem explosão (some do mapa). */
+    fun destroyBody(b: Body, explode: Boolean) {
+        if (b.id in destroyed) return
+        if (explode) blasts.add(Blast(position(b), time, BlastKind.KILL))
+        destroyed.add(b.id)
+        dynamics.remove(b.id)
+        if (target === b) cycleTarget()
+        events.add(SimEvent.BodyDestroyed(b.id))
     }
 
     /** Lança um despistador contra os mísseis que perseguem a nave. Cada míssil é sorteado à parte. */
@@ -307,6 +359,12 @@ class Simulation(val world: World, seed: Long = 1L) {
         val r = ship.pos.length
         val radialSpeed = (ship.pos dot ship.vel) / r
         if (radialSpeed < 0.0) cap = min(cap, max(1.0, (r - world.radius) / -radialSpeed / 15.0))
+        for (b in world.solid) {
+            val rel = b.position(time) - ship.pos
+            val dist = rel.length
+            val closing = (ship.vel - b.velocity(time)) dot (rel / max(dist, 1.0))
+            if (closing > 0.0) cap = min(cap, max(1.0, (dist - b.def.radius) / closing / 15.0))
+        }
         for ((id, dyn) in dynamics) {
             if (dyn.mode == AiMode.ORBIT || id in destroyed) continue
             val b = world.body(id) ?: continue
@@ -357,7 +415,7 @@ class Simulation(val world: World, seed: Long = 1L) {
                 if (manualEngine) burn = accelLimit
             }
             AutopilotMode.INTERCEPT -> {
-                val cmd = Autopilot.intercept(world, s, tgtPos, tgtVel, thrustPct)
+                val cmd = Autopilot.intercept(world, time, s, tgtPos, tgtVel, thrustPct)
                 desired = cmd.desiredAngle
                 burn = cmd.burn
                 hold = desired == null
@@ -378,9 +436,9 @@ class Simulation(val world: World, seed: Long = 1L) {
         if (accel > 0.0) {
             if (s.fuel <= 0.0) accel = 0.0
             else {
-                val dm = s.mass * accel / Config.EXHAUST_VELOCITY * h
+                val dm = s.mass * accel / s.exhaustVelocity * h
                 if (dm > s.fuel) accel *= s.fuel / dm
-                s.fuel = max(0.0, s.fuel - s.mass * accel / Config.EXHAUST_VELOCITY * h)
+                s.fuel = max(0.0, s.fuel - s.mass * accel / s.exhaustVelocity * h)
             }
         }
 
@@ -399,12 +457,13 @@ class Simulation(val world: World, seed: Long = 1L) {
         s.burnAccel = accel
         s.turnAlpha = alpha
 
-        val a = world.gravity(s.pos) + Vec2.fromAngle(s.angle) * accel
+        // mísseis e naves do computador veem a posição de começo do passo (a nave só se move depois), para que todos
+        // avancem juntos; sem isso o alvo parece estar um passo adiante (km, nas velocidades orbitais)
+        stepMissiles(h)
+        stepDynamics(h)
+        val a = world.gravity(s.pos, time) + Vec2.fromAngle(s.angle) * accel
         s.vel = s.vel + a * h
         s.pos = s.pos + s.vel * h
-
-        stepDynamics(h)
-        stepMissiles(h)
         time += h
         pruneEffects()
         checkEvents()
@@ -415,17 +474,59 @@ class Simulation(val world: World, seed: Long = 1L) {
             if (id in destroyed) continue
             var thrust = Vec2.ZERO
             if (d.mode != AiMode.ORBIT) {
-                val stop = if (d.mode == AiMode.ATTACK) Config.ATTACK_STOP else Config.PURSUER_STOP
-                val cmd = Autopilot.rendezvous(world, d.pos, d.vel, ship.pos, ship.vel, Config.PURSUER_ACCEL, stop, 1e9)
+                val stop = when (d.mode) {
+                    AiMode.ATTACK -> Config.ATTACK_STOP
+                    AiMode.ESCORT -> Config.ESCORT_DISTANCE
+                    AiMode.BOARD -> Config.BOARD_STOP
+                    else -> Config.PURSUER_STOP
+                }
+                val accelMax = world.body(id)?.def?.maxAccel ?: Config.PURSUER_ACCEL
+                val cmd = Autopilot.rendezvous(world, time, d.pos, d.vel, ship.pos, ship.vel, accelMax, stop, 1e9)
                 if (cmd != null) {
                     val mag = cmd.length
-                    thrust = if (mag > Config.PURSUER_ACCEL) cmd * (Config.PURSUER_ACCEL / mag) else cmd
+                    thrust = if (mag > accelMax) cmd * (accelMax / mag) else cmd
                 }
-                if (d.mode == AiMode.ATTACK) enemyFire(id, d, h)
+                when (d.mode) {
+                    AiMode.ATTACK -> enemyFire(id, d, h)
+                    AiMode.ESCORT -> allyFire(id, d, h)
+                    AiMode.BOARD -> if (id !in boarded && (ship.pos - d.pos).length < Config.BOARD_RANGE && (ship.vel - d.vel).length < Config.BOARD_SPEED) {
+                        boarded.add(id)
+                        events.add(SimEvent.Boarded(id))
+                    }
+                    else -> {}
+                }
             }
-            d.vel = d.vel + (world.gravity(d.pos) + thrust) * h
+            d.vel = d.vel + (world.gravity(d.pos, time) + thrust) * h
             d.pos = d.pos + d.vel * h
         }
+    }
+
+    /** Escolta: ataca naves hostis ao alcance com os próprios mísseis. */
+    private fun allyFire(id: String, d: Dynamic, h: Double) {
+        val b = world.body(id) ?: return
+        val a = armsOf(b)
+        a.cooldown -= h
+        if (a.cooldown > 0 || a.missiles <= 0) return
+        val foe = dynamics.entries
+            .filter { (fid, fd) -> fid != id && fid !in destroyed && (fd.mode == AiMode.ATTACK || fd.mode == AiMode.BOARD) && (fd.pos - d.pos).length < Config.ENEMY_FIRE_RANGE }
+            .minByOrNull { (it.value.pos - d.pos).length } ?: return
+        val target = world.body(foe.key) ?: return
+        a.missiles--
+        a.cooldown = Config.ENEMY_COOLDOWN
+        launchAt(id, d.pos, d.vel, target)
+    }
+
+    /** Lança um míssil amigo (do jogador ou de uma escolta) num corpo; o alvo pode sortear um despistador. */
+    private fun launchAt(launcher: String, pos: Vec2, vel: Vec2, target: Body) {
+        val m = Missile(nextId++, Owner.PLAYER, pos, vel + (position(target) - pos).unit() * 20.0, target.id, launcher)
+        val a = armsOf(target)
+        if (a.decoys > 0) {
+            a.decoys--
+            if (rand() < target.def.decoyChance) m.decoyAt = 0.5 * sqrt(2 * (position(target) - pos).length / Config.MISSILE_ACCEL) + 2.0
+        }
+        missiles.add(m)
+        blasts.add(Blast(pos, time, BlastKind.LAUNCH))
+        events.add(SimEvent.Launched(Owner.PLAYER, launcher))
     }
 
     /** Nave hostil em ataque: dispara quando está ao alcance, com intervalo entre os tiros. */
@@ -445,7 +546,7 @@ class Simulation(val world: World, seed: Long = 1L) {
     private fun stepMissiles(h: Double) {
         if (missiles.isEmpty() && flares.isEmpty()) return
         for (f in flares) {
-            f.vel = f.vel + world.gravity(f.pos) * h
+            f.vel = f.vel + world.gravity(f.pos, time) * h
             f.pos = f.pos + f.vel * h
         }
         val it = missiles.iterator()
@@ -484,9 +585,22 @@ class Simulation(val world: World, seed: Long = 1L) {
                     tPos = position(b); tVel = velocity(b)
                 }
             }
+            if (m.owner == Owner.ENEMY && m.targetId == "jogador" && !m.escortRolled) {
+                val ally = dynamics.entries.firstOrNull { (eid, ed) -> ed.mode == AiMode.ESCORT && eid !in destroyed && (ed.pos - m.pos).length < Config.ESCORT_INTERCEPT_RANGE }
+                if (ally != null) {
+                    m.escortRolled = true
+                    val chance = world.body(ally.key)?.def?.interceptChance ?: 0.5
+                    if (rand() < chance) {
+                        blasts.add(Blast(m.pos, time, BlastKind.INTERCEPT))
+                        events.add(SimEvent.EscortIntercepted(ally.key))
+                        it.remove()
+                        continue
+                    }
+                }
+            }
             val before = m.pos - tPos
-            val thrust = missileGuidance(world, m.pos, m.vel, tPos, tVel)
-            m.vel = m.vel + (world.gravity(m.pos) + thrust) * h
+            val thrust = missileGuidance(world, time, m.pos, m.vel, tPos, tVel)
+            m.vel = m.vel + (world.gravity(m.pos, time) + thrust) * h
             m.pos = m.pos + m.vel * h
             val after = m.pos - (tPos + tVel * h)
             if (segmentMissDistance(before, after) < Config.MISSILE_FUZE) {
@@ -532,8 +646,10 @@ class Simulation(val world: World, seed: Long = 1L) {
     private fun checkEvents() {
         val s = ship
         if (status != Status.FLYING) return
-        if (s.pos.length < world.radius) {
+        val hit = world.collision(s.pos, time)
+        if (hit != null) {
             status = Status.CRASHED
+            crashedInto = hit
             s.burnAccel = 0.0
             events.add(SimEvent.Crashed)
             return
@@ -586,7 +702,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         val h = dt / sub
         for (i in 1..steps) {
             for (k in 0 until sub) {
-                vel = vel + world.gravity(pos) * h
+                vel = vel + world.gravity(pos, t) * h
                 pos = pos + vel * h
                 t += h
             }
@@ -596,7 +712,7 @@ class Simulation(val world: World, seed: Long = 1L) {
                 best = dist
                 bestT = t - time
             }
-            if (pos.length < world.radius) break
+            if (world.collision(pos, t) != null) break
         }
         return Prediction(pts, best, bestT)
     }
@@ -628,6 +744,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         flares.clear(); for (f in from.flares) flares.add(Flare(f.id, f.pos, f.vel, f.born))
         blasts.clear()
         destroyed.clear(); destroyed.addAll(from.destroyed)
+        hidden.clear(); hidden.addAll(from.hidden); boarded.clear(); boarded.addAll(from.boarded); crashedInto = from.crashedInto
         arms.clear(); for ((k, a) in from.arms) arms[k] = NpcArms(a.missiles, a.decoys, a.cooldown)
         events.clear()
         predictionCache = null
@@ -657,6 +774,9 @@ class Simulation(val world: World, seed: Long = 1L) {
             for ((k, d) in dynamics) put(k, buildJsonObject { put("pos", vec(d.pos)); put("vel", vec(d.vel)); put("modo", d.mode.key) })
         })
         put("destruidos", JsonArray(destroyed.map { JsonPrimitive(it) }))
+        put("escondidos", JsonArray(hidden.map { JsonPrimitive(it) }))
+        put("abordados", JsonArray(boarded.map { JsonPrimitive(it) }))
+        put("colidiuCom", crashedInto ?: "")
         put("armas", buildJsonObject { for ((k, a) in arms) put(k, buildJsonObject { put("misseis", a.missiles); put("despistadores", a.decoys); put("espera", a.cooldown) }) })
         put("misseisEmVoo", JsonArray(missiles.map { m ->
             buildJsonObject {
@@ -688,6 +808,9 @@ class Simulation(val world: World, seed: Long = 1L) {
             dynamics[k] = Dynamic(vec(d["pos"]!!.jsonArray), vec(d["vel"]!!.jsonArray), mode)
         }
         destroyed.clear(); o["destruidos"]!!.jsonArray.forEach { destroyed.add(it.jsonPrimitive.content) }
+        hidden.clear(); o["escondidos"]!!.jsonArray.forEach { hidden.add(it.jsonPrimitive.content) }
+        boarded.clear(); o["abordados"]!!.jsonArray.forEach { boarded.add(it.jsonPrimitive.content) }
+        crashedInto = o["colidiuCom"]!!.jsonPrimitive.content.ifEmpty { null }
         arms.clear()
         for ((k, v) in o["armas"]!!.jsonObject) { val a = v.jsonObject; arms[k] = NpcArms(a["misseis"]!!.jsonPrimitive.int, a["despistadores"]!!.jsonPrimitive.int, a["espera"]!!.jsonPrimitive.double) }
         missiles.clear()

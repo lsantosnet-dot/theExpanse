@@ -91,13 +91,13 @@ object Fx {
 
     /** Explosão animada por [age] (s de simulação desde que aconteceu). */
     fun blast(d: Draw, x: Float, y: Float, age: Float, kind: BlastKind, scale: Float = 1f) {
-        val life = when (kind) { BlastKind.KILL -> 2.8f; BlastKind.SHIP_HIT -> 1.8f; BlastKind.FLARE -> 3.0f; BlastKind.LAUNCH -> 0.6f; BlastKind.FIZZLE -> 0.7f }
+        val life = when (kind) { BlastKind.KILL -> 2.8f; BlastKind.SHIP_HIT -> 1.8f; BlastKind.FLARE -> 3.0f; BlastKind.LAUNCH -> 0.6f; BlastKind.FIZZLE -> 0.7f; BlastKind.INTERCEPT -> 1.2f }
         if (age < 0f || age > life) return
         val p = age / life
         val fade = (1f - p).coerceIn(0f, 1f)
         when (kind) {
-            BlastKind.KILL, BlastKind.SHIP_HIT -> {
-                val big = if (kind == BlastKind.KILL) 1.6f else 1.0f
+            BlastKind.KILL, BlastKind.SHIP_HIT, BlastKind.INTERCEPT -> {
+                val big = if (kind == BlastKind.KILL) 1.6f else if (kind == BlastKind.INTERCEPT) 0.6f else 1.0f
                 val r = (18f + 70f * (1f - (1f - p) * (1f - p))) * big * scale
                 d.glow(x, y, r * 2.2f, 0xFFFF8A2A.toInt().alpha(0.55f * fade))
                 d.circle(x, y, r * 0.55f * (1f - p * 0.4f), fill = 0xFFFFD27A.toInt().alpha(0.9f * fade))

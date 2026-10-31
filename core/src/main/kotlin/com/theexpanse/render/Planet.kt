@@ -43,4 +43,31 @@ object Planet {
         }
         d.circle(cx, cy, r, stroke = 0xFFFFD2A8.toInt().alpha(0.35f), strokeW = 1f)
     }
+
+    /** Planeta ou lua genérico: esfera sombreada na cor [argb], com faixas se for grande. */
+    fun drawGeneric(d: Draw, cx: Float, cy: Float, r: Float, argb: Int, gas: Boolean = false) {
+        if (r < 2.5f) {
+            d.circle(cx, cy, 2.5f, fill = argb)
+            return
+        }
+        val dark = mix(argb, 0xFF000000.toInt(), 0.55f)
+        val light = mix(argb, 0xFFFFFFFF.toInt(), 0.35f)
+        d.glow(cx, cy, r * 1.25f, argb.alpha(0.14f))
+        d.circle(cx, cy, r, fill = dark)
+        d.circle(cx - r * 0.12f, cy - r * 0.12f, r * 0.88f, fill = argb)
+        d.circle(cx - r * 0.28f, cy - r * 0.28f, r * 0.45f, fill = light.alpha(0.35f))
+        if (gas && r > 10f) {
+            d.poly(slice(cx, cy, r, -0.45f, -0.33f), fill = dark.alpha(0.5f))
+            d.poly(slice(cx, cy, r, -0.10f, 0.04f), fill = light.alpha(0.35f))
+            d.poly(slice(cx, cy, r, 0.28f, 0.42f), fill = dark.alpha(0.5f))
+        }
+    }
+
+    /** O Sol: disco branco-amarelo com coroa. */
+    fun drawStar(d: Draw, cx: Float, cy: Float, r: Float) {
+        d.glow(cx, cy, r * 3.2f, 0xFFFFC857.toInt().alpha(0.30f))
+        d.glow(cx, cy, r * 1.8f, 0xFFFFE9A0.toInt().alpha(0.55f))
+        d.circle(cx, cy, r.coerceAtLeast(3f), fill = 0xFFFFF4C8.toInt())
+        d.circle(cx, cy, (r * 0.72f).coerceAtLeast(2f), fill = 0xFFFFFFFF.toInt().alpha(0.8f))
+    }
 }

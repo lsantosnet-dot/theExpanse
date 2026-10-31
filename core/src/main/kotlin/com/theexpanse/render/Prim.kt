@@ -129,3 +129,47 @@ fun placePoints(local: FloatArray, cx: Float, cy: Float, angle: Double, scale: F
     }
     return out
 }
+
+/**
+ * Transformação linear de coordenadas locais da nave (nariz em +x) para deslocamentos na tela:
+ * x = cx + a·lx + b·ly, y = cy + c·lx + d·ly. A câmera 2D usa rotação+escala; a 3D, a projeção do plano orbital.
+ */
+class Mat(val a: Float, val b: Float, val c: Float, val d: Float) {
+    /** Tamanho na tela de uma unidade local ao longo do eixo do nariz. */
+    val scale: Float get() = kotlin.math.sqrt(a * a + c * c)
+
+    fun place(local: FloatArray, cx: Float, cy: Float): FloatArray {
+        val out = FloatArray(local.size)
+        var i = 0
+        while (i < local.size) {
+            out[i] = cx + a * local[i] + b * local[i + 1]
+            out[i + 1] = cy + c * local[i] + d * local[i + 1]
+            i += 2
+        }
+        return out
+    }
+
+    /** Direção unitária na tela de um vetor local. */
+    fun dir(lx: Float, ly: Float): FloatArray {
+        val x = a * lx + b * ly
+        val y = c * lx + d * ly
+        val l = kotlin.math.sqrt(x * x + y * y)
+        return if (l < 1e-6f) floatArrayOf(1f, 0f) else floatArrayOf(x / l, y / l)
+    }
+
+    /** A mesma transformação depois de girar o objeto local em [phi] (anti-horário). */
+    fun rotated(phi: Double): Mat {
+        val cs = cos(phi).toFloat()
+        val sn = sin(phi).toFloat()
+        return Mat(a * cs + b * sn, -a * sn + b * cs, c * cs + d * sn, -c * sn + d * cs)
+    }
+
+    companion object {
+        /** Vista de cima: nariz a [phi] rad (anti-horário), y da tela para baixo. */
+        fun rot(phi: Double, scale: Float): Mat {
+            val cs = cos(phi).toFloat() * scale
+            val sn = sin(phi).toFloat() * scale
+            return Mat(cs, -sn, -sn, -cs)
+        }
+    }
+}

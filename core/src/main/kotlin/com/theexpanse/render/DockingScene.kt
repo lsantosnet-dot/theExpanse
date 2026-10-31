@@ -76,8 +76,8 @@ object DockingScene {
         drawClamps(d, clamp, color)
 
         val fac = g.world.playerFaction
-        if (g.world.isMilitary && fac != null) Models.cruiser(d, fac.style, fac.argb, x, y, phi, shipS, thrust, rcsA, anim)
-        else Models.freighter(d, x, y, phi, shipS, thrust, rcsA, anim)
+        if (g.world.isMilitary && fac != null) Models.cruiser(d, fac.style, fac.argb, x, y, Mat.rot(phi, shipS), thrust, rcsA, anim)
+        else Models.freighter(d, x, y, Mat.rot(phi, shipS), thrust, rcsA, anim)
         // retropropulsores do nariz na frenagem final
         if (dock && u in 0.12f..0.44f) {
             val nx = x + noseUnits * shipS
@@ -128,7 +128,7 @@ object DockingScene {
 
     private fun drawStation(d: Draw, kind: BodyKind, color: Int, name: String, anim: Double) {
         if (kind == BodyKind.WRECK) {
-            Models.wreck(d, color, 720f, Y, anim * 0.05 + 3.1, 2.1f, anim)
+            Models.wreck(d, color, 720f, Y, Mat.rot(anim * 0.05 + 3.1, 2.1f), anim)
             d.rect(PORT_X, Y - 14f, 110f, 28f, fill = 0xFF39414C.toInt(), stroke = Palette.HULL_EDGE)
             d.text(700f, Layout.H - 12f, name, color, 11f, Align.CENTER, bold = true)
             return

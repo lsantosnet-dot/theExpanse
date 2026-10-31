@@ -67,7 +67,7 @@ class ContentTest {
     fun orbitInsideThePlanetIsRejected() {
         val bad = text("calice").replace("\"raioOrbita\": 3.2e8", "\"raioOrbita\": 5.0e7")
         val v = Validator.validate(Decoder.decode(bad).pack!!, physics = false)
-        assertTrue(v.errors.any { it.contains("dentro ou colada no planeta") }, v.errors.toString())
+        assertTrue(v.errors.any { it.contains("dentro ou colada no corpo central") }, v.errors.toString())
     }
 
     @Test

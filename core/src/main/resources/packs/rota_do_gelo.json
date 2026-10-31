@@ -1,0 +1,110 @@
+{
+  "formato": 1,
+  "id": "rota_do_gelo",
+  "titulo": "Rota do Gelo (Sistema Solar)",
+  "resumo": "O Sistema Solar de verdade: órbitas elípticas, luas e gravidade de vários corpos. Leve gelo de Ceres a Marte, com escolta ou sem ela, e encare corsários, mísseis e abordagens.",
+  "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "mercador"},
+  "escalaTempo": 1440,
+  "planeta": {"nome": "Sol", "tipo": "estrela", "gm": 1.32712440018e20, "raio": 6.957e8},
+  "facoes": [
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
+    {"id": "corsarios", "nome": "Corsários da Gralha", "cor": "#C9A06A", "estilo": "generico"},
+    {"id": "natural", "nome": "Corpos naturais", "cor": "#8A95A8", "estilo": "generico"}
+  ],
+  "corpos": [
+    {"id": "terra", "nome": "Terra", "curto": "Terra", "tipo": "planeta", "faccao": "natural", "raioOrbita": 1.495978707e11, "excentricidade": 0.0167, "argPeriapse": 1.7967, "fase": 6.2399, "gm": 3.986004418e14, "raio": 6.371e6, "cor": "#4F8FE8"},
+    {"id": "lua", "nome": "Lua", "curto": "Lua", "tipo": "planeta", "faccao": "natural", "pai": "terra", "raioOrbita": 3.844e8, "excentricidade": 0.0549, "fase": 2.0, "gm": 4.9048e12, "raio": 1.7374e6, "cor": "#B9B9B0"},
+    {"id": "marte", "nome": "Marte", "curto": "Marte", "tipo": "planeta", "faccao": "natural", "raioOrbita": 2.279392e11, "excentricidade": 0.0934, "argPeriapse": 5.865, "fase": 0.338, "gm": 4.282837e13, "raio": 3.3895e6, "cor": "#C8603A"},
+    {"id": "ceres", "nome": "Ceres", "curto": "Ceres", "tipo": "planeta", "faccao": "natural", "raioOrbita": 4.1405e11, "excentricidade": 0.0758, "argPeriapse": 2.686, "fase": 3.5, "gm": 6.2628e10, "raio": 4.73e5, "cor": "#A39E94"},
+    {"id": "jupiter", "nome": "Júpiter", "curto": "Júpiter", "tipo": "planeta", "faccao": "natural", "raioOrbita": 7.785e11, "excentricidade": 0.0489, "argPeriapse": 0.257, "fase": 0.343, "gm": 1.26686534e17, "raio": 6.9911e7, "cor": "#D9B48A"},
+    {"id": "ganimedes", "nome": "Ganimedes", "curto": "Ganimedes", "tipo": "planeta", "faccao": "natural", "pai": "jupiter", "raioOrbita": 1.0704e9, "excentricidade": 0.0013, "fase": 1.0, "gm": 9.887e12, "raio": 2.634e6, "cor": "#9C9488"},
+
+    {"id": "estacao_meridiano", "nome": "Estação Meridiano", "curto": "Meridiano", "tipo": "estacao", "faccao": "coalizao", "pai": "terra", "raioOrbita": 4.2e7, "fase": 0.4, "tamanho": 150},
+    {"id": "base_selene", "nome": "Base Selene", "curto": "Selene", "tipo": "estacao", "faccao": "coalizao", "pai": "lua", "raioOrbita": 2.6e6, "fase": 1.1, "tamanho": 120},
+    {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Ares", "tipo": "estacao", "faccao": "federacao", "pai": "marte", "raioOrbita": 9.4e6, "fase": 2.2, "tamanho": 150},
+    {"id": "porto_ceres", "nome": "Porto Ceres", "curto": "P. Ceres", "tipo": "estacao", "faccao": "liga", "pai": "ceres", "raioOrbita": 1.5e6, "fase": 0.2, "tamanho": 150},
+    {"id": "entreposto_ganimedes", "nome": "Entreposto Ganimedes", "curto": "Entreposto", "tipo": "estacao", "faccao": "liga", "pai": "ganimedes", "raioOrbita": 6.5e6, "fase": 0.8, "tamanho": 130},
+
+    {"id": "cruzador_aurora", "nome": "Cruzador Aurora", "curto": "Aurora", "tipo": "nave", "faccao": "federacao", "pai": "ceres", "raioOrbita": 2.2e6, "fase": 1.0, "tamanho": 180, "atracavel": false, "misseis": 4, "despistadores": 2, "chanceInterceptar": 0.6, "aceleracaoMax": 6.0},
+    {"id": "gralha", "nome": "Corsário Gralha", "curto": "Gralha", "tipo": "nave", "faccao": "corsarios", "pai": "ceres", "raioOrbita": 3.0e6, "fase": 2.0, "tamanho": 70, "atracavel": false, "oculto": true, "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "defesa": 0.35, "aceleracaoMax": 8.0}
+  ],
+  "nave": {"nome": "Garça de Gelo", "massaSeca": 240000, "carga": 30000, "combustivel": 90000, "nomeCarga": "30 t de gelo d'água", "perto": "porto_ceres", "altitude": 30000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 9.8, "velocidadeExaustao": 1.2e7},
+  "creditos": 600,
+  "reputacao": {"coalizao": 0, "federacao": 5, "liga": 15, "corsarios": -50, "natural": 0},
+  "personagens": [
+    {"id": "cap_ruiz", "nome": "Capitã Ruiz", "papel": "comandante do Cruzador Aurora", "faccao": "federacao"},
+    {"id": "sorin", "nome": "Sorin", "papel": "capitã da Gralha", "faccao": "corsarios"}
+  ],
+  "dialogos": [
+    {
+      "id": "d_escolta", "personagem": "cap_ruiz",
+      "texto": "“Cargueiro Garça de Gelo, aqui é a Capitã Ruiz, do Cruzador Aurora. Há corsários na rota para Marte. Por trezentos créditos eu acompanho você até o Arsenal Ares.”",
+      "escolhas": [
+        {"texto": "Contratar a escolta do Cruzador Aurora", "detalhe": "300 créditos. O cruzador acompanha você, intercepta mísseis e ataca piratas. Federação +5, Cinturão -2.",
+         "se": {"tipo": "creditos", "min": 300}, "bloqueio": "Você não tem 300 créditos.",
+         "efeitos": [{"tipo": "creditos", "delta": -300}, {"tipo": "reputacao", "faccao": "federacao", "delta": 5}, {"tipo": "reputacao", "faccao": "liga", "delta": -2},
+                     {"tipo": "ia", "corpo": "cruzador_aurora", "comportamento": "escoltar"}, {"tipo": "flag", "nome": "escolta"},
+                     {"tipo": "mensagem", "texto": "O Cruzador Aurora assume a escolta."}]},
+        {"texto": "Seguir sozinho", "detalhe": "Sem escolta. Mais barato, mais arriscado.", "efeitos": [{"tipo": "flag", "nome": "sozinho"}]}
+      ]
+    },
+    {
+      "id": "d_pirata", "personagem": "sorin",
+      "texto": "“Garça de Gelo, aqui é a Gralha. Estamos a um passo de abordar. Largue o gelo, ou pague o pedágio, ou levamos nós.”",
+      "escolhas": [
+        {"texto": "Pagar o pedágio", "detalhe": "400 créditos. Os corsários vão embora.", "se": {"tipo": "creditos", "min": 400}, "bloqueio": "Você não tem 400 créditos.",
+         "efeitos": [{"tipo": "creditos", "delta": -400}, {"tipo": "flag", "nome": "pagou"}, {"tipo": "agendar", "bloco": "b_gralha_vai_embora", "segundos": 20},
+                     {"tipo": "mensagem", "texto": "Pedágio pago. A Gralha começa a se afastar."}]},
+        {"texto": "Resistir", "detalhe": "Chance de repelir: 30% sozinho, 75% com escolta. Se falhar, a carga é apreendida.",
+         "efeitos": [
+           {"tipo": "se", "condicao": {"tipo": "flag", "nome": "escolta"},
+            "entao": [{"tipo": "sorteio", "chance": {"base": 0.75},
+                       "sucesso": [{"tipo": "executar", "bloco": "b_repelido"}], "falha": [{"tipo": "executar", "bloco": "b_apreendido"}]}],
+            "senao": [{"tipo": "sorteio", "chance": {"base": 0.30},
+                       "sucesso": [{"tipo": "executar", "bloco": "b_repelido"}], "falha": [{"tipo": "executar", "bloco": "b_apreendido"}]}]}
+         ]}
+      ]
+    }
+  ],
+  "blocos": [
+    {"id": "b_gralha_vai_embora", "efeitos": [{"tipo": "destruir_corpo", "corpo": "gralha", "explosao": false}, {"tipo": "mensagem", "texto": "A Gralha desapareceu do radar."}]},
+    {"id": "b_repelido", "efeitos": [{"tipo": "destruir_corpo", "corpo": "gralha"}, {"tipo": "reputacao", "faccao": "liga", "delta": 3}, {"tipo": "flag", "nome": "repeliu"}, {"tipo": "mensagem", "texto": "Os corsários foram repelidos!"}]},
+    {"id": "b_apreendido", "efeitos": [{"tipo": "perder_carga"}, {"tipo": "missao", "id": "m_gelo", "estado": "falhou"}, {"tipo": "final", "id": "apreendido"}]}
+  ],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_escolta"}, {"tipo": "mensagem", "texto": "Missão: levar 30 t de gelo de Ceres ao Arsenal Ares, em Marte."}]},
+    {"id": "r_emboscada", "quando": {"tipo": "tempo", "depoisDe": 5400},
+     "entao": [{"tipo": "emboscar", "corpo": "gralha", "distancia": 25000}, {"tipo": "ia", "corpo": "gralha", "comportamento": "abordar"},
+               {"tipo": "mensagem", "texto": "CONTATO HOSTIL: o Corsário Gralha surgiu a 25 km!"}, {"tipo": "noticia", "texto": "Corsários atacam comboio de gelo perto de Ceres."}]},
+    {"id": "r_abordado", "quando": {"tipo": "abordado", "corpo": "gralha"}, "entao": [{"tipo": "dialogo", "id": "d_pirata"}]},
+    {"id": "r_escolta_ajudou", "quando": {"tipo": "escolta_interceptou"}, "repetir": true, "entao": [{"tipo": "reputacao", "faccao": "federacao", "delta": 1}]},
+    {"id": "r_dias", "quando": {"tipo": "a_cada", "segundos": 172800}, "entao": [{"tipo": "contador", "nome": "dias", "delta": 2}, {"tipo": "mensagem", "texto": "A viagem segue. Dias de missão: 2 a mais."}]},
+    {"id": "r_casco", "quando": {"tipo": "casco_abaixo", "pct": 40}, "entao": [{"tipo": "mensagem", "texto": "ALERTA: casco abaixo de 40%!"}]},
+    {"id": "r_entrega_pagou", "quando": {"tipo": "atracar", "local": "arsenal_ares"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "flag", "nome": "pagou"}]},
+     "entao": [{"tipo": "creditos", "delta": 2200}, {"tipo": "reputacao", "faccao": "federacao", "delta": 10}, {"tipo": "missao", "id": "m_gelo", "estado": "concluida"}, {"tipo": "final", "id": "entregou_pagou"}]},
+    {"id": "r_entrega_repeliu", "quando": {"tipo": "atracar", "local": "arsenal_ares"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "flag", "nome": "repeliu"}]},
+     "entao": [{"tipo": "creditos", "delta": 2200}, {"tipo": "reputacao", "faccao": "federacao", "delta": 15}, {"tipo": "missao", "id": "m_gelo", "estado": "concluida"}, {"tipo": "final", "id": "entregou_repeliu"}]},
+    {"id": "r_entrega_limpa", "quando": {"tipo": "atracar", "local": "arsenal_ares"},
+     "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "pagou"}}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "repeliu"}}]},
+     "entao": [{"tipo": "creditos", "delta": 2200}, {"tipo": "reputacao", "faccao": "federacao", "delta": 10}, {"tipo": "missao", "id": "m_gelo", "estado": "concluida"}, {"tipo": "final", "id": "entregou"}]},
+    {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_gelo", "estado": "falhou"}, {"tipo": "final", "id": "destruido"}]}
+  ],
+  "missoes": [
+    {"id": "m_gelo", "titulo": "Gelo para Marte", "texto": "Levar 30 t de gelo d'água de Ceres ao Arsenal Ares, em órbita de Marte. Corsários rondam a rota.", "inicial": true}
+  ],
+  "finais": [
+    {"id": "entregou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Comboio de gelo chega a Marte sem incidentes; Arsenal Ares paga em dia."},
+    {"id": "entregou_pagou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador paga pedágio a corsários e entrega o gelo em Marte; Federação pede escoltas permanentes."},
+    {"id": "entregou_repeliu", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador repele corsários da Gralha perto de Ceres e entrega o gelo em Marte."},
+    {"id": "apreendido", "titulo": "CARGA PERDIDA", "tipo": "derrota", "manchete": "Corsários da Gralha abordam cargueiro perto de Ceres e levam o gelo; Liga exige patrulhas."},
+    {"id": "destruido", "titulo": "NAVE DESTRUÍDA", "tipo": "derrota", "manchete": "Cargueiro de gelo é destruído entre Ceres e Marte; origem do ataque ainda é incerta."}
+  ],
+  "noticias": [
+    "Preço do gelo dispara em Marte; Federação aceita pagar entregas independentes.",
+    "Coalizão e Federação disputam a rota Ceres–Marte.",
+    "Corsários da Gralha são vistos perto de Ceres."
+  ]
+}

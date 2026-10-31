@@ -1,7 +1,7 @@
 package com.theexpanse.content
 
 /** Tipos de corpo no mapa. Estação e destroço podem permitir atracação; nave é só um ponto móvel. */
-enum class BodyKind(val key: String) { STATION("estacao"), SHIP("nave"), WRECK("destroco") }
+enum class BodyKind(val key: String) { STATION("estacao"), SHIP("nave"), WRECK("destroco"), PLANET("planeta") }
 
 /** Desenho do casco dos cruzadores de uma facção. */
 enum class HullStyle(val key: String) { TERRAN("terrano"), MARTIAN("marciano"), BELT("cinturao"), GENERIC("generico") }
@@ -13,19 +13,29 @@ enum class RoleKind(val key: String) { MERCHANT("mercador"), MILITARY("militar")
 
 class RoleDef(val kind: RoleKind, val factionId: String?)
 
-class PlanetDef(val name: String, val gm: Double, val radius: Double)
+/** O corpo central do sistema (um planeta fictício ou o Sol). [star] desenha uma estrela em vez de um planeta. */
+class PlanetDef(val name: String, val gm: Double, val radius: Double, val star: Boolean = false)
 
 class BodyDef(
     val id: String, val name: String, val shortName: String, val factionId: String,
     val kind: BodyKind, val orbitRadius: Double, val phase: Double, val size: Double, val dockable: Boolean,
     /** Armas de uma nave hostil: mísseis, despistadores e a chance de cada despistador funcionar. */
     val missiles: Int = 4, val decoys: Int = 2, val decoyChance: Double = 0.4,
+    /** Órbita kepleriana (2D) em torno do [parentId] (ou do corpo central): excentricidade e argumento do periapse. */
+    val parentId: String? = null, val eccentricity: Double = 0.0, val periapsis: Double = 0.0,
+    /** Massa (GM) e raio do corpo: planetas e luas puxam a nave e destroem quem encosta. */
+    val gm: Double = 0.0, val radius: Double = 0.0, val colorArgb: Int? = null,
+    /** Escondido até um efeito revelá-lo; resistência a abordagens (0 a 1); chance de uma escolta interceptar um míssil. */
+    val hidden: Boolean = false, val defense: Double = 0.4, val interceptChance: Double = 0.5,
+    /** Aceleração máxima de uma nave controlada pelo computador (m/s²). */
+    val maxAccel: Double = 3.0,
 )
 
 class ShipDef(
     val name: String, val dryMass: Double, val cargoMass: Double, val fuelMass: Double,
     val startNear: String, val startAltitude: Double, val targetId: String?, val cargoName: String,
     val hull: Double = 100.0, val missiles: Int = 0, val decoys: Int = 4, val decoyChance: Double = 0.5,
+    val maxAccel: Double = 6.0, val exhaustVelocity: Double = 8.0e5,
 )
 
 class ObjectDef(val id: String, val name: String, val mass: Double)
@@ -46,6 +56,8 @@ class ChoiceDef(
 class RuleDef(val id: String, val trigger: Trigger, val condition: Cond?, val effects: List<Effect>, val once: Boolean)
 class DeductionDef(val id: String, val requires: List<String>, val text: String, val effects: List<Effect>, val auto: Boolean)
 class MissionDef(val id: String, val title: String, val text: String, val initial: Boolean)
+/** Sequência de efeitos nomeada: pode ser executada ou agendada por id (e por isso sobrevive ao salvamento). */
+class BlockDef(val id: String, val effects: List<Effect>)
 class SuspectDef(val id: String, val name: String, val text: String)
 class AccusationDef(val id: String, val suspectId: String, val condition: Cond?, val effects: List<Effect>)
 
@@ -60,8 +72,9 @@ class ContentPackage(
     val objects: List<ObjectDef>, val facts: List<FactDef>, val characters: List<CharacterDef>,
     val dialogues: List<DialogueDef>, val rules: List<RuleDef>, val deductions: List<DeductionDef>,
     val missions: List<MissionDef>, val suspects: List<SuspectDef>, val accusations: List<AccusationDef>,
-    val endings: List<EndingDef>, val news: List<String>,
+    val endings: List<EndingDef>, val news: List<String>, val blocks: List<BlockDef> = emptyList(),
 ) {
+    fun block(id: String) = blocks.firstOrNull { it.id == id }
     fun faction(id: String) = factions.firstOrNull { it.id == id }
     fun body(id: String) = bodies.firstOrNull { it.id == id }
     fun dialogue(id: String) = dialogues.firstOrNull { it.id == id }
@@ -83,6 +96,21 @@ sealed interface Trigger {
     class Approach(val body: String, val distBelow: Double, val speedBelow: Double) : Trigger
     object Destroyed : Trigger
     class BodyDestroyed(val body: String) : Trigger
+    /** O jogador foi abordado por uma nave em modo abordar. */
+    class Boarded(val body: String?) : Trigger
+    /** O jogador tentou abordar uma nave; [success] null = qualquer resultado. */
+    class BoardingResult(val body: String?, val success: Boolean?) : Trigger
+    class HullBelow(val pct: Double) : Trigger
+    class FuelBelow(val pct: Double) : Trigger
+    /** Periódico: dispara a cada [seconds] de missão. */
+    class Every(val seconds: Double) : Trigger
+    class Reputation(val faction: String, val min: Int?, val max: Int?) : Trigger
+    class ObjectGained(val obj: String) : Trigger
+    class DeductionMade(val id: String) : Trigger
+    class MissionChanged(val id: String, val state: String?) : Trigger
+    object EscortIntercepted : Trigger
+    /** Um míssil foi lançado: [by] é "inimigo", "jogador" ou null (qualquer). */
+    class MissileLaunched(val by: String?) : Trigger
 }
 
 sealed interface Cond {
@@ -98,6 +126,15 @@ sealed interface Cond {
     class All(val items: List<Cond>) : Cond
     class Any(val items: List<Cond>) : Cond
     class Not(val item: Cond) : Cond
+    class Counter(val name: String, val min: Int?, val max: Int?) : Cond
+    class Hull(val min: Double?, val max: Double?) : Cond
+    class Fuel(val min: Double?, val max: Double?) : Cond
+    class DockedAt(val place: String?) : Cond
+    class BodyAlive(val body: String, val alive: Boolean) : Cond
+    class Distance(val from: String, val to: String, val below: Double?, val above: Double?) : Cond
+    class TimeAfter(val seconds: Double) : Cond
+    class Random(val chance: Double) : Cond
+    class TargetIs(val body: String) : Cond
 }
 
 /** Chance de sucesso de um sorteio: base + reputação × por, limitada a [min, max]. */
@@ -119,7 +156,21 @@ sealed interface Effect {
     object LoseCargo : Effect
     class Mission(val id: String, val state: String) : Effect
     class Roll(val chance: Chance, val success: List<Effect>, val failure: List<Effect>) : Effect
+    /** Contador numérico da história: soma [delta] ou, se [set] não for nulo, define o valor. */
+    class Counter(val name: String, val delta: Int, val set: Int?) : Effect
+    class If(val cond: Cond, val then: List<Effect>, val otherwise: List<Effect>) : Effect
+    class Run(val block: String) : Effect
+    class Schedule(val block: String, val seconds: Double) : Effect
+    /** Faz uma nave surgir perto do jogador (a [distance] m, mesma velocidade). */
+    class Ambush(val body: String, val distance: Double) : Effect
+    class RevealBody(val body: String) : Effect
+    class ConcealBody(val body: String) : Effect
+    class DestroyBody(val body: String, val explode: Boolean) : Effect
+    /** Muda o casco ou o combustível em % da capacidade. */
+    class Hull(val deltaPct: Double) : Effect
+    class Fuel(val deltaPct: Double) : Effect
+    class Ammo(val missiles: Int, val decoys: Int) : Effect
 }
 
 /** Comportamento de uma nave: perseguir, atacar (persegue e dispara mísseis) ou orbitar (deriva sem empuxo). */
-enum class AiMode(val key: String) { PURSUE("perseguir"), ATTACK("atacar"), ORBIT("orbitar") }
+enum class AiMode(val key: String) { PURSUE("perseguir"), ATTACK("atacar"), ORBIT("orbitar"), ESCORT("escoltar"), BOARD("abordar") }

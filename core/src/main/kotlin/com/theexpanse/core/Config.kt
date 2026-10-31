@@ -35,6 +35,11 @@ object Config {
     const val ENEMY_FIRE_RANGE = 80_000.0
     const val ENEMY_COOLDOWN = 30.0
     const val ATTACK_STOP = 40_000.0
+    const val ESCORT_DISTANCE = 2_500.0
+    const val ESCORT_INTERCEPT_RANGE = 8_000.0
+    const val BOARD_STOP = 150.0
+    const val BOARD_RANGE = 1_000.0
+    const val BOARD_SPEED = 12.0
     const val MISSILE_DAMAGE_MIN = 45.0
     const val MISSILE_DAMAGE_MAX = 80.0
 }

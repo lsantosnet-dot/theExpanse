@@ -31,7 +31,7 @@ class EtaEstimator {
 
     val calculating: Boolean get() = work != null
 
-    fun update(sim: Simulation, clock: Double, budgetSteps: Int = 12_000) {
+    fun update(sim: Simulation, clock: Double, budgetSteps: Int = 20_000) {
         val k = "${sim.target.id}|${sim.thrustPct}|${sim.status}|${sim.autopilot}"
         if (sim.status != Status.FLYING || !sim.alive(sim.target)) {
             kind = Kind.NONE; work = null; key = k
@@ -53,18 +53,23 @@ class EtaEstimator {
             work = c
             workT0 = c.time
             workSteps = 0
+            limitCache = 0.0
         }
         val c = work ?: return
         var n = 0
-        while (n++ < budgetSteps && c.status == Status.FLYING && c.time - workT0 < LIMIT) c.step(Config.SUBSTEP)
+        val limit = limitFor(c)
+        while (n++ < budgetSteps && c.status == Status.FLYING && c.time - workT0 < limit) c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
         if (c.status == Status.DOCKED) {
             kind = Kind.ARRIVAL; seconds = c.time - workT0; startedAt = workT0; work = null
-        } else if (c.status != Status.FLYING || c.time - workT0 >= LIMIT) {
+        } else if (c.status != Status.FLYING || c.time - workT0 >= limit) {
             kind = Kind.FAR; work = null
         }
     }
 
-    companion object {
-        const val LIMIT = 90_000.0
+    private var limitCache = 0.0
+
+    private fun limitFor(c: Simulation): Double {
+        if (limitCache == 0.0) limitCache = maxOf(90_000.0, 4.0 * 2.0 * kotlin.math.sqrt(c.distanceTo() / (c.accelLimit * 0.85)))
+        return limitCache
     }
 }

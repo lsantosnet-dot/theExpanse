@@ -10,6 +10,7 @@ import com.theexpanse.content.EndingDef
 import com.theexpanse.content.RuleDef
 import com.theexpanse.content.Trigger
 import com.theexpanse.core.Body
+import com.theexpanse.core.BoardCheck
 import com.theexpanse.core.FireResult
 import com.theexpanse.core.Owner
 import com.theexpanse.core.SimEvent
@@ -41,6 +42,13 @@ sealed interface GameEvent {
     class DialogueEnd(val id: String) : GameEvent
     class FactRevealed(val id: String) : GameEvent
     class BodyDestroyed(val id: String) : GameEvent
+    class Boarded(val id: String) : GameEvent
+    class BoardingResult(val id: String, val success: Boolean) : GameEvent
+    object EscortIntercepted : GameEvent
+    class Launched(val owner: Owner) : GameEvent
+    class ObjectGained(val id: String) : GameEvent
+    class DeductionMade(val id: String) : GameEvent
+    class MissionChanged(val id: String, val state: String) : GameEvent
 }
 
 /** Estado da história: o que o jogador sabe, tem, fez e quanto vale cada coisa. */
@@ -56,6 +64,9 @@ class StoryState(pack: ContentPackage, seed: Long) {
     var credits = pack.credits
     val fired = HashSet<String>()
     val armed = HashMap<String, Boolean>()
+    val counters = HashMap<String, Int>()
+    /** Blocos agendados: (instante de missão, id do bloco). */
+    val scheduled = ArrayList<Pair<Double, String>>()
     var ending: String? = null
     var continued = false
     var dialogue: String? = null
@@ -143,9 +154,24 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 queue.add(GameEvent.BodyDestroyed(e.id))
             }
             is SimEvent.Hit -> addMessage("IMPACTO! Casco em ${sim.ship.hull.toInt() * 100 / sim.ship.hullMax.toInt().coerceAtLeast(1)}%.")
-            is SimEvent.Launched ->
+            is SimEvent.Launched -> {
+                queue.add(GameEvent.Launched(e.owner))
                 if (e.owner == Owner.ENEMY) addMessage("ALERTA: míssil lançado por ${world.body(e.launcher)?.name ?: e.launcher}!")
                 else addMessage("Míssil disparado.")
+            }
+            is SimEvent.Boarded -> {
+                addMessage("ABORDAGEM! ${world.body(e.by)?.name ?: e.by} abordou a sua nave.")
+                queue.add(GameEvent.Boarded(e.by))
+            }
+            is SimEvent.BoardingResult -> {
+                val n = world.body(e.id)?.name ?: e.id
+                addMessage(if (e.success) "Abordagem bem-sucedida: $n capturada." else "A abordagem de $n falhou! Dano no casco.")
+                queue.add(GameEvent.BoardingResult(e.id, e.success))
+            }
+            is SimEvent.EscortIntercepted -> {
+                addMessage("A escolta ${world.body(e.escort)?.name ?: e.escort} interceptou um míssil!")
+                queue.add(GameEvent.EscortIntercepted)
+            }
             is SimEvent.DecoyResult ->
                 addMessage(if (e.diverted == e.total) "Despistador funcionou: ${e.diverted} míssil(is) desviado(s)!"
                 else if (e.diverted == 0) "O despistador falhou! O míssil continua vindo."
@@ -173,9 +199,24 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         drainSim()
     }
 
+    /** Tenta abordar a nave selecionada (só no papel militar, de perto e devagar). */
+    fun board() {
+        when (sim.boardTarget()) {
+            BoardCheck.OK -> {}
+            BoardCheck.NOT_MILITARY -> addMessage("Só um navio militar pode abordar.")
+            BoardCheck.NO_TARGET -> addMessage("Selecione uma nave como alvo.")
+            BoardCheck.FRIENDLY -> addMessage("Não é possível abordar um aliado.")
+            BoardCheck.TOO_FAR -> addMessage("Aproxime-se a menos de 1 km para abordar.")
+            BoardCheck.TOO_FAST -> addMessage("Reduza a velocidade relativa (abaixo de 12 m/s).")
+        }
+        drainSim()
+        pump()
+    }
+
     // ---- gatilhos ----
 
     private fun pump() {
+        runScheduled()
         var guard = 0
         while (guard++ < 1000) {
             val ev = queue.removeFirstOrNull()
@@ -185,9 +226,19 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
             }
             var fired = false
             for (r in pack.rules) if (pollRule(r)) fired = true
+            if (runScheduled()) fired = true
             if (!fired) break
         }
         runAutoDeductions()
+    }
+
+    private fun runScheduled(): Boolean {
+        if (story.scheduled.isEmpty()) return false
+        val due = story.scheduled.filter { it.first <= sim.time }
+        if (due.isEmpty()) return false
+        story.scheduled.removeAll(due)
+        for ((_, id) in due) pack.block(id)?.let { runEffects(it.effects) }
+        return true
     }
 
     private fun matches(t: Trigger, ev: GameEvent): Boolean = when (t) {
@@ -195,6 +246,13 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         is Trigger.Dock -> ev is GameEvent.Dock && ev.body.id == t.place
         Trigger.Destroyed -> ev is GameEvent.Destroyed
         is Trigger.BodyDestroyed -> ev is GameEvent.BodyDestroyed && ev.id == t.body
+        is Trigger.Boarded -> ev is GameEvent.Boarded && (t.body == null || ev.id == t.body)
+        is Trigger.BoardingResult -> ev is GameEvent.BoardingResult && (t.body == null || ev.id == t.body) && (t.success == null || ev.success == t.success)
+        Trigger.EscortIntercepted -> ev is GameEvent.EscortIntercepted
+        is Trigger.MissileLaunched -> ev is GameEvent.Launched && (t.by == null || (t.by == "inimigo") == (ev.owner == Owner.ENEMY))
+        is Trigger.ObjectGained -> ev is GameEvent.ObjectGained && ev.id == t.obj
+        is Trigger.DeductionMade -> ev is GameEvent.DeductionMade && ev.id == t.id
+        is Trigger.MissionChanged -> ev is GameEvent.MissionChanged && ev.id == t.id && (t.state == null || ev.state == t.state)
         is Trigger.DialogueEnd -> ev is GameEvent.DialogueEnd && ev.id == t.dialogue
         is Trigger.FactRevealed -> ev is GameEvent.FactRevealed && ev.id == t.fact
         else -> false
@@ -222,9 +280,22 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 }
             }
             is Trigger.Approach -> world.body(t.body)?.let { sim.distanceTo(it) < t.distBelow && sim.relativeVelocity(it).length < t.speedBelow } ?: false
+            is Trigger.HullBelow -> sim.ship.hull / sim.ship.hullMax * 100.0 < t.pct
+            is Trigger.FuelBelow -> sim.ship.fuel / sim.ship.fuelCapacity * 100.0 < t.pct
+            is Trigger.Reputation -> (story.reputation[t.faction] ?: 0).let { v -> (t.min == null || v >= t.min) && (t.max == null || v <= t.max) }
+            is Trigger.Every -> {
+                val k = (sim.time / t.seconds).toInt()
+                val key = "every:${r.id}"
+                val last = story.counters[key] ?: 0
+                if (k > last) { story.counters[key] = k; true } else false
+            }
             else -> return false
         }
         val now = active && (r.condition == null || eval(r.condition))
+        if (t is Trigger.Every) {
+            if (now) { runEffects(r.effects); return true }
+            return false
+        }
         if (r.once) {
             if (now && r.id !in story.fired) {
                 story.fired.add(r.id)
@@ -257,6 +328,19 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         is Cond.All -> c.items.all { eval(it) }
         is Cond.Any -> c.items.any { eval(it) }
         is Cond.Not -> !eval(c.item)
+        is Cond.Counter -> (story.counters[c.name] ?: 0).let { v -> (c.min == null || v >= c.min) && (c.max == null || v <= c.max) }
+        is Cond.Hull -> (sim.ship.hull / sim.ship.hullMax * 100.0).let { v -> (c.min == null || v >= c.min) && (c.max == null || v <= c.max) }
+        is Cond.Fuel -> (sim.ship.fuel / sim.ship.fuelCapacity * 100.0).let { v -> (c.min == null || v >= c.min) && (c.max == null || v <= c.max) }
+        is Cond.DockedAt -> sim.status == com.theexpanse.core.Status.DOCKED && (c.place == null || sim.dockedAt?.id == c.place)
+        is Cond.BodyAlive -> (world.body(c.body)?.let { sim.alive(it) } ?: false) == c.alive
+        is Cond.Distance -> {
+            val a = if (c.from == "jogador") sim.ship.pos else world.body(c.from)?.let { sim.position(it) }
+            val b = world.body(c.to)?.let { sim.position(it) }
+            if (a == null || b == null) false else (a - b).length.let { d -> (c.below == null || d < c.below) && (c.above == null || d > c.above) }
+        }
+        is Cond.TimeAfter -> sim.time >= c.seconds
+        is Cond.Random -> story.nextDouble() < c.chance
+        is Cond.TargetIs -> sim.target.id == c.body
     }
 
     fun chanceOf(c: Chance): Double {
@@ -284,6 +368,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 val o = pack.obj(e.obj)
                 sim.ship.extra += o?.mass ?: 0.0
                 addMessage("Você recebeu: ${o?.name ?: e.obj}.")
+                queue.add(GameEvent.ObjectGained(e.obj))
             }
             is Effect.TakeObject -> if (story.objects.remove(e.obj)) sim.ship.extra = (sim.ship.extra - (pack.obj(e.obj)?.mass ?: 0.0)).coerceAtLeast(0.0)
             is Effect.Reveal -> if (story.facts.add(e.fact)) {
@@ -303,7 +388,21 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 if (sim.ship.cargo > 0) addMessage("A carga foi apreendida.")
                 sim.ship.cargo = 0.0
             }
-            is Effect.Mission -> story.missions[e.id] = e.state
+            is Effect.Mission -> if (story.missions[e.id] != e.state) {
+                story.missions[e.id] = e.state
+                queue.add(GameEvent.MissionChanged(e.id, e.state))
+            }
+            is Effect.Counter -> story.counters[e.name] = (e.set ?: ((story.counters[e.name] ?: 0) + e.delta))
+            is Effect.If -> runEffects(if (eval(e.cond)) e.then else e.otherwise)
+            is Effect.Run -> pack.block(e.block)?.let { runEffects(it.effects) }
+            is Effect.Schedule -> story.scheduled.add((sim.time + e.seconds) to e.block)
+            is Effect.Ambush -> world.body(e.body)?.let { sim.ambush(it, e.distance) }
+            is Effect.RevealBody -> world.body(e.body)?.let { sim.reveal(it) }
+            is Effect.ConcealBody -> world.body(e.body)?.let { sim.conceal(it) }
+            is Effect.DestroyBody -> world.body(e.body)?.let { sim.destroyBody(it, e.explode); drainSim() }
+            is Effect.Hull -> sim.ship.hull = (sim.ship.hull + e.deltaPct / 100.0 * sim.ship.hullMax).coerceIn(1.0, sim.ship.hullMax)
+            is Effect.Fuel -> sim.ship.fuel = (sim.ship.fuel + e.deltaPct / 100.0 * sim.ship.fuelCapacity).coerceIn(0.0, sim.ship.fuelCapacity)
+            is Effect.Ammo -> { sim.ship.missiles = (sim.ship.missiles + e.missiles).coerceAtLeast(0); sim.ship.decoys = (sim.ship.decoys + e.decoys).coerceAtLeast(0) }
             is Effect.Roll -> {
                 val ok = story.nextDouble() < chanceOf(e.chance)
                 runEffects(if (ok) e.success else e.failure)
@@ -363,6 +462,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         if (!story.facts.containsAll(d.requires)) return null
         story.deduced.add(d.id)
         addMessage("Dedução: ${d.text}")
+        queue.add(GameEvent.DeductionMade(d.id))
         runEffects(d.effects)
         pump()
         return d.text
@@ -401,6 +501,13 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         pack.character(characterId)?.dialogue?.let { openDialogue(it) }
     }
 
+    /** Uma linha para a lista de salvamentos. */
+    fun summary(): String {
+        val m = activeMission?.title ?: if (ended) (ending?.title ?: "fim") else pack.title
+        val place = sim.dockedAt?.let { "atracado em ${it.shortName}" } ?: "alvo ${sim.target.shortName}"
+        return "T+ ${com.theexpanse.render.Fmt.duration(sim.time)} · $m · $place"
+    }
+
     val activeMission get() = pack.missions.firstOrNull { story.missions[it.id] == "ativa" }
 
     fun undock() {
@@ -431,6 +538,8 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         put("missoes", buildJsonObject { for ((k, v) in s.missions) put(k, v) })
         put("reputacao", buildJsonObject { for ((k, v) in s.reputation) put(k, v) })
         put("armadas", buildJsonObject { for ((k, v) in s.armed) put(k, v) })
+        put("contadores", buildJsonObject { for ((k, v) in s.counters) put(k, v) })
+        put("agendados", JsonArray(s.scheduled.map { (t, id) -> buildJsonObject { put("em", t); put("bloco", id) } }))
         put("mensagens", JsonArray(messages.takeLast(12).map { JsonPrimitive(it.text) }))
     }
 
@@ -451,6 +560,8 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         for ((k, v) in o["missoes"]!!.jsonObject) s.missions[k] = v.jsonPrimitive.content
         for ((k, v) in o["reputacao"]!!.jsonObject) s.reputation[k] = v.jsonPrimitive.int
         for ((k, v) in o["armadas"]!!.jsonObject) s.armed[k] = v.jsonPrimitive.boolean
+        o["contadores"]?.jsonObject?.forEach { (k, v) -> s.counters[k] = v.jsonPrimitive.int }
+        o["agendados"]?.jsonArray?.forEach { e -> s.scheduled.add(e.jsonObject["em"]!!.jsonPrimitive.content.toDouble() to e.jsonObject["bloco"]!!.jsonPrimitive.content) }
         story = s
         messages.clear()
         for (m in list("mensagens")) messages.add(Message(m, clock))

@@ -4,6 +4,7 @@ import com.theexpanse.core.AutopilotMode
 import com.theexpanse.core.Config
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
+import kotlin.math.sqrt
 
 enum class RouteOutcome { DOCKS, CRASHES, TIMEOUT, NOT_DOCKABLE }
 
@@ -11,29 +12,67 @@ class RouteOption(val thrustPct: Int, val outcome: RouteOutcome, val seconds: Do
     val fuelPct: Double get() = fuelUsed / fuelCapacity * 100.0
 }
 
-/** Estima viagens rodando o piloto automático de verdade numa cópia da simulação: tempo e combustível exatos. */
-object RoutePlanner {
-    fun plan(sim: Simulation, pcts: List<Int> = listOf(20, 50, 100), limit: Double = 90_000.0): List<RouteOption> {
-        return pcts.map { pct ->
-            val c = sim.copy()
-            if (c.status == Status.DOCKED) c.undock()
-            val cap = c.ship.fuelCapacity
-            if (!c.target.dockable) return@map RouteOption(pct, RouteOutcome.NOT_DOCKABLE, 0.0, 0.0, cap)
-            c.setThrust(pct)
-            c.setAutopilot(AutopilotMode.INTERCEPT)
-            val t0 = c.time
-            val f0 = c.ship.fuel
-            var minFuel = f0
-            while (c.status == Status.FLYING && c.time - t0 < limit) {
-                c.step(Config.SUBSTEP)
-                if (c.ship.fuel < minFuel) minFuel = c.ship.fuel
-            }
-            val outcome = when (c.status) {
-                Status.DOCKED -> RouteOutcome.DOCKS
-                Status.CRASHED -> RouteOutcome.CRASHES
-                else -> RouteOutcome.TIMEOUT
-            }
-            RouteOption(pct, outcome, c.time - t0, f0 - minFuel, cap)
+/**
+ * Estima viagens rodando o piloto automático de verdade em cópias da simulação, em lotes de passos (para não travar
+ * a tela nas viagens longas do Sistema Solar). Cada opção fica pronta quando a sua cópia termina.
+ */
+class RoutePlanJob(sim: Simulation, val pcts: List<Int> = listOf(20, 50, 100), private val minLimit: Double = 90_000.0) {
+    private class Run(val pct: Int, val c: Simulation, val t0: Double, val f0: Double, val limit: Double, val dockable: Boolean) {
+        var minFuel = f0
+        var result: RouteOption? = null
+    }
+
+    private val runs: List<Run> = pcts.map { pct ->
+        val c = sim.copy()
+        if (c.status == Status.DOCKED) c.undock()
+        c.setThrust(pct)
+        c.setAutopilot(AutopilotMode.INTERCEPT)
+        val limit = maxOf(minLimit, 4.0 * 2.0 * sqrt(c.distanceTo() / (c.accelLimit * 0.85)))
+        Run(pct, c, c.time, c.ship.fuel, limit, c.target.dockable).also {
+            if (!it.dockable) it.result = RouteOption(pct, RouteOutcome.NOT_DOCKABLE, 0.0, 0.0, c.ship.fuelCapacity)
         }
+    }
+
+    val options: List<RouteOption?> get() = runs.map { it.result }
+    val done: Boolean get() = runs.all { it.result != null }
+
+    /** Progresso (0..1) de uma opção. */
+    fun progress(i: Int): Float {
+        val r = runs[i]
+        if (r.result != null) return 1f
+        return ((r.c.time - r.t0) / r.limit).toFloat().coerceIn(0f, 0.99f)
+    }
+
+    /** Roda até [budget] passos no total; devolve true se terminou tudo. */
+    fun advance(budget: Int): Boolean {
+        var left = budget
+        for (r in runs) {
+            if (r.result != null) continue
+            val c = r.c
+            while (left > 0 && c.status == Status.FLYING && c.time - r.t0 < r.limit) {
+                c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
+                if (c.ship.fuel < r.minFuel) r.minFuel = c.ship.fuel
+                left--
+            }
+            if (c.status != Status.FLYING || c.time - r.t0 >= r.limit) {
+                val outcome = when (c.status) {
+                    Status.DOCKED -> RouteOutcome.DOCKS
+                    Status.CRASHED, Status.DESTROYED -> RouteOutcome.CRASHES
+                    else -> RouteOutcome.TIMEOUT
+                }
+                r.result = RouteOption(r.pct, outcome, c.time - r.t0, r.f0 - r.minFuel, c.ship.fuelCapacity)
+            }
+            if (left <= 0) break
+        }
+        return done
+    }
+}
+
+object RoutePlanner {
+    /** Versão síncrona (testes e viagens curtas). */
+    fun plan(sim: Simulation, pcts: List<Int> = listOf(20, 50, 100), minLimit: Double = 90_000.0): List<RouteOption> {
+        val job = RoutePlanJob(sim, pcts, minLimit)
+        while (!job.advance(5_000_000)) { /* continua */ }
+        return job.options.filterNotNull()
     }
 }

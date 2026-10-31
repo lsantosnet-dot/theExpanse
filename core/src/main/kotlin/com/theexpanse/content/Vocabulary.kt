@@ -24,6 +24,17 @@ object Vocabulary {
         Spec("aproximacao", "Quando a nave chega perto de um corpo e devagar (abordagem).", listOf(
             f("corpo", "id de corpo", "o outro corpo"), f("distMenorQue", "número (m)", "distância máxima"), f("velMenorQue", "número (m/s)", "velocidade relativa máxima"),
         )),
+        Spec("abordado", "Quando uma nave em modo abordar chega ao jogador e o aborda.", listOf(f("corpo", "id de corpo", "qual nave (opcional)", false))),
+        Spec("abordagem", "Quando o jogador (militar) tenta abordar uma nave.", listOf(f("corpo", "id de corpo", "qual nave (opcional)", false), f("resultado", "sucesso|falha", "só esse resultado (opcional)", false))),
+        Spec("casco_abaixo", "Quando o casco cai abaixo de uma porcentagem.", listOf(f("pct", "número 0-100", "limite"))),
+        Spec("combustivel_abaixo", "Quando o combustível cai abaixo de uma porcentagem.", listOf(f("pct", "número 0-100", "limite"))),
+        Spec("a_cada", "Periodicamente, a cada tantos segundos de missão.", listOf(f("segundos", "número (s)", "intervalo"))),
+        Spec("reputacao_na_faixa", "Quando a reputação com uma facção entra numa faixa.", listOf(f("faccao", "id de facção", "qual"), f("min", "inteiro", "mínimo", false), f("max", "inteiro", "máximo", false))),
+        Spec("objeto_obtido", "Quando o jogador recebe um objeto.", listOf(f("objeto", "id de objeto", "qual"))),
+        Spec("deducao_feita", "Quando uma dedução é feita no caderno.", listOf(f("id", "id de dedução", "qual"))),
+        Spec("missao_mudou", "Quando uma missão muda de estado.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "só esse estado (opcional)", false))),
+        Spec("escolta_interceptou", "Quando uma escolta intercepta um míssil que vinha na sua direção.", emptyList()),
+        Spec("missil_lancado", "Quando um míssil é lançado.", listOf(f("por", "inimigo|jogador", "quem lançou (opcional)", false))),
         Spec("nave_destruida", "Quando a nave do jogador cai no planeta ou é destruída por mísseis.", emptyList()),
         Spec("corpo_destruido", "Quando uma nave é destruída (por exemplo, abatida por um míssil do jogador).", listOf(f("corpo", "id de corpo", "qual nave"))),
     )
@@ -40,6 +51,15 @@ object Vocabulary {
         Spec("tem_carga", "A carga do contrato ainda está a bordo.", emptyList()),
         Spec("papel", "O papel do jogador na campanha (fixo): mercador ou militar.", listOf(f("valor", "mercador|militar", "qual papel"))),
         Spec("missao", "Estado de uma missão: ativa, concluida ou falhou.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "estado"))),
+        Spec("contador", "Valor de um contador numérico da história.", listOf(f("nome", "texto", "nome do contador"), f("min", "inteiro", "mínimo", false), f("max", "inteiro", "máximo", false))),
+        Spec("casco", "Casco do jogador em % (0-100).", listOf(f("min", "número", "mínimo", false), f("max", "número", "máximo", false))),
+        Spec("combustivel", "Combustível do jogador em % (0-100).", listOf(f("min", "número", "mínimo", false), f("max", "número", "máximo", false))),
+        Spec("atracado", "A nave está atracada (em um lugar específico, se informado).", listOf(f("local", "id de corpo", "onde (opcional)", false))),
+        Spec("corpo_vivo", "Uma nave existe (ou não) no jogo.", listOf(f("corpo", "id de corpo", "qual"), f("valor", "verdadeiro/falso", "padrão: verdadeiro", false))),
+        Spec("distancia", "Distância entre dois corpos (ou do jogador a um corpo).", listOf(f("de", "\"jogador\" ou id de corpo", "origem"), f("ate", "id de corpo", "destino"), f("menorQue", "número (m)", "limite", false), f("maiorQue", "número (m)", "limite", false))),
+        Spec("tempo_maior", "O tempo de missão passou de um valor.", listOf(f("segundos", "número (s)", "tempo"))),
+        Spec("aleatorio", "Verdadeira com uma probabilidade (sorteada a cada avaliação).", listOf(f("chance", "número 0-1", "probabilidade"))),
+        Spec("alvo", "O alvo selecionado é este corpo.", listOf(f("corpo", "id de corpo", "qual"))),
         Spec("e", "Todas as condições.", listOf(f("condicoes", "lista de condições", "todas devem valer"))),
         Spec("ou", "Qualquer condição.", listOf(f("condicoes", "lista de condições", "basta uma"))),
         Spec("nao", "Nega uma condição.", listOf(f("condicao", "condição", "a negada"))),
@@ -56,10 +76,21 @@ object Vocabulary {
         Spec("dialogo", "Abre um diálogo (a simulação pausa).", listOf(f("id", "id de diálogo", "qual"))),
         Spec("noticia", "Publica uma manchete.", listOf(f("texto", "texto", "a manchete"))),
         Spec("final", "Encerra a partida com um final.", listOf(f("id", "id de final", "qual"))),
-        Spec("ia", "Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador) ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|atacar|orbitar", "o que fazer"))),
+        Spec("ia", "Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis) ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|atacar|abordar|escoltar|orbitar", "o que fazer"))),
         Spec("alvo", "Seleciona um corpo como alvo.", listOf(f("corpo", "id de corpo", "qual"))),
         Spec("perder_carga", "A carga do contrato é apreendida (a massa some).", emptyList()),
         Spec("missao", "Muda o estado de uma missão.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "novo estado"))),
+        Spec("contador", "Soma `delta` a um contador numérico ou, com `valor`, o define.", listOf(f("nome", "texto", "nome do contador"), f("delta", "inteiro", "quanto somar", false), f("valor", "inteiro", "valor a definir", false))),
+        Spec("se", "Executa efeitos conforme uma condição.", listOf(f("condicao", "condição", "a testada"), f("entao", "lista de efeitos", "se verdadeira", false), f("senao", "lista de efeitos", "se falsa", false))),
+        Spec("executar", "Executa um bloco de efeitos nomeado (de `blocos`).", listOf(f("bloco", "id de bloco", "qual"))),
+        Spec("agendar", "Executa um bloco depois de alguns segundos de missão.", listOf(f("bloco", "id de bloco", "qual"), f("segundos", "número (s)", "daqui a quanto tempo"))),
+        Spec("emboscar", "Faz uma nave surgir perto do jogador (mesma velocidade). Combine com `ia` para ela atacar ou abordar.", listOf(f("corpo", "id de corpo", "qual nave"), f("distancia", "número (m)", "a que distância (padrão 20000)", false))),
+        Spec("revelar_corpo", "Faz aparecer um corpo marcado como `oculto`.", listOf(f("corpo", "id de corpo", "qual"))),
+        Spec("ocultar_corpo", "Esconde um corpo.", listOf(f("corpo", "id de corpo", "qual"))),
+        Spec("destruir_corpo", "Remove uma nave do jogo (com explosão, por padrão).", listOf(f("corpo", "id de corpo", "qual nave"), f("explosao", "verdadeiro/falso", "padrão: verdadeiro", false))),
+        Spec("casco", "Repara ou danifica o casco, em % da capacidade.", listOf(f("delta", "número", "variação em %"))),
+        Spec("combustivel", "Abastece ou tira combustível, em % da capacidade.", listOf(f("delta", "número", "variação em %"))),
+        Spec("municao", "Soma mísseis e despistadores.", listOf(f("misseis", "inteiro", "variação", false), f("despistadores", "inteiro", "variação", false))),
         Spec("sorteio", "Sorteia entre sucesso e falha. A chance é base + reputação × por, entre min e max.", listOf(
             f("chance", "objeto {base, faccao?, por?, min?, max?}", "probabilidade (0 a 1)"),
             f("sucesso", "lista de efeitos", "se der certo", false), f("falha", "lista de efeitos", "se der errado", false),
@@ -84,6 +115,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - `{"tipo": "militar", "faccao": "id"}`: o jogador comanda o **cruzador** dessa facção, com mísseis (`nave.misseis`) e casco mais forte. Pode abater naves hostis; não dispara em naves da própria facção.
 - `escalaTempo` é quantos segundos de jogo passam por segundo real no nível "cruzeiro" do relógio (1440 = um dia de jogo por minuto real; uma viagem de 5 dias dura 5 minutos).
 - Naves de facções aparecem como **cruzadores estelares**; `estilo` escolhe o desenho (terrano, marciano, cinturao ou generico).
+- **Corpos reais**: um corpo pode orbitar outro (`pai`), com órbita elíptica (`excentricidade`, `argPeriapse`), e ter massa (`gm`) e raio (`raio`): planetas e luas puxam a nave e a destroem se ela encostar. `tipo: "planeta"` desenha uma esfera (`cor` opcional). O corpo central pode ser uma estrela (`planeta.tipo: "estrela"`; o Sol tem gm 1.32712e20 e raio 6.957e8). Em escala solar, ajuste a nave: `aceleracaoMax` (m/s²) e `velocidadeExaustao` (m/s), por exemplo 6 e 5e6.
+- **Escolta e abordagem**: `ia` com `escoltar` faz uma nave acompanhar o jogador, interceptar mísseis (`chanceInterceptar`) e atacar hostis. `ia` com `abordar` faz uma nave chegar ao jogador e abordá-lo (gatilho `abordado`). O jogador militar pode abordar uma nave de perto e devagar (gatilho `abordagem`; a chance de sucesso é 1 − `defesa` do corpo).
 - Uma nave hostil só dispara se um efeito `ia` com `atacar` a liberar. Use `corpo_destruido` para reagir quando o jogador (militar) a abater.
 
 ## Regras
@@ -102,7 +135,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "escalaTempo": 1440,
   "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
   "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB", "estilo": "terrano|marciano|cinturao|generico"}],
-  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4}],
+  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco|planeta", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4, "pai": "id", "excentricidade": 0.0, "argPeriapse": 0.0, "gm": 0, "raio": 0, "cor": "#RRGGBB", "oculto": false, "defesa": 0.4, "chanceInterceptar": 0.5, "aceleracaoMax": 3.0}],
   "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5},
   "creditos": 500, "reputacao": {"id da facção": 0},
   "objetos": [{"id": "...", "nome": "...", "massa": 40}],
@@ -115,7 +148,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "suspeitos": [{"id": "...", "nome": "...", "texto": "..."}],
   "acusacoes": [{"id": "...", "suspeito": "id", "se": condição, "efeitos": [efeitos, normalmente um final]}],
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
-  "noticias": ["manchetes iniciais"]
+  "noticias": ["manchetes iniciais"],
+  "blocos": [{"id": "...", "efeitos": [efeitos]}]
 }
 ```
 Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}` em `detalhe` mostra a chance do primeiro sorteio da escolha. Uma acusação escolhe o suspeito: vale a primeira cujo `se` seja verdadeiro (ponha a mais exigente primeiro e uma sem `se` por último).

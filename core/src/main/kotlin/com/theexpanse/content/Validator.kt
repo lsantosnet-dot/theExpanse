@@ -5,6 +5,7 @@ import com.theexpanse.core.Config
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
 import com.theexpanse.core.World
+import kotlin.math.sqrt
 
 class ValidationResult(val errors: List<String>, val warnings: List<String>) {
     val ok: Boolean get() = errors.isEmpty()
@@ -61,9 +62,25 @@ object Validator {
             for (b in p.bodies) {
                 val w = "corpo '${b.id}'"
                 need("facção", b.factionId, p.faction(b.factionId) != null, w)
-                if (b.orbitRadius < p.planet.radius * 1.2) err("$w: órbita de ${b.orbitRadius.toLong()} m fica dentro ou colada no planeta (raio ${p.planet.radius.toLong()} m).")
+                val parent = b.parentId?.let { pid -> p.body(pid).also { if (it == null) err("$w: pai '$pid' não existe.") } }
+                if (b.parentId != null) {
+                    var hops = 0
+                    var cur: BodyDef? = b
+                    while (cur?.parentId != null && hops++ < 20) cur = p.body(cur.parentId!!)
+                    if (hops >= 20) err("$w: a cadeia de 'pai' é circular.")
+                }
+                val central = if (parent == null) p.planet.radius else parent.radius
+                if (b.orbitRadius < central * 1.05 || b.orbitRadius <= 0.0) err("$w: órbita de ${b.orbitRadius.toLong()} m fica dentro ou colada no corpo ${if (parent == null) "central" else "'${parent.id}'"} (raio ${central.toLong()} m).")
+                if (b.eccentricity < 0.0 || b.eccentricity >= 0.9) err("$w: 'excentricidade' deve ficar entre 0 e 0,9.")
                 if (b.kind == BodyKind.SHIP && b.dockable) err("$w: uma nave não pode ser atracável (use tipo estacao ou destroco).")
+                if (b.kind == BodyKind.PLANET) {
+                    if (b.radius <= 0.0) err("$w: um planeta precisa de 'raio' positivo.")
+                    if (b.dockable) err("$w: planetas não são atracáveis (a nave se destrói ao encostar).")
+                }
+                if (b.defense < 0.0 || b.defense > 1.0) err("$w: 'defesa' deve ficar entre 0 e 1.")
             }
+            unique("bloco", p.blocks.map { it.id })
+            for (b in p.blocks) effects(b.effects, "bloco '${b.id}'.efeitos")
             for (k in p.reputation.keys) need("facção", k, p.faction(k) != null, "reputacao")
             val s = p.ship
             need("corpo", s.startNear, p.body(s.startNear) != null, "nave.perto")
@@ -100,6 +117,12 @@ object Validator {
                     is Trigger.DialogueEnd -> need("diálogo", t.dialogue, p.dialogue(t.dialogue) != null, "$w.quando.dialogo")
                     is Trigger.FactRevealed -> need("fato", t.fact, p.fact(t.fact) != null, "$w.quando.fato")
                     is Trigger.Approach -> need("corpo", t.body, p.body(t.body) != null, "$w.quando.corpo")
+                    is Trigger.Boarded -> t.body?.let { need("corpo", it, p.body(it) != null, "$w.quando.corpo") }
+                    is Trigger.BoardingResult -> t.body?.let { need("corpo", it, p.body(it) != null, "$w.quando.corpo") }
+                    is Trigger.Reputation -> need("facção", t.faction, p.faction(t.faction) != null, "$w.quando.faccao")
+                    is Trigger.ObjectGained -> need("objeto", t.obj, p.obj(t.obj) != null, "$w.quando.objeto")
+                    is Trigger.DeductionMade -> need("dedução", t.id, p.deductions.any { it.id == t.id }, "$w.quando.id")
+                    is Trigger.MissionChanged -> need("missão", t.id, p.missions.any { it.id == t.id }, "$w.quando.id")
                     is Trigger.BodyDestroyed -> {
                         need("corpo", t.body, p.body(t.body) != null, "$w.quando.corpo")
                         p.body(t.body)?.let { if (it.kind != BodyKind.SHIP) err("$w: só naves podem ser destruídas ('${t.body}' não é uma nave).") }
@@ -134,6 +157,10 @@ object Validator {
                 is Cond.All -> c.items.forEach { cond(it, w) }
                 is Cond.Any -> c.items.forEach { cond(it, w) }
                 is Cond.Not -> cond(c.item, w)
+                is Cond.DockedAt -> c.place?.let { need("corpo", it, p.body(it) != null, w) }
+                is Cond.BodyAlive -> need("corpo", c.body, p.body(c.body) != null, w)
+                is Cond.TargetIs -> need("corpo", c.body, p.body(c.body) != null, w)
+                is Cond.Distance -> { if (c.from != "jogador") need("corpo", c.from, p.body(c.from) != null, w); need("corpo", c.to, p.body(c.to) != null, w) }
                 else -> {}
             }
         }
@@ -148,7 +175,20 @@ object Validator {
                     is Effect.Reveal -> need("fato", e.fact, p.fact(e.fact) != null, at)
                     is Effect.OpenDialogue -> need("diálogo", e.id, p.dialogue(e.id) != null, at)
                     is Effect.End -> need("final", e.id, p.ending(e.id) != null, at)
-                    is Effect.Ai -> need("corpo", e.body, p.body(e.body) != null, at)
+                    is Effect.Ai -> {
+                        need("corpo", e.body, p.body(e.body) != null, at)
+                        p.body(e.body)?.let { if (it.kind != BodyKind.SHIP) err("$at: só naves têm comportamento ('${e.body}' não é uma nave).") }
+                    }
+                    is Effect.If -> { cond(e.cond, "$at.condicao"); effects(e.then, "$at.entao"); effects(e.otherwise, "$at.senao") }
+                    is Effect.Run -> need("bloco", e.block, p.block(e.block) != null, at)
+                    is Effect.Schedule -> need("bloco", e.block, p.block(e.block) != null, at)
+                    is Effect.Ambush -> {
+                        need("corpo", e.body, p.body(e.body) != null, at)
+                        p.body(e.body)?.let { if (it.kind != BodyKind.SHIP) err("$at: só naves podem emboscar ('${e.body}' não é uma nave).") }
+                    }
+                    is Effect.RevealBody -> need("corpo", e.body, p.body(e.body) != null, at)
+                    is Effect.ConcealBody -> need("corpo", e.body, p.body(e.body) != null, at)
+                    is Effect.DestroyBody -> need("corpo", e.body, p.body(e.body) != null, at)
                     is Effect.SetTarget -> need("corpo", e.body, p.body(e.body) != null, at)
                     is Effect.Mission -> need("missão", e.id, p.missions.any { it.id == e.id }, at)
                     is Effect.Roll -> {
@@ -168,6 +208,7 @@ object Validator {
         private val deduced = HashSet<String>()
         private val dialogues = HashSet<String>()
         private val endings = HashSet<String>()
+        private var depth = 0
 
         private fun sat(c: Cond): Boolean = when (c) {
             is Cond.HasObject -> c.obj in objects
@@ -192,6 +233,8 @@ object Validator {
         private fun triggerReachable(t: Trigger): Boolean = when (t) {
             is Trigger.DialogueEnd -> t.dialogue in dialogues
             is Trigger.FactRevealed -> t.fact in facts
+            is Trigger.ObjectGained -> t.obj in objects
+            is Trigger.DeductionMade -> t.id in deduced
             else -> true
         }
 
@@ -204,13 +247,19 @@ object Validator {
                 is Effect.OpenDialogue -> changed = dialogues.add(e.id) || changed
                 is Effect.End -> changed = endings.add(e.id) || changed
                 is Effect.Roll -> { changed = apply(e.success) || changed; changed = apply(e.failure) || changed }
+                is Effect.If -> { changed = apply(e.then) || changed; changed = apply(e.otherwise) || changed }
+                is Effect.Run -> p.block(e.block)?.let { b -> if (depth < 6) { depth++; changed = apply(b.effects) || changed; depth-- } }
+                is Effect.Schedule -> p.block(e.block)?.let { b -> if (depth < 6) { depth++; changed = apply(b.effects) || changed; depth-- } }
                 else -> {}
             }
             return changed
         }
 
-        private fun mentionsEnd(list: List<Effect>, id: String): Boolean = list.any {
-            it is Effect.End && it.id == id || it is Effect.Roll && (mentionsEnd(it.success, id) || mentionsEnd(it.failure, id))
+        private fun mentionsEnd(list: List<Effect>, id: String, hops: Int = 0): Boolean = list.any {
+            it is Effect.End && it.id == id || it is Effect.Roll && (mentionsEnd(it.success, id, hops) || mentionsEnd(it.failure, id, hops)) ||
+                it is Effect.If && (mentionsEnd(it.then, id, hops) || mentionsEnd(it.otherwise, id, hops)) ||
+                (hops < 5 && it is Effect.Run && (p.block(it.block)?.let { b -> mentionsEnd(b.effects, id, hops + 1) } ?: false)) ||
+                (hops < 5 && it is Effect.Schedule && (p.block(it.block)?.let { b -> mentionsEnd(b.effects, id, hops + 1) } ?: false))
         }
 
         fun reachability() {
@@ -301,12 +350,21 @@ object Validator {
             for (place in places) {
                 val sim = Simulation(world)
                 sim.selectTarget(world.body(place)!!)
+                val far = sim.distanceTo()
+                if (far > 5e9) {
+                    // escala do Sistema Solar: confere o Δv mínimo de uma viagem com inversão no meio, sem simular milhões de passos
+                    val need = 2.0 * sqrt(0.85 * sim.ship.maxAccel * far) + sim.relativeVelocity().length
+                    if (sim.ship.deltaV >= need * 1.15) reached++
+                    else failures.add("o Δv da nave (${sim.ship.deltaV.toLong()} m/s) não basta para chegar a '$place' (preciso de ~${(need * 1.15).toLong()} m/s): aumente o combustível, a velocidade de exaustão ou reduza a carga.")
+                    continue
+                }
                 sim.setThrust(100)
                 sim.setAutopilot(AutopilotMode.INTERCEPT)
-                var guard = 0L
-                while (sim.status == Status.FLYING && sim.time < 400_000.0) { sim.step(Config.SUBSTEP); guard++ }
+                val d0 = sim.distanceTo()
+                val limit = maxOf(400_000.0, 4.0 * 2.0 * sqrt(d0 / (sim.accelLimit * 0.85)))
+                while (sim.status == Status.FLYING && sim.time < limit) sim.step(if (sim.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
                 if (sim.status == Status.DOCKED) reached++
-                else failures.add("não consegui chegar a '$place' pelo piloto automático saindo do ponto inicial (${if (sim.status == Status.CRASHED) "colide com o planeta" else "passa de 400.000 s ou falta combustível"}).")
+                else failures.add("não consegui chegar a '$place' pelo piloto automático saindo do ponto inicial (${if (sim.status == Status.CRASHED) "colide com o planeta" else "passa do tempo limite ou falta combustível"}).")
             }
             if (reached == 0) failures.forEach { err(it) } else failures.forEach { warnings.add(it) }
         }

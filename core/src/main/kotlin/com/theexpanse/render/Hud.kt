@@ -10,7 +10,10 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
-enum class ViewMode(val label: String) { COCKPIT("CABINE"), EXTERNAL("CÂMERA EXTERNA") }
+enum class ViewMode(val label: String) { COCKPIT("CABINE"), EXTERNAL("CÂMERA EXTERNA"), SPACE3D("VISTA 3D");
+    /** A vista seguinte no ciclo do botão. */
+    fun next(): ViewMode = values()[(ordinal + 1) % values().size]
+}
 
 /** Textos e painel de controles (a parte de baixo da tela). */
 object Hud {
@@ -71,7 +74,7 @@ object Hud {
     }
 
     /** Botões sobre a cena: câmera giratória, zoom e a ação de combate do papel (míssil ou despistador). */
-    fun drawSceneButtons(d: Draw, game: GameSession, cam: Camera, held: Set<String>, t: Double): List<Button> {
+    fun drawSceneButtons(d: Draw, game: GameSession, cam: Camera, held: Set<String>, t: Double, mode: ViewMode = ViewMode.COCKPIT): List<Button> {
         val ui = Buttons(d)
         val sim = game.sim
         val y = 204f
@@ -80,6 +83,10 @@ object Hud {
         ui.add("cam_r", 712f, y, 34f, 30f, "⟳", ButtonKind.HOLD, pressed = "cam_r" in held)
         ui.add("zoom_out", 756f, y, 34f, 30f, "−")
         ui.add("zoom_in", 794f, y, 34f, 30f, "+")
+        if (mode == ViewMode.SPACE3D) {
+            ui.add("cam_u", 756f, y - 36f, 34f, 30f, "▲", ButtonKind.HOLD, pressed = "cam_u" in held)
+            ui.add("cam_d", 794f, y - 36f, 34f, 30f, "▼", ButtonKind.HOLD, pressed = "cam_d" in held)
+        }
         if (sim.world.isMilitary) {
             val r = sim.canFire()
             val ready = r == FireResult.FIRED && sim.status == Status.FLYING
@@ -90,7 +97,9 @@ object Hud {
                 FireResult.FRIENDLY -> "alvo amigo"
                 else -> null
             }
-            ui.add("fire", 440f, y - 2f, 186f, 34f, "MÍSSIL ×${sim.ship.missiles}" + (if (sub != null) " · $sub" else ""), enabled = ready, accent = if (ready) Palette.RED else 0)
+            ui.add("fire", 440f, y - 2f, 124f, 34f, "MÍSSIL ×${sim.ship.missiles}" + (if (sub != null) "\n$sub" else ""), enabled = ready, accent = if (ready) Palette.RED else 0)
+            val bc = sim.canBoard()
+            ui.add("board", 568f, y - 2f, 58f, 34f, "ABORDAR", enabled = bc == com.theexpanse.core.BoardCheck.OK && sim.status == Status.FLYING, accent = if (bc == com.theexpanse.core.BoardCheck.OK) Palette.GREEN else 0)
         } else {
             val incoming = sim.incoming().isNotEmpty()
             val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING
@@ -175,7 +184,7 @@ object Hud {
             val label = if (f >= 1000) "×${Fmt.dec(f / 1000, if (f % 1000 == 0.0) 0 else 1)}k" else "×${Fmt.int(f)}"
             ui.add("warp_$i", bx + i * 53.6f, y0 + 62f, 50f, 30f, label, active = sim.warpIndex == i)
         }
-        ui.add("view", bx, y0 + 100f, 86f, 38f, if (mode == ViewMode.COCKPIT) "VER EXTERNA" else "VER CABINE")
+        ui.add("view", bx, y0 + 100f, 86f, 38f, "VER " + when (mode.next()) { ViewMode.COCKPIT -> "CABINE"; ViewMode.EXTERNAL -> "EXTERNA"; ViewMode.SPACE3D -> "3D" })
         ui.add("target", bx + 90f, y0 + 100f, 86f, 38f, "ALVO")
         ui.add("menu", bx + 180f, y0 + 100f, 84f, 38f, "MENU", accent = Palette.AMBER)
         return ui.list

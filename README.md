@@ -20,7 +20,22 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 - **Chegada no painel**: tempo de jogo até chegar e o **tempo real** na escala escolhida, com contagem regressiva.
   O nível de cruzeiro (`escalaTempo`, padrão 1440 = um dia de jogo por minuto real) faz uma viagem de 5 dias durar
   5 minutos. O tempo estimado é calculado em segundo plano com o próprio piloto automático.
-- **Câmera giratória** na cabine e na externa: botões de segurar, arrastar o dedo e pinça para zoom.
+- **Câmera giratória** na cabine, na externa e na **vista 3D**: botões de segurar, arrastar o dedo e pinça para zoom.
+- **Vista 3D**: câmera em perspectiva que gira e inclina em volta da nave, com chão de grade no plano orbital,
+  planetas como esferas, estações como anéis, cruzadores em perspectiva, mísseis e explosões. A simulação é plana
+  (as inclinações reais dos planetas, de poucos graus, são ignoradas); a 3D é a forma de olhar para ela.
+- **Sistema Solar real**: órbitas keplerianas elípticas em hierarquia (luas em torno de planetas, estações em torno
+  de luas), gravidade de vários corpos e colisão com planetas. A campanha **Rota do Gelo** voa de Ceres a Marte
+  (239 milhões de km) em ~5,7 dias de jogo com o piloto automático, ~5 minutos reais em escala de cruzeiro.
+- **Escolta e abordagem** no motor: `ia` com `escoltar` faz uma nave acompanhar você, interceptar mísseis e atirar em
+  hostis; `abordar` faz uma nave chegar e abordá-lo; o militar aborda de perto e devagar (chance = 1 − `defesa`).
+- **Vocabulário ampliado**: gatilhos `abordado`, `abordagem`, `casco_abaixo`, `combustivel_abaixo`, `a_cada`,
+  `reputacao_na_faixa`, `objeto_obtido`, `deducao_feita`, `missao_mudou`, `escolta_interceptou`, `missil_lancado`;
+  condições `contador`, `casco`, `combustivel`, `atracado`, `corpo_vivo`, `distancia`, `tempo_maior`, `aleatorio`, `alvo`;
+  efeitos `contador`, `se`, `executar`, `agendar`, `emboscar`, `revelar_corpo`, `ocultar_corpo`, `destruir_corpo`,
+  `casco`, `combustivel`, `municao`; e **blocos** nomeados de efeitos (que sobrevivem ao salvamento).
+- **Vários salvamentos por campanha**, com nome editável (caixa de texto do Android), automático separado, apagar com
+  confirmação e leitura dos salvamentos antigos.
 
 - **Física real**: gravidade do planeta, inércia, empuxo só na direção do nariz (para frear é preciso girar e queimar),
   combustível pela equação do foguete, corpos em órbita analítica, previsão balística, tempo de ×1 a ×5000 com limite
@@ -36,7 +51,8 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 - **Perseguição**: a fragata do Cálice passa a ser integrada (3 m/s², para a 20 km) quando você corta o rádio.
 - **Campanhas** incluídas: **Cálice** (mercador; política e rádio, 8 finais), **O silêncio do Albatroz** (mercador;
   mistério de investigação, 6 pistas, 3 suspeitos, 4 finais), **Emboscada sobre Aurélia** (mercador atacado por
-  fragata com mísseis) e **Patrulha do Tribunal** (militar: cruzador da Coalizão contra um corsário).
+  fragata com mísseis), **Patrulha do Tribunal** (militar: cruzador da Coalizão contra um corsário) e **Rota do Gelo**
+  (Sistema Solar real: escolta, corsários, abordagem, pedágio).
 
 ### Telas (geradas pelo próprio código em `docs/preview`)
 
@@ -63,6 +79,18 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 | Painel: chegada em tempo de jogo e real | Câmera girada (cabine) |
 |---|---|
 | ![](docs/preview/33_painel_chegada_cruzeiro.png) | ![](docs/preview/34_camera_cabine_girada.png) |
+
+| Sistema Solar: mapa | Vista 3D com escolta |
+|---|---|
+| ![](docs/preview/40_solar_mapa_sistema.png) | ![](docs/preview/38_solar_3d_escolta.png) |
+
+| Rota até Marte em escala de cruzeiro | Salvamentos |
+|---|---|
+| ![](docs/preview/43_solar_3d_cruzeiro.png) | ![](docs/preview/50_saves.png) |
+
+| Abordagem do cruzador | Menu |
+|---|---|
+| ![](docs/preview/52_abordagem_botao.png) | ![](docs/preview/49_menu_salvar.png) |
 
 | Rádio da fragata | Caderno |
 |---|---|
@@ -117,7 +145,7 @@ desenham. Por isso as telas e os fluxos de toque são testados sem aparelho.
 ## Como rodar
 
 ```
-./gradlew :core:test            # 62 testes: física, combate, pacotes, validador, história, telas e fluxos de toque
+./gradlew :core:test            # física, combate, Sistema Solar, pacotes, validador, história, salvamentos, telas e fluxos de toque
 ./gradlew :preview:run          # gera os PNGs em docs/preview e o template
 ./gradlew :app:assembleDebug    # APK (precisa de Android SDK: ANDROID_HOME ou local.properties com sdk.dir)
 ```
@@ -135,6 +163,8 @@ piloto automático), salvamento e carga, importação de pacotes válidos e queb
   arrastar e pinça da câmera, FPS, tela cheia, seletor de arquivos, "Abrir com…" e área de transferência estão por
   testar de verdade.
 - Só estações e destroços são atracáveis. Chegar a um planeta destrói a nave (não há pouso).
+- A caixa de texto para renomear salvamentos (`AlertDialog`) e os gestos de arrastar e pinça só existem no Android e
+  não foram executados.
 - O equilíbrio do combate (alcance de 80 km, mísseis a 80 m/s², dano de 45 a 80) é um primeiro ajuste, não testado
   com jogadores.
 - O carregamento das campanhas incluídas (resources do `core`) foi conferido dentro do APK, mas não em execução.
@@ -153,8 +183,11 @@ piloto automático), salvamento e carga, importação de pacotes válidos e queb
 Efeito `ia` com `atacar` libera uma nave hostil a perseguir e disparar; gatilho `corpo_destruido` e condição `papel`
 reagem ao combate. O validador confere o papel, a facção do militar e que só naves podem ser destruídas.
 
+## Roteiro de teste
+
+[`docs/TESTE_COMPLETO.md`](docs/TESTE_COMPLETO.md) lista o que conferir no aparelho, campanha por campanha.
+
 ## Próximos passos
 
-Sistema Solar real (elementos orbitais) e vista 3D; escoltas e abordagens como mecânica do motor; mais tipos de
-gatilho e efeito (o vocabulário é o que limita os pacotes); edição de nome dos jogos salvos; mais de um salvamento
-por campanha.
+Física 3D de verdade (hoje a simulação é plana); mais corpos do Sistema Solar (Vênus, Mercúrio, Saturno e suas luas);
+mais comportamentos de IA (patrulha por rota, fuga); equilíbrio do combate com jogadores; sons.

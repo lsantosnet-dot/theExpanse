@@ -8,6 +8,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.WindowManager
+import android.app.AlertDialog
+import android.text.InputType
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -100,6 +103,24 @@ class MainActivity : ComponentActivity(), Host {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("erros", text))
         toast("Erros copiados.")
+    }
+
+    override fun promptText(title: String, initial: String, onResult: (String?) -> Unit) {
+        runOnUiThread {
+            val input = EditText(this).apply {
+                setText(initial)
+                setSelection(initial.length)
+                inputType = InputType.TYPE_CLASS_TEXT
+                maxLines = 1
+            }
+            AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(input)
+                .setPositiveButton("OK") { _, _ -> onResult(input.text.toString()) }
+                .setNegativeButton("Cancelar") { _, _ -> onResult(null) }
+                .setOnCancelListener { onResult(null) }
+                .show()
+        }
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

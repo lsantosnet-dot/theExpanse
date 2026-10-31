@@ -2,7 +2,7 @@ package com.theexpanse.content
 
 /** Campanhas que vêm dentro do app (arquivos JSON em resources/packs). */
 object Builtin {
-    private val files = listOf("calice", "albatroz", "patrulha", "emboscada")
+    private val files = listOf("calice", "albatroz", "patrulha", "emboscada", "rota_do_gelo")
 
     fun text(name: String): String? =
         Builtin::class.java.getResourceAsStream("/packs/$name.json")?.use { it.readBytes().toString(Charsets.UTF_8) }

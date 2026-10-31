@@ -3,7 +3,8 @@ package com.theexpanse.core
 import kotlin.math.ln
 
 /** Estado da nave do jogador. Só a simulação escreve aqui. */
-class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double, val hullMax: Double = 100.0, val missilesMax: Int = 0, val decoysMax: Int = 4) {
+class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double, val hullMax: Double = 100.0, val missilesMax: Int = 0, val decoysMax: Int = 4,
+           val maxAccel: Double = Config.MAX_ACCEL, val exhaustVelocity: Double = Config.EXHAUST_VELOCITY) {
     var pos: Vec2 = Vec2.ZERO
     var vel: Vec2 = Vec2.ZERO
 
@@ -30,8 +31,8 @@ class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double, val hul
     val mass: Double get() = dryMass + cargo + extra + fuel
 
     /** Δv restante pela equação do foguete. */
-    val deltaV: Double get() = Config.EXHAUST_VELOCITY * ln(mass / (dryMass + cargo + extra))
+    val deltaV: Double get() = exhaustVelocity * ln(mass / (dryMass + cargo + extra))
 
     /** Fração de empuxo em uso no último passo (0..1), para o jato e a vibração. */
-    val burnFraction: Double get() = (burnAccel / Config.MAX_ACCEL).coerceIn(0.0, 1.0)
+    val burnFraction: Double get() = (burnAccel / maxAccel).coerceIn(0.0, 1.0)
 }

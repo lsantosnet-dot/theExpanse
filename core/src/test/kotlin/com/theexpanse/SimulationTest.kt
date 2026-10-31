@@ -40,14 +40,13 @@ class SimulationTest {
     }
 
     @Test
-    fun initialOrbitIsCircularAtStationAltitude() {
+    fun shipStartsComovingFortyKilometersAboveTheStation() {
         val sim = newSim()
-        val r = sim.ship.pos.length
-        val expected = dock.orbitRadius + 40_000.0
-        assertEquals(expected, r, 1.0)
-        assertEquals(sqrt(world.gm / r), sim.ship.vel.length, 1e-6)
-        // velocidade perpendicular ao raio
-        assertEquals(0.0, sim.ship.pos.unit() dot sim.ship.vel.unit(), 1e-9)
+        assertEquals(dock.orbitRadius + 40_000.0, sim.ship.pos.length, 1.0)
+        assertEquals(dock.velocity(0.0).x, sim.ship.vel.x, 1e-9)
+        assertEquals(dock.velocity(0.0).y, sim.ship.vel.y, 1e-9)
+        // a órbita local segue circular: velocidade quase a de um corpo circular naquele raio
+        assertEquals(sqrt(world.gm / sim.ship.pos.length), sim.ship.vel.length, 2.0)
     }
 
     @Test
@@ -82,7 +81,7 @@ class SimulationTest {
 
     @Test
     fun gravityPointsToThePlanet() {
-        val g = world.gravity(Vec2(3.2e8, 0.0))
+        val g = world.gravity(Vec2(3.2e8, 0.0), 0.0)
         assertTrue(g.x < 0.0)
         assertEquals(world.gm / (3.2e8 * 3.2e8), g.length, 1e-9)
     }

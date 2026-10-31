@@ -96,7 +96,7 @@ fun GameScreen(game: AppController) {
                             val c = event.changes.firstOrNull { it.id == ids[0] }
                             val last = free[ids[0]]
                             if (c != null && c.pressed && last != null) {
-                                game.drag((c.position.x - last.x) / f.scale)
+                                game.drag((c.position.x - last.x) / f.scale, (c.position.y - last.y) / f.scale)
                                 free[ids[0]] = c.position
                             }
                         } else if (ids.size >= 2) {

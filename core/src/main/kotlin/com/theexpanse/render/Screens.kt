@@ -12,6 +12,8 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.ln
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -40,7 +42,10 @@ object HomeScreen {
             px += Ui.pill(d, px, y + 66f, "${e.pack.endings.size} finais", Palette.MUTED)
             if (e.pack.facts.isNotEmpty() && px < 330f) px += Ui.pill(d, px, y + 66f, "${e.pack.facts.size} pistas", 0xFF9ADCF0.toInt())
             ui.add("home_play:${e.pack.id}", 380f, y + 10f, 90f, 34f, if (e.hasSave) "NOVO JOGO" else "JOGAR", active = !e.hasSave)
-            if (e.hasSave) ui.add("home_resume:${e.pack.id}", 476f, y + 10f, 80f, 34f, "CONTINUAR", active = true)
+            if (e.hasSave) {
+                ui.add("home_resume:${e.pack.id}", 476f, y + 10f, 80f, 34f, "CONTINUAR", active = true)
+                ui.add("home_saves:${e.pack.id}", 380f, y + 50f, 90f, 28f, "SAVES · ${e.saveCount}")
+            }
             if (!e.builtin) ui.add("home_del:${e.pack.id}", 520f, y + 50f, 36f, 28f, "✕")
         }
         if (pages > 1) {
@@ -92,9 +97,10 @@ object HomeScreen {
     }
 }
 
-/** Mapa tático: vista de cima com grade, órbitas, previsão e escolha de alvo por toque. */
+/** Mapa tático: vista de cima com grade, órbitas, previsão e escolha de alvo por toque; serve do Cálice ao Sistema Solar. */
 object MapScreen {
     private const val MW = 554f
+    val CENTER_LABELS = listOf("CENTRO: ORIGEM", "CENTRO: NAVE", "CENTRO: ALVO", "CENTRO: NAVE+ALVO")
 
     private fun nice(m: Double): Double {
         val p = 10.0.pow(floor(log10(m)))
@@ -102,14 +108,30 @@ object MapScreen {
         return p * when { f < 1.5 -> 1.0; f < 3.5 -> 2.0; f < 7.5 -> 5.0; else -> 10.0 }
     }
 
+    /** Metros por pixel no zoom 0 (mostra o sistema todo). */
+    fun baseScale(g: GameSession): Double = g.world.extent * 1.05 / (Layout.H / 2f)
+
+    /** Ajusta o zoom e o centro para mostrar a nave e o alvo juntos. */
+    fun fit(c: AppController, g: GameSession) {
+        val d = g.sim.distanceTo().coerceAtLeast(2000.0)
+        val need = d * 2.3 / MW
+        c.mapZoom = (ln(baseScale(g) / need) / ln(2.0)).roundToInt().coerceIn(-1, 26)
+        c.mapCenter = 3
+    }
+
     fun draw(d: Draw, c: AppController, g: GameSession): List<Button> {
         background(d)
         val ui = Buttons(d)
         val sim = g.sim
         val w = g.world
-        val maxOrbit = w.bodies.maxOf { it.orbitRadius }
-        val mpp = maxOrbit * 1.2 / (Layout.H / 2f) / 2.0.pow(c.mapZoom)
-        val center = if (c.mapOnShip) sim.ship.pos else com.theexpanse.core.Vec2.ZERO
+        val mpp = baseScale(g) / 2.0.pow(c.mapZoom)
+        val tgt = sim.target
+        val center = when (c.mapCenter) {
+            1 -> sim.ship.pos
+            2 -> sim.position(tgt)
+            3 -> (sim.ship.pos + sim.position(tgt)) / 2.0
+            else -> com.theexpanse.core.Vec2.ZERO
+        }
         val cx = MW / 2
         val cy = Layout.H / 2
         fun sx(x: Double) = (cx + (x - center.x) / mpp).toFloat()
@@ -119,51 +141,66 @@ object MapScreen {
         // grade
         val step = nice(mpp * 70)
         var gx = floor((center.x - cx * mpp) / step) * step
-        while (gx < center.x + cx * mpp) { val x = sx(gx); d.line(x, 0f, x, Layout.H, 0xFF111A28.toInt(), 1f); gx += step }
+        var guard = 0
+        while (gx < center.x + cx * mpp && guard++ < 60) { val x = sx(gx); d.line(x, 0f, x, Layout.H, 0xFF111A28.toInt(), 1f); gx += step }
         var gy = floor((center.y - cy * mpp) / step) * step
-        while (gy < center.y + cy * mpp) { val y = sy(gy); d.line(0f, y, MW, y, 0xFF111A28.toInt(), 1f); gy += step }
-        // órbitas pontilhadas
+        guard = 0
+        while (gy < center.y + cy * mpp && guard++ < 60) { val y = sy(gy); d.line(0f, y, MW, y, 0xFF111A28.toInt(), 1f); gy += step }
+
+        // órbitas pontilhadas (elípticas, em torno do corpo pai)
         for (b in w.bodies) {
-            val r = (b.orbitRadius / mpp).toFloat()
-            val px = sx(0.0)
-            val py = sy(0.0)
-            if (r < 4f || r > 4000f) continue
-            val n = (r * 0.8f).toInt().coerceIn(48, 240)
+            if (!sim.alive(b)) continue
+            val par = b.parent?.position(sim.time) ?: com.theexpanse.core.Vec2.ZERO
+            val a = b.orbitRadius
+            val e = b.def.eccentricity
+            val rpx = (a / mpp).toFloat()
+            if (rpx < 3f || rpx > 6000f) continue
+            val n = (rpx * 0.8f).toInt().coerceIn(48, 260)
+            val cw = cos(b.def.periapsis)
+            val sw = sin(b.def.periapsis)
+            val bb = a * sqrt(1 - e * e)
             for (k in 0 until n) {
-                val a = 2 * PI * k / n
-                val x = px + (cos(a) * r).toFloat()
-                val y = py - (sin(a) * r).toFloat()
+                val ea = 2 * PI * k / n
+                val px = a * (cos(ea) - e)
+                val py = bb * sin(ea)
+                val x = sx(par.x + px * cw - py * sw)
+                val y = sy(par.y + px * sw + py * cw)
                 if (x < -4 || x > MW + 4 || y < -4 || y > Layout.H + 4) continue
-                d.circle(x, y, 0.9f, fill = b.faction.argb.alpha(0.55f))
+                d.circle(x, y, 0.9f, fill = b.argb.alpha(if (b.kind == BodyKind.PLANET) 0.35f else 0.55f))
             }
         }
-        // planeta
+        // corpo central
         val pr = (w.radius / mpp).toFloat().coerceAtLeast(5f)
-        d.circle(sx(0.0), sy(0.0), pr, fill = 0xFFF3D9A8.toInt(), stroke = 0xFFFFE6BE.toInt())
-        d.text(sx(0.0), sy(0.0) + 4f, w.planetName, 0xFF3A2A10.toInt(), 10f, Align.CENTER, bold = true)
+        if (w.star) Planet.drawStar(d, sx(0.0), sy(0.0), pr.coerceAtMost(40f))
+        else d.circle(sx(0.0), sy(0.0), pr, fill = 0xFFF3D9A8.toInt(), stroke = 0xFFFFE6BE.toInt())
+        d.text(sx(0.0), sy(0.0) + pr.coerceAtMost(40f) + 12f, w.planetName, 0xFFF3D9A8.toInt(), 10f, Align.CENTER, bold = true)
 
         // previsão sem empuxo
         val pred = sim.prediction()
         for (p in pred.points) d.circle(sx(p.x), sy(p.y), 1.2f, fill = Palette.AMBER.alpha(0.85f))
 
         // linha até o alvo
-        val tgt = sim.target
-        val tp = sim.position(tgt)
-        d.line(sx(sim.ship.pos.x), sy(sim.ship.pos.y), sx(tp.x), sy(tp.y), Palette.AMBER.alpha(0.5f), 1f, dash = 5f)
+        if (sim.alive(tgt)) {
+            val tp = sim.position(tgt)
+            d.line(sx(sim.ship.pos.x), sy(sim.ship.pos.y), sx(tp.x), sy(tp.y), Palette.AMBER.alpha(0.5f), 1f, dash = 5f)
+        }
 
         // corpos
         for (b in w.bodies) {
+            if (!sim.alive(b)) continue
             val p = sim.position(b)
             val x = sx(p.x)
             val y = sy(p.y)
-            val color = b.faction.argb
+            if (x < -30 || x > MW + 30 || y < -30 || y > Layout.H + 30) continue
+            val color = b.argb
             when (b.kind) {
                 BodyKind.STATION -> d.rect(x - 6f, y - 6f, 12f, 12f, fill = color)
                 BodyKind.WRECK -> d.poly(floatArrayOf(x - 7f, y, x, y - 7f, x + 7f, y, x, y + 7f), fill = color.alpha(0.8f))
                 BodyKind.SHIP -> d.poly(floatArrayOf(x - 6f, y + 5f, x, y - 7f, x + 6f, y + 5f), fill = color)
+                BodyKind.PLANET -> d.circle(x, y, (b.def.radius / mpp).toFloat().coerceIn(4f, 40f), fill = color)
             }
             if (b === tgt) d.circle(x, y, 11f, stroke = Palette.AMBER, strokeW = 1.5f)
-            d.text(x + 10f, if (b.kind == BodyKind.SHIP) y + 16f else y - 8f, b.shortName, color, 10f, bold = b === tgt)
+            if (b === tgt || b.parent == null || b.kind == BodyKind.SHIP || b.orbitRadius / mpp >= 14.0) d.text(x + 10f, if (b.kind == BodyKind.SHIP) y + 16f else y - 8f, b.shortName, color, 10f, bold = b === tgt)
             ui.add("pick:${b.id}", x - 18f, y - 18f, 36f, 36f, "", hidden = true)
         }
 
@@ -192,27 +229,28 @@ object MapScreen {
 
         ui.add("map_zoom_in", 500f, 300f, 44f, 36f, "+")
         ui.add("map_zoom_out", 500f, 342f, 44f, 36f, "−")
-        ui.add("map_center", 12f, 10f, 120f, 30f, if (c.mapOnShip) "CENTRO: NAVE" else "CENTRO: PLANETA")
-        d.text(144f, 30f, "toque num corpo para escolher o alvo · pontos: trajetória sem motor", Palette.MUTED, 9f)
+        ui.add("map_center", 12f, 10f, 134f, 30f, CENTER_LABELS[c.mapCenter])
+        ui.add("map_fit", 150f, 10f, 70f, 30f, "AJUSTAR")
+        d.text(228f, 30f, "toque num corpo para escolher o alvo", Palette.MUTED, 9f)
 
         // painel do alvo
         Ui.panel(d, MW, 0f, Layout.W - MW, Layout.H, Palette.PANEL, Palette.PANEL_EDGE)
         d.text(MW + 14f, 24f, "ALVO SELECIONADO", Palette.MUTED, 9f)
         d.text(MW + 14f, 46f, Ui.clip(tgt.name, 16f, 262f), Palette.INK, 16f, bold = true)
-        d.text(MW + 14f, 62f, tgt.faction.name + " · " + when (tgt.kind) { BodyKind.STATION -> "estação"; BodyKind.WRECK -> "destroços"; BodyKind.SHIP -> "nave" }, tgt.faction.argb, 10f)
+        d.text(MW + 14f, 62f, tgt.faction.name + " · " + when (tgt.kind) { BodyKind.STATION -> "estação"; BodyKind.WRECK -> "destroços"; BodyKind.SHIP -> "nave"; BodyKind.PLANET -> "planeta ou lua" }, tgt.argb, 10f)
         val rows = listOf(
             "distância" to Fmt.distance(sim.distanceTo()),
             "vel. relativa" to Fmt.speed(sim.relativeVelocity().length),
             "aproximação" to Fmt.speed(sim.approachSpeed()),
             "sem motor" to Fmt.distance(pred.closestDistance),
-            "em" to Fmt.clock(pred.closestTime),
+            "em" to Fmt.duration(pred.closestTime),
             "Δv restante" to Fmt.speed(s.deltaV),
         )
         var y = 92f
         for ((k, v) in rows) { d.text(MW + 14f, y, k, Palette.MUTED, 10f); d.text(MW + 276f, y, v, Palette.INK, 11f, Align.RIGHT, bold = true); y += 17f }
         ui.add("open_route", MW + 14f, 258f, 262f, 44f, "PLANEJAR ROTA", active = true)
-        ui.back("back", "FECHAR MAPA").let { }
-        return ui.list.let { it }
+        ui.back("back", "FECHAR MAPA")
+        return ui.list
     }
 }
 
@@ -222,34 +260,45 @@ object RouteScreen {
         background(d)
         val ui = Buttons(d)
         val tgt = g.sim.target
+        val job = c.routeJob
         Ui.title(d, "PLANO DE ROTA", "Destino: ${tgt.name} · ${Fmt.distance(g.sim.distanceTo())} · simulado com o piloto automático de verdade")
-        for ((i, o) in c.routeOptions.withIndex()) {
+        val opts = job?.options ?: emptyList()
+        for ((i, o) in opts.withIndex()) {
             val x = 16f + i * 272f
             val sel = i == c.routeSelected
+            val pct = job!!.pcts[i]
             d.rect(x, 74f, 260f, 190f, fill = if (sel) 0xFF1A1608.toInt() else Palette.PANEL, stroke = if (sel) Palette.AMBER else Palette.PANEL_EDGE, strokeW = if (sel) 2f else 1f, radius = 6f)
-            d.text(x + 14f, 100f, "EMPUXO ${o.thrustPct}%", if (sel) Palette.AMBER else Palette.INK, 16f, bold = true)
-            d.text(x + 14f, 116f, Fmt.dec(6.0 * o.thrustPct / 100, 1) + " m/s² de aceleração", Palette.MUTED, 10f)
+            d.text(x + 14f, 100f, "EMPUXO $pct%", if (sel) Palette.AMBER else Palette.INK, 16f, bold = true)
+            d.text(x + 14f, 116f, Fmt.dec(g.sim.ship.maxAccel * pct / 100, 1) + " m/s² de aceleração", Palette.MUTED, 10f)
             var y = 142f
+            if (o == null) {
+                d.text(x + 14f, y, "calculando… ${(job.progress(i) * 100).toInt()}%", Palette.AMBER_SOFT, 12f, bold = true)
+                d.rect(x + 14f, y + 14f, 232f, 6f, fill = Palette.BUTTON, radius = 3f)
+                d.rect(x + 14f, y + 14f, 232f * job.progress(i), 6f, fill = Palette.AMBER, radius = 3f)
+                ui.add("route_sel:$i", x, 74f, 260f, 190f, "", hidden = true)
+                continue
+            }
             when (o.outcome) {
                 RouteOutcome.DOCKS -> {
-                    d.text(x + 14f, y, "viagem: " + Fmt.clock(o.seconds), Palette.INK, 12f, bold = true); y += 20f
+                    d.text(x + 14f, y, "viagem: " + Fmt.duration(o.seconds), Palette.INK, 12f, bold = true); y += 20f
                     d.text(x + 14f, y, "combustível: ${Fmt.int(o.fuelPct)}% (${Fmt.int(o.fuelUsed)} kg)", Palette.INK, 11f); y += 20f
+                    d.text(x + 14f, y, "real ×${Fmt.int(g.world.timeScale)}: " + Fmt.duration(o.seconds / g.world.timeScale), Palette.AMBER_SOFT, 11f); y += 20f
                     d.text(x + 14f, y, "chegada: atraca", Palette.GREEN, 11f)
                     val note = when {
                         o.fuelPct > 85 -> "Quase todo o combustível."
-                        o.thrustPct <= 20 -> "Econômica e lenta."
+                        pct <= 20 -> "Econômica e lenta."
                         else -> ""
                     }
-                    if (note.isNotEmpty()) Ui.paragraph(d, x + 14f, y + 22f, note, 10f, Palette.AMBER_SOFT, 230f, 2)
+                    if (note.isNotEmpty()) Ui.paragraph(d, x + 14f, y + 20f, note, 10f, Palette.AMBER_SOFT, 230f, 2)
                 }
-                RouteOutcome.CRASHES -> { d.text(x + 14f, y, "colide com ${g.world.planetName}", Palette.RED_SOFT, 12f, bold = true); Ui.paragraph(d, x + 14f, y + 20f, "O piloto automático não evita o planeta nesta rota.", 10f, Palette.MUTED, 230f, 3) }
-                RouteOutcome.TIMEOUT -> { d.text(x + 14f, y, "não chega em 25 h", Palette.RED_SOFT, 12f, bold = true); Ui.paragraph(d, x + 14f, y + 20f, "Falta combustível ou o alvo está longe demais.", 10f, Palette.MUTED, 230f, 3) }
+                RouteOutcome.CRASHES -> { d.text(x + 14f, y, "colide com um corpo", Palette.RED_SOFT, 12f, bold = true); Ui.paragraph(d, x + 14f, y + 20f, "O piloto automático não evita o planeta nesta rota.", 10f, Palette.MUTED, 230f, 3) }
+                RouteOutcome.TIMEOUT -> { d.text(x + 14f, y, "não chega no prazo", Palette.RED_SOFT, 12f, bold = true); Ui.paragraph(d, x + 14f, y + 20f, "Falta combustível ou o alvo está longe demais.", 10f, Palette.MUTED, 230f, 3) }
                 RouteOutcome.NOT_DOCKABLE -> Ui.paragraph(d, x + 14f, y, "Este alvo não é atracável: pilote à mão ou use o piloto de interceptação.", 10f, Palette.MUTED, 230f, 4)
             }
             ui.add("route_sel:$i", x, 74f, 260f, 190f, "", hidden = true)
         }
         Ui.paragraph(d, 16f, 290f, "As órbitas se movem durante a viagem: o piloto automático mira onde o destino estará. Mais empuxo chega antes, mas gasta mais combustível.", 10f, Palette.MUTED, 560f, 3)
-        val opt = c.routeOptions.getOrNull(c.routeSelected)
+        val opt = opts.getOrNull(c.routeSelected)
         ui.add("route_go", 600f, 300f, 228f, 50f, "CONFIRMAR E PARTIR", active = true, enabled = opt != null && opt.outcome == RouteOutcome.DOCKS)
         ui.add("back", 16f, 330f, 120f, 40f, "CANCELAR")
         return ui.list
@@ -486,14 +535,48 @@ object MenuScreen {
         val ui = Buttons(d)
         Ui.title(d, "MENU")
         val items = listOf(
-            "open_map" to "MAPA", "open_route" to "PLANO DE ROTA", "open_notebook" to "CADERNO", "open_hold" to "PORÃO E NAVE",
-            "open_news" to "NOTÍCIAS", "open_home" to "CAMPANHAS", "restart" to "REINICIAR", "back" to "VOLTAR AO VOO",
+            "open_map" to "MAPA", "open_route" to "PLANO DE ROTA", "open_notebook" to "CADERNO", "open_hold" to "PORÃO E NAVE", "open_news" to "NOTÍCIAS",
+            "save_new" to "SALVAR JOGO", "open_saves" to "SAVES", "open_home" to "CAMPANHAS", "restart" to "REINICIAR", "back" to "VOLTAR AO VOO",
         )
         for ((i, it) in items.withIndex()) {
-            val x = 16f + (i % 4) * 204f
-            val y = 70f + (i / 4) * 130f
-            ui.add(it.first, x, y, 192f, 118f, it.second, active = it.first == "back", accent = if (it.first == "restart") 0 else 0)
+            val x = 16f + (i % 5) * 164f
+            val y = 70f + (i / 5) * 130f
+            ui.add(it.first, x, y, 156f, 118f, it.second, active = it.first == "back" || it.first == "save_new")
         }
+        return ui.list
+    }
+}
+
+/** Salvamentos de uma campanha: carregar, renomear e apagar (com confirmação). */
+object SavesScreen {
+    fun draw(d: Draw, c: AppController): List<Button> {
+        background(d)
+        val ui = Buttons(d)
+        val pid = c.savesPack ?: return ui.list
+        val title = c.entries.firstOrNull { it.pack.id == pid }?.pack?.title ?: pid
+        Ui.title(d, "SALVAMENTOS", title)
+        ui.back()
+        val list = c.saveList(pid)
+        val perPage = 4
+        val pages = ((list.size + perPage - 1) / perPage).coerceAtLeast(1)
+        c.savesPage = c.savesPage.coerceIn(0, pages - 1)
+        if (list.isEmpty()) d.text(16f, 90f, "Nenhum salvamento ainda. Use SALVAR JOGO no menu durante o voo.", Palette.MUTED, 11f)
+        for ((i, s) in list.drop(c.savesPage * perPage).take(perPage).withIndex()) {
+            val y = 62f + i * 78f
+            Ui.panel(d, 16f, y, 726f, 70f)
+            d.text(30f, y + 24f, Ui.clip(s.name, 14f, 330f), Palette.INK, 14f, bold = true)
+            if (s.isAuto) Ui.pill(d, 360f, y + 12f, "automático", Palette.AMBER)
+            d.text(30f, y + 42f, Ui.clip(s.summary, 10f, 520f), Palette.MUTED, 10f)
+            d.text(30f, y + 58f, Fmt.dateTime(s.whenMs), Palette.MUTED, 9f)
+            ui.add("save_load:${s.slot}", 520f, y + 8f, 100f, 54f, "CARREGAR", active = true)
+            ui.add("save_rename:${s.slot}", 626f, y + 8f, 54f, 24f, "NOME")
+            ui.add("save_del:${s.slot}", 626f, y + 38f, 54f, 24f, if (c.pendingDelete == s.slot) "SIM?" else "✕", accent = if (c.pendingDelete == s.slot) Palette.RED else 0)
+        }
+        if (pages > 1) {
+            ui.add("saves_up", 752f, 62f, 76f, 36f, "▲", enabled = c.savesPage > 0)
+            ui.add("saves_down", 752f, 104f, 76f, 36f, "▼", enabled = c.savesPage < pages - 1)
+        }
+        d.text(16f, 380f, "${list.size} salvamento(s) · toque em ✕ duas vezes para apagar", Palette.MUTED, 9f)
         return ui.list
     }
 }

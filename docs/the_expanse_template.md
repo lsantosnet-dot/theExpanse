@@ -7,6 +7,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - `{"tipo": "militar", "faccao": "id"}`: o jogador comanda o **cruzador** dessa facção, com mísseis (`nave.misseis`) e casco mais forte. Pode abater naves hostis; não dispara em naves da própria facção.
 - `escalaTempo` é quantos segundos de jogo passam por segundo real no nível "cruzeiro" do relógio (1440 = um dia de jogo por minuto real; uma viagem de 5 dias dura 5 minutos).
 - Naves de facções aparecem como **cruzadores estelares**; `estilo` escolhe o desenho (terrano, marciano, cinturao ou generico).
+- **Corpos reais**: um corpo pode orbitar outro (`pai`), com órbita elíptica (`excentricidade`, `argPeriapse`), e ter massa (`gm`) e raio (`raio`): planetas e luas puxam a nave e a destroem se ela encostar. `tipo: "planeta"` desenha uma esfera (`cor` opcional). O corpo central pode ser uma estrela (`planeta.tipo: "estrela"`; o Sol tem gm 1.32712e20 e raio 6.957e8). Em escala solar, ajuste a nave: `aceleracaoMax` (m/s²) e `velocidadeExaustao` (m/s), por exemplo 6 e 5e6.
+- **Escolta e abordagem**: `ia` com `escoltar` faz uma nave acompanhar o jogador, interceptar mísseis (`chanceInterceptar`) e atacar hostis. `ia` com `abordar` faz uma nave chegar ao jogador e abordá-lo (gatilho `abordado`). O jogador militar pode abordar uma nave de perto e devagar (gatilho `abordagem`; a chance de sucesso é 1 − `defesa` do corpo).
 - Uma nave hostil só dispara se um efeito `ia` com `atacar` a liberar. Use `corpo_destruido` para reagir quando o jogador (militar) a abater.
 
 ## Regras
@@ -25,7 +27,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "escalaTempo": 1440,
   "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
   "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB", "estilo": "terrano|marciano|cinturao|generico"}],
-  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4}],
+  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco|planeta", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4, "pai": "id", "excentricidade": 0.0, "argPeriapse": 0.0, "gm": 0, "raio": 0, "cor": "#RRGGBB", "oculto": false, "defesa": 0.4, "chanceInterceptar": 0.5, "aceleracaoMax": 3.0}],
   "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5},
   "creditos": 500, "reputacao": {"id da facção": 0},
   "objetos": [{"id": "...", "nome": "...", "massa": 40}],
@@ -38,7 +40,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "suspeitos": [{"id": "...", "nome": "...", "texto": "..."}],
   "acusacoes": [{"id": "...", "suspeito": "id", "se": condição, "efeitos": [efeitos, normalmente um final]}],
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
-  "noticias": ["manchetes iniciais"]
+  "noticias": ["manchetes iniciais"],
+  "blocos": [{"id": "...", "efeitos": [efeitos]}]
 }
 ```
 Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}` em `detalhe` mostra a chance do primeiro sorteio da escolha. Uma acusação escolhe o suspeito: vale a primeira cujo `se` seja verdadeiro (ponha a mais exigente primeiro e uma sem `se` por último).
@@ -51,6 +54,17 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 - `fim_dialogo`: Quando um diálogo termina. Campos: `dialogo` (id de diálogo): qual diálogo
 - `fato_revelado`: Quando uma pista é descoberta. Campos: `fato` (id de fato): qual pista
 - `aproximacao`: Quando a nave chega perto de um corpo e devagar (abordagem). Campos: `corpo` (id de corpo): o outro corpo; `distMenorQue` (número (m)): distância máxima; `velMenorQue` (número (m/s)): velocidade relativa máxima
+- `abordado`: Quando uma nave em modo abordar chega ao jogador e o aborda. Campos: `corpo` (id de corpo, opcional): qual nave (opcional)
+- `abordagem`: Quando o jogador (militar) tenta abordar uma nave. Campos: `corpo` (id de corpo, opcional): qual nave (opcional); `resultado` (sucesso|falha, opcional): só esse resultado (opcional)
+- `casco_abaixo`: Quando o casco cai abaixo de uma porcentagem. Campos: `pct` (número 0-100): limite
+- `combustivel_abaixo`: Quando o combustível cai abaixo de uma porcentagem. Campos: `pct` (número 0-100): limite
+- `a_cada`: Periodicamente, a cada tantos segundos de missão. Campos: `segundos` (número (s)): intervalo
+- `reputacao_na_faixa`: Quando a reputação com uma facção entra numa faixa. Campos: `faccao` (id de facção): qual; `min` (inteiro, opcional): mínimo; `max` (inteiro, opcional): máximo
+- `objeto_obtido`: Quando o jogador recebe um objeto. Campos: `objeto` (id de objeto): qual
+- `deducao_feita`: Quando uma dedução é feita no caderno. Campos: `id` (id de dedução): qual
+- `missao_mudou`: Quando uma missão muda de estado. Campos: `id` (id de missão): qual; `estado` (ativa|concluida|falhou, opcional): só esse estado (opcional)
+- `escolta_interceptou`: Quando uma escolta intercepta um míssil que vinha na sua direção. Campos: (sem campos)
+- `missil_lancado`: Quando um míssil é lançado. Campos: `por` (inimigo|jogador, opcional): quem lançou (opcional)
 - `nave_destruida`: Quando a nave do jogador cai no planeta ou é destruída por mísseis. Campos: (sem campos)
 - `corpo_destruido`: Quando uma nave é destruída (por exemplo, abatida por um míssil do jogador). Campos: `corpo` (id de corpo): qual nave
 
@@ -64,6 +78,15 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 - `tem_carga`: A carga do contrato ainda está a bordo. Campos: (sem campos)
 - `papel`: O papel do jogador na campanha (fixo): mercador ou militar. Campos: `valor` (mercador|militar): qual papel
 - `missao`: Estado de uma missão: ativa, concluida ou falhou. Campos: `id` (id de missão): qual; `estado` (ativa|concluida|falhou): estado
+- `contador`: Valor de um contador numérico da história. Campos: `nome` (texto): nome do contador; `min` (inteiro, opcional): mínimo; `max` (inteiro, opcional): máximo
+- `casco`: Casco do jogador em % (0-100). Campos: `min` (número, opcional): mínimo; `max` (número, opcional): máximo
+- `combustivel`: Combustível do jogador em % (0-100). Campos: `min` (número, opcional): mínimo; `max` (número, opcional): máximo
+- `atracado`: A nave está atracada (em um lugar específico, se informado). Campos: `local` (id de corpo, opcional): onde (opcional)
+- `corpo_vivo`: Uma nave existe (ou não) no jogo. Campos: `corpo` (id de corpo): qual; `valor` (verdadeiro/falso, opcional): padrão: verdadeiro
+- `distancia`: Distância entre dois corpos (ou do jogador a um corpo). Campos: `de` ("jogador" ou id de corpo): origem; `ate` (id de corpo): destino; `menorQue` (número (m), opcional): limite; `maiorQue` (número (m), opcional): limite
+- `tempo_maior`: O tempo de missão passou de um valor. Campos: `segundos` (número (s)): tempo
+- `aleatorio`: Verdadeira com uma probabilidade (sorteada a cada avaliação). Campos: `chance` (número 0-1): probabilidade
+- `alvo`: O alvo selecionado é este corpo. Campos: `corpo` (id de corpo): qual
 - `e`: Todas as condições. Campos: `condicoes` (lista de condições): todas devem valer
 - `ou`: Qualquer condição. Campos: `condicoes` (lista de condições): basta uma
 - `nao`: Nega uma condição. Campos: `condicao` (condição): a negada
@@ -79,10 +102,21 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 - `dialogo`: Abre um diálogo (a simulação pausa). Campos: `id` (id de diálogo): qual
 - `noticia`: Publica uma manchete. Campos: `texto` (texto): a manchete
 - `final`: Encerra a partida com um final. Campos: `id` (id de final): qual
-- `ia`: Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador) ou orbitar. Campos: `corpo` (id de corpo): qual nave; `comportamento` (perseguir|atacar|orbitar): o que fazer
+- `ia`: Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis) ou orbitar. Campos: `corpo` (id de corpo): qual nave; `comportamento` (perseguir|atacar|abordar|escoltar|orbitar): o que fazer
 - `alvo`: Seleciona um corpo como alvo. Campos: `corpo` (id de corpo): qual
 - `perder_carga`: A carga do contrato é apreendida (a massa some). Campos: (sem campos)
 - `missao`: Muda o estado de uma missão. Campos: `id` (id de missão): qual; `estado` (ativa|concluida|falhou): novo estado
+- `contador`: Soma `delta` a um contador numérico ou, com `valor`, o define. Campos: `nome` (texto): nome do contador; `delta` (inteiro, opcional): quanto somar; `valor` (inteiro, opcional): valor a definir
+- `se`: Executa efeitos conforme uma condição. Campos: `condicao` (condição): a testada; `entao` (lista de efeitos, opcional): se verdadeira; `senao` (lista de efeitos, opcional): se falsa
+- `executar`: Executa um bloco de efeitos nomeado (de `blocos`). Campos: `bloco` (id de bloco): qual
+- `agendar`: Executa um bloco depois de alguns segundos de missão. Campos: `bloco` (id de bloco): qual; `segundos` (número (s)): daqui a quanto tempo
+- `emboscar`: Faz uma nave surgir perto do jogador (mesma velocidade). Combine com `ia` para ela atacar ou abordar. Campos: `corpo` (id de corpo): qual nave; `distancia` (número (m), opcional): a que distância (padrão 20000)
+- `revelar_corpo`: Faz aparecer um corpo marcado como `oculto`. Campos: `corpo` (id de corpo): qual
+- `ocultar_corpo`: Esconde um corpo. Campos: `corpo` (id de corpo): qual
+- `destruir_corpo`: Remove uma nave do jogo (com explosão, por padrão). Campos: `corpo` (id de corpo): qual nave; `explosao` (verdadeiro/falso, opcional): padrão: verdadeiro
+- `casco`: Repara ou danifica o casco, em % da capacidade. Campos: `delta` (número): variação em %
+- `combustivel`: Abastece ou tira combustível, em % da capacidade. Campos: `delta` (número): variação em %
+- `municao`: Soma mísseis e despistadores. Campos: `misseis` (inteiro, opcional): variação; `despistadores` (inteiro, opcional): variação
 - `sorteio`: Sorteia entre sucesso e falha. A chance é base + reputação × por, entre min e max. Campos: `chance` (objeto {base, faccao?, por?, min?, max?}): probabilidade (0 a 1); `sucesso` (lista de efeitos, opcional): se der certo; `falha` (lista de efeitos, opcional): se der errado
 
 ## Como montar um mistério

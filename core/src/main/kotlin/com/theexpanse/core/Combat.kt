@@ -9,12 +9,14 @@ class Missile(val id: Int, val owner: Owner, var pos: Vec2, var vel: Vec2, var t
     var age = 0.0
     /** Instante (idade) em que um despistador o engana, sorteado no lançamento; null = não será enganado. */
     var decoyAt: Double? = null
+    /** Já foi testado por uma escolta (uma chance de interceptação por míssil). */
+    var escortRolled = false
 }
 
 /** Despistador lançado: um ponto quente que flutua e atrai mísseis. */
 class Flare(val id: String, var pos: Vec2, var vel: Vec2, val born: Double)
 
-enum class BlastKind { SHIP_HIT, KILL, FLARE, LAUNCH, FIZZLE }
+enum class BlastKind { SHIP_HIT, KILL, FLARE, LAUNCH, FIZZLE, INTERCEPT }
 
 /** Explosão para animar; guarda o instante de simulação em que aconteceu. */
 class Blast(val pos: Vec2, val time: Double, val kind: BlastKind)
@@ -27,15 +29,22 @@ sealed interface SimEvent {
     class Hit(val damage: Double) : SimEvent
     class Launched(val owner: Owner, val launcher: String) : SimEvent
     class DecoyResult(val diverted: Int, val total: Int) : SimEvent
+    /** Uma nave hostil em modo abordar chegou ao jogador. */
+    class Boarded(val by: String) : SimEvent
+    /** O jogador tentou abordar [id] (só no papel militar). */
+    class BoardingResult(val id: String, val success: Boolean) : SimEvent
+    class EscortIntercepted(val escort: String) : SimEvent
 }
 
 enum class FireResult { FIRED, NOT_MILITARY, NO_AMMO, NO_TARGET, OUT_OF_RANGE, FRIENDLY }
+
+enum class BoardCheck { OK, NOT_MILITARY, NO_TARGET, TOO_FAR, TOO_FAST, FRIENDLY }
 
 /** Estado de armas de uma nave controlada pelo computador. */
 class NpcArms(var missiles: Int, var decoys: Int, var cooldown: Double)
 
 /** Aceleração de um míssil por navegação proporcional, com compensação da gravidade. */
-fun missileGuidance(world: World, pos: Vec2, vel: Vec2, tPos: Vec2, tVel: Vec2): Vec2 {
+fun missileGuidance(world: World, t: Double, pos: Vec2, vel: Vec2, tPos: Vec2, tVel: Vec2): Vec2 {
     val r = tPos - pos
     val d = r.length
     if (d < 1.0) return Vec2.ZERO
@@ -44,7 +53,7 @@ fun missileGuidance(world: World, pos: Vec2, vel: Vec2, tPos: Vec2, tVel: Vec2):
     val closing = -(r dot vr) / d
     val omega = (r.x * vr.y - r.y * vr.x) / (d * d)
     val perp = Vec2(-rhat.y, rhat.x)
-    var a = perp * (4.0 * maxOf(closing, 100.0) * omega) + rhat * (Config.MISSILE_ACCEL * 0.6) - (world.gravity(pos) - world.gravity(tPos))
+    var a = perp * (4.0 * maxOf(closing, 100.0) * omega) + rhat * (Config.MISSILE_ACCEL * 0.6) - (world.gravity(pos, t) - world.gravity(tPos, t))
     val m = a.length
     if (m > Config.MISSILE_ACCEL) a = a * (Config.MISSILE_ACCEL / m)
     return a

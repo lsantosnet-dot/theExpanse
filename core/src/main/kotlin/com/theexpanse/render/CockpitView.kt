@@ -63,7 +63,7 @@ object CockpitView {
             val r = (rho * ppr).toFloat().coerceAtMost(2000f)
             if (abs(b) - rho < half + 0.1) {
                 val x = sx(b)
-                Planet.draw(d, x, HORIZON, r)
+                if (sim.world.star) Planet.drawStar(d, x, HORIZON, r * 0.6f) else Planet.draw(d, x, HORIZON, r)
                 val ly = (HORIZON + r + 14f).coerceAtMost(h - 52f)
                 d.text(x.coerceIn(150f, w - 150f), ly, sim.world.planetName + " · " + Fmt.distance(dPlanet - sim.world.radius), Palette.AMBER_SOFT, 10f, Align.CENTER)
             }
@@ -163,9 +163,14 @@ object CockpitView {
         val bearing = wrapAngle(rel.angle - view)
         val x = Layout.W / 2 - bearing.toFloat() * ppr
         val isTarget = b === sim.target
-        val color = b.faction.argb
+        val color = b.argb
         var r: Float
-        if (b.kind == BodyKind.SHIP) {
+        if (b.kind == BodyKind.PLANET) {
+            if (abs(bearing) > half + 0.3) return
+            val rho = asin((b.def.radius / dist).coerceAtMost(1.0))
+            r = (rho * ppr).toFloat().coerceIn(3f, 900f)
+            Planet.drawGeneric(d, x, HORIZON, r, color, gas = b.def.radius > 2e7)
+        } else if (b.kind == BodyKind.SHIP) {
             if (abs(bearing) > half + 0.3) return
             val len = (110.0 * sqrt(b.size / 90.0) * sqrt(25_000.0 / (dist + 25_000.0))).toFloat().coerceIn(8f, 150f) * (ppr / (Layout.W / FOV)).coerceAtMost(2f)
             val dyn = sim.dynamics[b.id]
@@ -190,6 +195,7 @@ object CockpitView {
             d.line(x - k, HORIZON + k, x - k + 7, HORIZON + k, c, 1.5f); d.line(x - k, HORIZON + k, x - k, HORIZON + k - 7, c, 1.5f)
             d.line(x + k, HORIZON + k, x + k - 7, HORIZON + k, c, 1.5f); d.line(x + k, HORIZON + k, x + k, HORIZON + k - 7, c, 1.5f)
         }
+        if (!(isTarget || b.parent == null || b.kind == BodyKind.SHIP || dist < 5e7)) return
         val ty = if (isTarget) HORIZON + r + 24f else HORIZON - r - 24f
         d.text(x, ty, if (isTarget) "[ ${b.name} ]" else b.name, color, 10f, Align.CENTER, bold = isTarget)
         d.text(x, ty + 11f, Fmt.distance(dist), Palette.INK, 9f, Align.CENTER)

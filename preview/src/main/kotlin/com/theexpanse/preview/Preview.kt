@@ -180,14 +180,14 @@ private fun gallery() {
     for ((i, it) in items.withIndex()) {
         val cx = 150f + (i % 3) * 270f
         d.text(cx, 62f, it.first, it.third, 11f, Align.CENTER, bold = true)
-        Models.cruiser(d, it.second, it.third, cx, 150f, 0.0, 1.5f, 0.8f, 0.0, 0.37 + i * 0.1)
+        Models.cruiser(d, it.second, it.third, cx, 150f, com.theexpanse.render.Mat.rot(0.0, 1.5f), 0.8f, 0.0, 0.37 + i * 0.1)
     }
     d.text(150f, 262f, "Cargueiro independente", Palette.INK, 11f, Align.CENTER, bold = true)
-    Models.freighter(d, 150f, 330f, 0.0, 1.5f, 0.8f, 0.0, 0.5)
+    Models.freighter(d, 150f, 330f, com.theexpanse.render.Mat.rot(0.0, 1.5f), 0.8f, 0.0, 0.5)
     d.text(420f, 262f, "Genérico (corsário)", 0xFFC9A06A.toInt(), 11f, Align.CENTER, bold = true)
-    Models.cruiser(d, HullStyle.GENERIC, 0xFFC9A06A.toInt(), 420f, 330f, 0.0, 1.5f, 0.6f, 0.0, 0.9)
+    Models.cruiser(d, HullStyle.GENERIC, 0xFFC9A06A.toInt(), 420f, 330f, com.theexpanse.render.Mat.rot(0.0, 1.5f), 0.6f, 0.0, 0.9)
     d.text(690f, 262f, "Destroços", Palette.MUTED, 11f, Align.CENTER, bold = true)
-    Models.wreck(d, 0xFF3FD0B8.toInt(), 690f, 330f, 0.2, 1.6f, 0.5)
+    Models.wreck(d, 0xFF3FD0B8.toInt(), 690f, 330f, com.theexpanse.render.Mat.rot(0.2, 1.6f), 0.5)
     val img = Raster.render(Frame(d.prims, emptyList()), 2f)
     ImageIO.write(img, "png", File(outDir, "21_galeria_naves.png"))
     println("gravado 21_galeria_naves.png")
@@ -326,9 +326,109 @@ private fun panelAndCamera() {
     shot(c, "35_camera_externa_girada")
 }
 
+
+/** Sistema Solar real: vistas, mapa, escolta, abordagem, 3D e salvamentos. */
+private fun solar() {
+    var clock = 1_761_900_000_000L
+    val c = AppController(MemoryStorage(), seed = { 4L }, now = { clock })
+    c.press("home_play:rota_do_gelo")
+    val g = c.session!!
+    shot(c, "37_solar_escolta_dialogo")
+    g.choose(0) // contrata a escolta
+    c.view = ViewMode.COCKPIT
+    c.update(0.0)
+    repeat(4000) { g.stepFixed(0.5) }
+    c.view = ViewMode.SPACE3D; c.cam.reset(); c.cam.rotate(0.9); shot(c, "38_solar_3d_escolta")
+    c.view = ViewMode.EXTERNAL; c.cam.reset(); shot(c, "39_solar_externa_escolta")
+    c.cam.reset()
+
+    // mapa do sistema inteiro e ajustado a Ceres–Marte
+    c.screen = Screen.MAP
+    c.mapZoom = 0; c.mapCenter = 0
+    shot(c, "40_solar_mapa_sistema")
+    c.press("map_fit")
+    shot(c, "41_solar_mapa_ajustado")
+    c.screen = Screen.FLIGHT
+
+    // viagem: piloto automático em escala de cruzeiro
+    g.sim.setThrust(50); g.sim.setAutopilot(AutopilotMode.INTERCEPT)
+    c.press("warp_3")
+    var frames = 0
+    while (g.sim.time < 2.2e5 && frames++ < 12000 && g.dialogue == null) { g.update(1.0 / 30); c.animate(1.0 / 30) }
+    c.eta.update(g.sim, c.animTime, 3_000_000)
+    c.view = ViewMode.COCKPIT; shot(c, "42_solar_cabine_cruzeiro")
+    c.view = ViewMode.SPACE3D; c.cam.reset(); shot(c, "43_solar_3d_cruzeiro")
+    // emboscada dos corsários (a escolta reage)
+    while (g.dialogue == null && g.sim.status == Status.FLYING && g.sim.time < 4.5e5 && frames++ < 30000) { g.update(1.0 / 30); c.animate(1.0 / 30) }
+    c.view = ViewMode.EXTERNAL; shot(c, "44_solar_abordagem_corsario")
+    c.view = ViewMode.SPACE3D; c.cam.reset(); c.cam.rotate(0.4); shot(c, "45_solar_3d_corsario")
+    if (g.dialogue != null) shot(c, "46_solar_dialogo_pirata")
+
+    // rota calculando em segundo plano
+    val c2 = AppController(MemoryStorage(), seed = { 4L })
+    c2.press("home_play:rota_do_gelo")
+    c2.session!!.choose(1)
+    c2.screen = Screen.MENU
+    c2.press("open_route")
+    c2.update(1.0 / 60)
+    shot(c2, "47_solar_rota_calculando")
+    var f2 = 0
+    while (c2.routeJob?.done != true && f2++ < 4000) c2.update(1.0 / 60)
+    shot(c2, "48_solar_rota_pronta")
+
+    // salvamentos: dois manuais e o automático, um renomeado
+    val host = object : com.theexpanse.game.Host {
+        override fun importPackage() {}
+        override fun exportFile(fileName: String, text: String) {}
+        override fun copyText(text: String) {}
+        override fun promptText(title: String, initial: String, onResult: (String?) -> Unit) = onResult("Antes da emboscada")
+    }
+    val c3 = AppController(MemoryStorage(), host, seed = { 4L }, now = { clock })
+    c3.press("home_play:rota_do_gelo")
+    c3.session!!.choose(0)
+    c3.press("save_new")
+    clock += 3_600_000
+    repeat(900) { c3.session!!.stepFixed(1.0) }
+    c3.press("save_new")
+    c3.saveNow()
+    c3.screen = Screen.MENU
+    shot(c3, "49_menu_salvar")
+    c3.press("open_saves")
+    c3.press("save_rename:" + c3.saveList("rota_do_gelo").first { !it.isAuto }.slot)
+    shot(c3, "50_saves")
+    c3.leaveToHome()
+    shot(c3, "51_inicio_com_saves")
+}
+
+/** Cruzador abordando o corsário: botão ABORDAR liberado, na externa e na 3D. */
+private fun boarding() {
+    val c = AppController(MemoryStorage(), seed = { 8L })
+    c.press("home_play:patrulha")
+    val g = c.session!!
+    val corvo = g.world.body("corvo")!!
+    val p = g.sim.position(corvo)
+    g.sim.ship.pos = p + Vec2.fromAngle(2.0) * 500.0
+    g.sim.ship.vel = g.sim.velocity(corvo)
+    g.sim.ship.angle = (p - g.sim.ship.pos).angle
+    g.stepFixed(0.05)
+    g.choose(0)  // ordena a rendição
+    if (g.dialogue != null) g.choose(0)
+    g.stepFixed(0.05)
+    c.view = ViewMode.EXTERNAL; shot(c, "52_abordagem_botao")
+    c.view = ViewMode.SPACE3D; c.cam.reset(); c.cam.rotate(0.6); c.cam.zoomBy(1.6); shot(c, "53_abordagem_3d")
+    c.press("board")
+    repeat(4) { g.stepFixed(0.05) }
+    c.view = ViewMode.EXTERNAL; shot(c, "54_abordagem_resultado")
+}
+
 fun main(args: Array<String>) {
     outDir = File(args.firstOrNull() ?: "docs/preview")
     outDir.mkdirs()
+    if (System.getenv("ONLY_TEMPLATE") != null) {
+        File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
+        println("gravado the_expanse_template.md")
+        return
+    }
     calice()
     albatroz()
     gallery()
@@ -336,6 +436,8 @@ fun main(args: Array<String>) {
     patrol()
     docking()
     panelAndCamera()
+    solar()
+    boarding()
     File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
     println("gravado the_expanse_template.md")
 }

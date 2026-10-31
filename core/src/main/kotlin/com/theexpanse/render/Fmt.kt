@@ -28,6 +28,13 @@ object Fmt {
 
     fun speed(mps: Double): String = if (abs(mps) >= 1000.0) dec(mps / 1000, 2) + " km/s" else dec(mps, 1) + " m/s"
 
+    /** Data e hora locais: "31/10/2026 14:05". */
+    fun dateTime(epochMs: Long): String {
+        if (epochMs <= 0L) return "—"
+        val z = java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault())
+        return String.format(Locale.ROOT, "%02d/%02d/%04d %02d:%02d", z.dayOfMonth, z.monthValue, z.year, z.hour, z.minute)
+    }
+
     /** Duração legível: "5 d 3 h", "7 h 32 min", "12 min 10 s", "45 s". */
     fun duration(seconds: Double): String {
         val t = seconds.toLong().coerceAtLeast(0)

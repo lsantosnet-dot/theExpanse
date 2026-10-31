@@ -114,13 +114,13 @@ class StoryTest {
     }
 
     @Test
-    fun cuttingTheRadioStartsAPursuitCappedAtTimes30() {
+    fun cuttingTheRadioStartsAPursuitCappedAtTimes120() {
         val g = caliceUntilRadio()
         g.choose(3)
         assertTrue(g.sim.isPursued())
         g.sim.setWarp(4)
         g.sim.advance(1.0 / 60)
-        assertTrue(g.sim.effectiveWarp <= 30.0, "fator ${g.sim.effectiveWarp}")
+        assertTrue(g.sim.effectiveWarp <= 120.0, "fator ${g.sim.effectiveWarp}")
         fly(g)
         println("perseguição terminou em ${g.sim.time.toInt()} s com final ${g.ending?.id}")
         assertTrue(g.ending?.id == "entregou_fugiu" || g.ending?.id == "abordado", "final ${g.ending?.id}")

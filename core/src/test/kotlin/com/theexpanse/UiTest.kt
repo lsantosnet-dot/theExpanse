@@ -295,13 +295,13 @@ class UiTest {
         assertEquals(Status.DOCKED, sim.status)
         assertTrue(Math.abs(predicted - actual) / actual < 0.2, "previsto $predicted, medido $actual")
 
-        // com um atacante (teto ×10), a estimativa tem de refletir o limite
+        // com um atacante (teto ×60: uma hora de jogo por minuto real), a estimativa tem de refletir o limite
         val capped = com.theexpanse.core.Simulation(com.theexpanse.core.World(pack))
         capped.setAi(capped.world.body("fragata_tribunal")!!, com.theexpanse.content.AiMode.ATTACK)
         capped.setWarp(3)
-        assertEquals(10.0, capped.plannedWarp())
+        assertEquals(60.0, capped.plannedWarp())
         assertEquals(2 * 3600.0, capped.realSecondsFor(8520.0), 1.0e5) // só confere que roda
-        assertTrue(capped.realSecondsFor(8520.0) > 600.0, "2 h 22 min a ×10 levam mais de 10 min reais")
+        assertTrue(capped.realSecondsFor(8520.0) in 120.0..300.0, "2 h 22 min a ×60 levam uns 2-3 min reais")
     }
 
     @Test

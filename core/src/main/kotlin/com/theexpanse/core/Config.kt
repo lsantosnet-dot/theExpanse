@@ -24,8 +24,8 @@ object Config {
     /** Perseguidor: aceleração máxima e distância de parada (m). */
     const val PURSUER_ACCEL = 3.0
     const val PURSUER_STOP = 20_000.0
-    const val PURSUIT_WARP_CAP = 30.0
-    const val ATTACK_WARP_CAP = 10.0
+    const val PURSUIT_WARP_CAP = 120.0
+    const val ATTACK_WARP_CAP = 60.0
 
     /** Combate: mísseis guiados, despistadores e dano. */
     const val MISSILE_ACCEL = 80.0

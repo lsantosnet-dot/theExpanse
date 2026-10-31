@@ -399,7 +399,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 story.ending = e.id
                 pack.ending(e.id)?.let { story.news.add(0, it.headline) }
             }
-            is Effect.Ai -> world.body(e.body)?.let { sim.setAi(it, e.mode) }
+            is Effect.Ai -> world.body(e.body)?.let { sim.setAi(it, e.mode, e.route) }
             is Effect.SetTarget -> world.body(e.body)?.let { sim.selectTarget(it) }
             Effect.LoseCargo -> {
                 if (sim.ship.cargo > 0) addMessage("A carga foi apreendida.")

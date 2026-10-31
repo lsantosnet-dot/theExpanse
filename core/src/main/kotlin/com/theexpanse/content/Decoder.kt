@@ -323,8 +323,10 @@ object Decoder {
                 "final" -> Effect.End(n.str("id") ?: "")
                 "ia" -> {
                     val key = n.str("comportamento") ?: ""
-                    val mode = AiMode.values().firstOrNull { it.key == key } ?: run { n.err("'comportamento' deve ser perseguir, atacar, abordar, escoltar ou orbitar"); AiMode.ORBIT }
-                    Effect.Ai(n.str("corpo") ?: "", mode)
+                    val mode = AiMode.values().firstOrNull { it.key == key } ?: run { n.err("'comportamento' deve ser perseguir, atacar, abordar, escoltar, patrulhar, fugir ou orbitar"); AiMode.ORBIT }
+                    val route = n.strings("rota")
+                    if (mode == AiMode.PATROL && route.size < 2) n.err("patrulhar exige 'rota' com ao menos 2 corpos")
+                    Effect.Ai(n.str("corpo") ?: "", mode, route)
                 }
                 "alvo" -> Effect.SetTarget(n.str("corpo") ?: "")
                 "contador" -> {

@@ -135,7 +135,7 @@ object ExternalView {
 
     private fun headingOf(sim: Simulation, b: Body): Double {
         val dyn = sim.dynamics[b.id]
-        return if (dyn != null && dyn.mode != com.theexpanse.content.AiMode.ORBIT) (sim.ship.pos - dyn.pos).angle else sim.velocity(b).angle
+        return if (dyn != null && dyn.mode != com.theexpanse.content.AiMode.ORBIT) dyn.heading(sim.ship.pos) else sim.velocity(b).angle
     }
 
     private fun drawBody(d: Draw, b: Body, sim: Simulation, axis: Double, z: Float, k: Double, t: Double, isTarget: Boolean) {

@@ -76,7 +76,7 @@ object Vocabulary {
         Spec("dialogo", "Abre um diálogo (a simulação pausa).", listOf(f("id", "id de diálogo", "qual"))),
         Spec("noticia", "Publica uma manchete.", listOf(f("texto", "texto", "a manchete"))),
         Spec("final", "Encerra a partida com um final.", listOf(f("id", "id de final", "qual"))),
-        Spec("ia", "Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis) ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|atacar|abordar|escoltar|orbitar", "o que fazer"))),
+        Spec("ia", "Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis), patrulhar (percorre em ciclo a lista `rota` de corpos, com ao menos 2), fugir (afasta-se do jogador com toda a aceleração) ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|atacar|abordar|escoltar|patrulhar|fugir|orbitar", "o que fazer"), f("rota", "lista de ids de corpos", "só para patrulhar: os pontos da ronda, em ordem", false))),
         Spec("alvo", "Seleciona um corpo como alvo.", listOf(f("corpo", "id de corpo", "qual"))),
         Spec("perder_carga", "A carga do contrato é apreendida (a massa some).", emptyList()),
         Spec("missao", "Muda o estado de uma missão.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "novo estado"))),

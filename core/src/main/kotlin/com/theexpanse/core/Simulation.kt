@@ -393,13 +393,24 @@ class Simulation(val world: World, seed: Long = 1L) {
         events.add(SimEvent.BodyDestroyed(b.id))
     }
 
+    /**
+     * Um despistador sai de lado, perpendicular à linha de visada do míssil [from], a [Config.DECOY_EJECT_SPEED] m/s em
+     * relação a quem o lançou, e segue em linha reta: o míssil enganado vai atrás dele e se afasta da nave.
+     */
+    private fun ejectFlare(pos: Vec2, vel: Vec2, from: Vec2, side: Int): Flare {
+        val los = (pos - from).unit()
+        val sideways = Vec2(-los.y, los.x) * side.toDouble()
+        return Flare("d${nextId++}", pos, vel + sideways * Config.DECOY_EJECT_SPEED, time)
+    }
+
     /** Lança um despistador contra os mísseis que perseguem a nave. Cada míssil é sorteado à parte. */
     fun deployDecoy(): Boolean {
         if (status != Status.FLYING || ship.decoys <= 0) return false
         val tracking = incoming()
         if (tracking.isEmpty()) return false
         ship.decoys--
-        val flare = Flare("d${nextId++}", ship.pos, ship.vel + Vec2.fromAngle(ship.angle + PI / 2) * 40.0, time)
+        val threat = tracking.minByOrNull { (it.pos - ship.pos).length }!!
+        val flare = ejectFlare(ship.pos, ship.vel, threat.pos, if (ship.decoys % 2 == 0) 1 else -1)
         flares.add(flare)
         val p = world.ship.decoyChance
         var ok = 0
@@ -697,7 +708,7 @@ class Simulation(val world: World, seed: Long = 1L) {
             if (da != null && m.age >= da && m.owner == Owner.PLAYER) {
                 val victim = world.body(m.targetId)
                 if (victim != null) {
-                    val f = Flare("d${nextId++}", position(victim), velocity(victim), time)
+                    val f = ejectFlare(position(victim), velocity(victim), m.pos, if (nextId % 2 == 0) 1 else -1)
                     flares.add(f)
                     blasts.add(Blast(f.pos, time, BlastKind.FLARE))
                     m.targetId = f.id

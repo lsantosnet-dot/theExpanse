@@ -90,6 +90,8 @@ object ExternalView {
         // despistadores
         for (f in sim.flares) {
             val p = map(f.pos - ship.pos, axis, z, k)
+            val tail = map(f.pos - ship.pos - (f.vel - ship.vel) * 4.0, axis, z, k)
+            d.line(tail[0], tail[1], p[0], p[1], 0xFFFFE9B0.toInt().alpha(0.5f), 1.2f)
             val tw = 0.7f + 0.3f * sin(t * 25 + f.born).toFloat()
             d.glow(p[0], p[1], 20f, 0xFFFFE9B0.toInt().alpha(0.55f * tw))
             d.circle(p[0], p[1], 2.6f, fill = Palette.PLUME_CORE.alpha(tw))

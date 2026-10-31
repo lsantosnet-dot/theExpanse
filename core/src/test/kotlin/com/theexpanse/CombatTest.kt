@@ -285,4 +285,55 @@ class CombatTest {
         assertEquals(g.sim.ship.decoys, h.sim.ship.decoys)
         assertEquals(AiMode.ATTACK, h.sim.dynamics["fragata_vigilia"]!!.mode)
     }
+
+    @Test
+    fun decoyIsEjectedSidewaysAndFliesAwayInAStraightLine() {
+        val sim = Simulation(World(emboscada))
+        val m = enemyMissileAt(sim, 30_000.0)
+        assertTrue(sim.deployDecoy())
+        val f = sim.flares.single()
+        val rel = f.vel - sim.ship.vel
+        assertEquals(Config.DECOY_EJECT_SPEED, rel.length, 1e-6)
+        val los = (sim.ship.pos - m.pos).unit()
+        assertEquals(0.0, rel.unit() dot los, 1e-9, "sai de lado, perpendicular à linha de visada do míssil")
+        assertEquals(0.0, (f.pos - sim.ship.pos).length, 1e-9, "nasce na nave")
+        sim.missiles.clear()
+        repeat(200) { sim.step(0.05) } // 10 s
+        val away = (sim.flares.single().pos - sim.ship.pos).length
+        assertTrue(away in 1_400.0..1_600.0, "10 s depois está a ${away.toInt()} m da nave")
+    }
+
+    @Test
+    fun aDivertedMissileFollowsTheDecoyAwayInsteadOfPassingNearTheShip() {
+        for (seed in 1L..50L) {
+            val sim = Simulation(World(emboscada), seed)
+            val m = enemyMissileAt(sim, 30_000.0)
+            sim.deployDecoy()
+            if (m.targetId == "jogador") continue
+            var closest = Double.MAX_VALUE
+            var steps = 0
+            while (sim.missiles.isNotEmpty() && steps++ < 5000) {
+                sim.step(0.05)
+                sim.missiles.firstOrNull()?.let { closest = minOf(closest, (it.pos - sim.ship.pos).length) }
+            }
+            println("míssil enganado passou a no mínimo ${closest.toInt()} m da nave")
+            assertTrue(closest > 1_500.0, "passou a ${closest.toInt()} m da nave: o despistador não é um campo de força")
+            return
+        }
+        error("nenhuma semente enganou o míssil")
+    }
+
+    @Test
+    fun anEnemyDecoyAlsoLeavesItsShipAtEjectionSpeed() {
+        val sim = Simulation(World(patrulha))
+        placeNear(sim, "corvo", 40_000.0)
+        val foe = sim.world.body("corvo")!!
+        val m = Missile(901, Owner.PLAYER, sim.ship.pos, sim.ship.vel, foe.id, "jogador")
+        m.decoyAt = 0.0
+        sim.missiles.add(m)
+        sim.step(0.05)
+        val f = sim.flares.single()
+        assertEquals(Config.DECOY_EJECT_SPEED, (f.vel - sim.velocity(foe)).length, 0.1)
+        assertEquals(f.id, m.targetId, "o míssil passa a perseguir o despistador")
+    }
 }

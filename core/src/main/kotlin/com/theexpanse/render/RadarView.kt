@@ -210,6 +210,8 @@ object RadarView {
         for (f in sim.flares) {
             val rel = f.pos - ship.pos
             val px = sx(rel.x, k); val py = sy(rel.y, k)
+            val rv = f.vel - ship.vel
+            d.line(px, py, sx(rel.x - rv.x * 4.0, k), sy(rel.y - rv.y * 4.0, k), 0xFFFFE9B0.toInt().alpha(0.5f), 1.2f)
             val tw = 0.7f + 0.3f * sin(t * 25 + f.born).toFloat()
             d.glow(px, py, 14f, 0xFFFFE9B0.toInt().alpha(0.55f * tw))
             d.circle(px, py, 2.4f, fill = Palette.PLUME_CORE.alpha(tw))

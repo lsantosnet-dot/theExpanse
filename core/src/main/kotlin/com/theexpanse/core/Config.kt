@@ -53,6 +53,8 @@ object Config {
     const val BOARD_SPEED = 12.0
     const val MISSILE_DAMAGE_MIN = 45.0
     const val MISSILE_DAMAGE_MAX = 80.0
+    /** Velocidade (m/s) com que um despistador é ejetado de lado, em relação a quem o lançou. */
+    const val DECOY_EJECT_SPEED = 150.0
 
     /** Radar tático: distância de uma nave hostil armada a partir da qual o botão RADAR começa a piscar (m). */
     const val RADAR_ALERT_RANGE = 200_000.0

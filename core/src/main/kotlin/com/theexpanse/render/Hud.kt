@@ -57,6 +57,11 @@ object Hud {
             val msg = if (sec <= 0.5) "INVERTER AGORA" else "INVERTER EM " + Fmt.clock(sec)
             d.rect(Layout.W / 2 - 110f, 26f, 220f, 24f, fill = Palette.RED.alpha(0.18f), stroke = Palette.RED, radius = 3f)
             d.text(Layout.W / 2, 43f, msg, Palette.RED_SOFT, 12f, Align.CENTER, bold = true)
+        } else sim.collisionWarning()?.let { (name, eta) ->
+            val auto = sim.autopilot == AutopilotMode.INTERCEPT
+            val pulse = 0.55f + 0.45f * sin(t * 6).toFloat()
+            d.rect(Layout.W / 2 - 185f, 26f, 370f, 26f, fill = Palette.RED.alpha(0.12f + 0.12f * pulse), stroke = Palette.RED, radius = 3f)
+            d.text(Layout.W / 2, 43f, Ui.clip("ROTA COLIDE COM ${name.uppercase()} · EM ${Fmt.duration(eta)}" + if (auto) " · DESVIANDO" else "", 11f, 360f), Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
         }
         if (s.fuel <= 0.0) d.text(Layout.W / 2, 66f, "SEM COMBUSTÍVEL", Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
 

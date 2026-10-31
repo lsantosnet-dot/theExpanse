@@ -29,6 +29,8 @@ object Config {
     /** Distância do jogador abaixo da qual uma patrulha ou fuga limita o tempo acelerado. */
     const val AI_WARP_RADIUS = 1_000_000.0
     const val PURSUIT_WARP_CAP = 30.0
+    /** Segundos reais que o jogador deve ter, no mínimo, entre o aviso de colisão e o impacto. */
+    const val COLLISION_REACTION = 60.0
     const val ATTACK_WARP_CAP = 10.0
 
     /** Combate: mísseis guiados, despistadores e dano. */

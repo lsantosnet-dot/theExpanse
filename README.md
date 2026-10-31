@@ -201,3 +201,9 @@ Piloto automático: ao tocar em INTERC., a rota é verificada antes de engajar, 
 simulação. Rota boa engaja direto; rota que termina em colisão, sem combustível ou fora do tempo abre o aviso **ROTA
 INVIÁVEL** com `CANCELAR`, `ENGAJAR MESMO ASSIM` e, quando existe, `USAR n%` (um empuxo que chega). O tempo fica parado
 durante a verificação e o aviso. Em voo, `ROTA COLIDE COM <corpo>` avisa se a trajetória atual bate em algo.
+
+Acusações: o jogador tem `tentativasAcusacao` tentativas (padrão 3; 1 volta à regra antiga de uma só acusação). Acusar
+alguém cujo final é de derrota é um palpite errado: gasta uma tentativa, aplica só as penalidades (reputação, créditos),
+descarta o suspeito (`✗` no Caderno) e o jogo continua; na última tentativa o final acontece. Final de vitória ou neutro
+encerra o caso na hora. O Caderno mostra quantas tentativas restam e as tentativas ficam nos salvamentos.
+

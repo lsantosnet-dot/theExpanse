@@ -93,7 +93,7 @@ object Decoder {
     private class Reader(val errors: MutableList<String>) {
         fun pack(n: Node): ContentPackage? {
             n.only(setOf("formato", "id", "titulo", "resumo", "autor", "papel", "escalaTempo", "planeta", "facoes", "corpos", "nave", "creditos", "reputacao",
-                "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "finais", "noticias", "blocos"))
+                "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "tentativasAcusacao", "finais", "noticias", "blocos"))
             val format = n.int("formato")
             if (format != null && format != FORMAT) n.err("formato $format não suportado (este jogo lê o formato $FORMAT)")
             val id = n.str("id") ?: ""
@@ -200,11 +200,13 @@ object Decoder {
                 val kind = EndingKind.values().firstOrNull { it.key == kindKey } ?: run { e.err("'tipo' deve ser vitoria, derrota ou neutro"); EndingKind.NEUTRAL }
                 EndingDef(e.str("id") ?: "", e.str("titulo") ?: "", e.str("manchete") ?: "", kind)
             }
+            val attempts = n.int("tentativasAcusacao", false) ?: DEFAULT_ACCUSATIONS
+            if (attempts < 1 || attempts > 9) n.err("'tentativasAcusacao' deve ficar entre 1 e 9 (1 = uma acusação encerra o caso)")
             val news = n.strings("noticias")
             val blocks = n.nodes("blocos").map { b -> b.only(setOf("id", "efeitos")); BlockDef(b.str("id") ?: "", b.nodes("efeitos").mapNotNull { effect(it) }) }
             if (errors.isNotEmpty()) return null
             return ContentPackage(format ?: FORMAT, id, title, summary, author, role, timeScale, planet, factions, bodies, ship, credits, reputation,
-                objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news, blocks)
+                objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news, blocks, attempts.coerceIn(1, 9))
         }
 
         private fun color(n: Node, hex: String): Int {

@@ -1,6 +1,8 @@
 package com.theexpanse
 
 import com.theexpanse.content.Builtin
+import com.theexpanse.content.Decoder
+import com.theexpanse.content.Effect
 import com.theexpanse.core.AutopilotMode
 import com.theexpanse.core.Config
 import com.theexpanse.core.Status
@@ -190,14 +192,64 @@ class StoryTest {
     }
 
     @Test
-    fun accusingTooEarlyOrTheWrongPersonEndsBadly() {
-        val early = GameSession(albatroz, 1)
-        early.accuse("s_atlas")
-        assertEquals("sem_provas", early.ending?.id)
-        val marte = GameSession(albatroz, 1)
-        marte.accuse("s_marte")
-        assertEquals("guerra_injusta", marte.ending?.id)
-        assertEquals(5 - 40, marte.story.reputation["federacao"])
+    fun wrongAccusationsCostAnAttemptAndTheLastOneEndsBadly() {
+        val g = GameSession(albatroz, 1)
+        assertEquals(3, g.story.accusationsLeft)
+        // cedo demais: sem provas, mas ainda sobram tentativas
+        assertTrue(g.accuse("s_atlas"))
+        assertEquals(null, g.ending)
+        assertEquals(2, g.story.accusationsLeft)
+        assertTrue("s_atlas" in g.story.refuted)
+        assertEquals("ativa", g.story.missions["m_verdade"], "a missão só falha na última tentativa")
+        // Marte é inocente: a reputação cai, mas o jogo continua
+        assertTrue(g.accuse("s_marte"))
+        assertEquals(null, g.ending)
+        assertEquals(1, g.story.accusationsLeft)
+        assertEquals(5 - 40, g.story.reputation["federacao"])
+        // suspeito descartado não pode ser acusado de novo
+        assertFalse(g.accuse("s_atlas"))
+        assertEquals(1, g.story.accusationsLeft)
+        // a última tentativa errada encerra o caso com o final de derrota
+        assertTrue(g.accuse("s_terno"))
+        assertEquals("sem_provas", g.ending?.id)
+        assertEquals(0, g.story.accusationsLeft)
+        assertEquals("falhou", g.story.missions["m_verdade"])
+    }
+
+    @Test
+    fun aGoodAccusationStillEndsTheCaseAtOnce() {
+        val g = GameSession(albatroz, 1)
+        g.accuse("s_marte")
+        assertEquals(2, g.story.accusationsLeft)
+        g.runEffects(listOf(Effect.Reveal("f_codigo_marte"), Effect.Reveal("f_codigo_roubado"), Effect.Reveal("f_homem_terno"), Effect.Reveal("f_apolice")))
+        g.deduce(setOf("f_codigo_marte", "f_codigo_roubado"))
+        g.deduce(setOf("f_homem_terno", "f_apolice"))
+        g.runEffects(listOf(Effect.GiveObject("relatorio_lab")))
+        g.accuse("s_atlas")
+        assertEquals("verdade", g.ending?.id)
+        assertEquals("concluida", g.story.missions["m_verdade"])
+    }
+
+    @Test
+    fun singleAttemptPackKeepsTheOldRule() {
+        val one = Decoder.decode(Builtin.text("albatroz")!!.replace("\"acusacoes\":", "\"tentativasAcusacao\": 1, \"acusacoes\":"))
+        val pack = one.pack!!
+        val g = GameSession(pack, 1)
+        assertEquals(1, g.story.accusationsLeft)
+        g.accuse("s_marte")
+        assertEquals("guerra_injusta", g.ending?.id)
+    }
+
+    @Test
+    fun attemptsAreValidatedAndSaved() {
+        val bad = Decoder.decode(Builtin.text("albatroz")!!.replace("\"acusacoes\":", "\"tentativasAcusacao\": 0, \"acusacoes\":"))
+        assertTrue(bad.errors.any { it.contains("tentativasAcusacao") }, bad.errors.toString())
+        val g = GameSession(albatroz, 1)
+        g.accuse("s_marte")
+        val copy = GameSession(albatroz, 2)
+        copy.fromJson(g.toJson())
+        assertEquals(2, copy.story.accusationsLeft)
+        assertTrue("s_marte" in copy.story.refuted)
     }
 
     @Test
@@ -205,9 +257,9 @@ class StoryTest {
         val g = GameSession(albatroz, 1)
         g.accuse("s_marte")
         val rep = g.story.reputation["federacao"]
-        g.continueFlying()
         assertFalse(g.accuse("s_marte"))
         assertEquals(rep, g.story.reputation["federacao"])
+        assertEquals(2, g.story.accusationsLeft)
     }
 
     @Test

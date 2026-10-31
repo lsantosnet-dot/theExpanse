@@ -68,6 +68,9 @@ class StoryState(pack: ContentPackage, seed: Long) {
     /** Blocos agendados: (instante de missão, id do bloco). */
     val scheduled = ArrayList<Pair<Double, String>>()
     var ending: String? = null
+    /** Acusações que ainda restam e suspeitos já descartados por acusações erradas. */
+    var accusationsLeft = pack.accusationAttempts
+    val refuted = LinkedHashSet<String>()
     var continued = false
     var dialogue: String? = null
     val pendingDialogues = ArrayList<String>()
@@ -516,11 +519,27 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
             addMessage("O caso já foi encerrado.")
             return false
         }
+        if (suspectId in story.refuted) {
+            addMessage("Esse suspeito já foi descartado.")
+            return false
+        }
         val a = pack.accusations.firstOrNull { it.suspectId == suspectId && (it.condition == null || eval(it.condition)) }
         if (a == null) {
             addMessage("Faltam provas para acusar.")
             return false
         }
+        val endKind = a.effects.filterIsInstance<Effect.End>().firstOrNull()?.let { pack.ending(it.id)?.kind }
+        if (endKind == com.theexpanse.content.EndingKind.LOSS && story.accusationsLeft > 1) {
+            // palpite errado: custa só a reputação e uma tentativa; a missão e o final ficam para a última chance
+            story.accusationsLeft--
+            story.refuted.add(suspectId)
+            runEffects(a.effects.filterNot { it is Effect.End || it is Effect.Mission })
+            val who = pack.suspects.firstOrNull { it.id == suspectId }?.name ?: suspectId
+            addMessage("Acusação errada: $who não se sustenta. Restam ${story.accusationsLeft} tentativa(s).")
+            pump()
+            return true
+        }
+        if (endKind == com.theexpanse.content.EndingKind.LOSS) story.accusationsLeft = 0
         runEffects(a.effects)
         pump()
         return true
@@ -562,6 +581,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         put("creditos", s.credits)
         put("final", s.ending ?: "")
         put("continuou", s.continued)
+        put("tentativas", s.accusationsLeft); put("descartados", JsonArray(s.refuted.map { JsonPrimitive(it) }))
         put("dialogo", s.dialogue ?: "")
         fun arr(c: Collection<String>) = JsonArray(c.map { JsonPrimitive(it) })
         put("fatos", arr(s.facts)); put("objetos", arr(s.objects)); put("deduzidas", arr(s.deduced)); put("disparadas", arr(s.fired))
@@ -584,6 +604,8 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         s.credits = o["creditos"]!!.jsonPrimitive.int
         s.ending = o["final"]!!.jsonPrimitive.content.ifEmpty { null }
         s.continued = o["continuou"]!!.jsonPrimitive.boolean
+        o["tentativas"]?.let { s.accusationsLeft = it.jsonPrimitive.int }
+        o["descartados"]?.jsonArray?.forEach { s.refuted.add(it.jsonPrimitive.content) }
         s.dialogue = o["dialogo"]!!.jsonPrimitive.content.ifEmpty { null }
         fun list(k: String) = o[k]!!.jsonArray.map { it.jsonPrimitive.content }
         s.facts.addAll(list("fatos")); s.objects.addAll(list("objetos")); s.deduced.addAll(list("deduzidas")); s.fired.addAll(list("disparadas"))

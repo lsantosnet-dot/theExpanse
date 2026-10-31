@@ -448,10 +448,22 @@ private fun preflight() {
     shot(s2, "55_rota_verificando")
 }
 
+/** Caderno com tentativas de acusação: um suspeito já descartado e a contagem restante. */
+private fun accusations() {
+    val c = newController()
+    c.press("home_play:albatroz")
+    val g = c.session!!
+    c.screen = Screen.NOTEBOOK
+    g.accuse("s_marte")
+    shot(c, "57_acusacoes_tentativas")
+    g.accuse("s_atlas")
+    shot(c, "58_acusacoes_ultima")
+}
+
 fun main(args: Array<String>) {
     outDir = File(args.firstOrNull() ?: "docs/preview")
     outDir.mkdirs()
-    if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); return }
+    if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); accusations(); return }
     if (System.getenv("ONLY_TEMPLATE") != null) {
         File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
         println("gravado the_expanse_template.md")
@@ -467,6 +479,7 @@ fun main(args: Array<String>) {
     solar()
     boarding()
     preflight()
+    accusations()
     File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
     println("gravado the_expanse_template.md")
 }

@@ -64,6 +64,8 @@ class AccusationDef(val id: String, val suspectId: String, val condition: Cond?,
 enum class EndingKind(val key: String) { WIN("vitoria"), LOSS("derrota"), NEUTRAL("neutro") }
 class EndingDef(val id: String, val title: String, val headline: String, val kind: EndingKind)
 
+const val DEFAULT_ACCUSATIONS = 3
+
 class ContentPackage(
     val format: Int, val id: String, val title: String, val summary: String, val author: String,
     val role: RoleDef, val timeScale: Double,
@@ -73,6 +75,8 @@ class ContentPackage(
     val dialogues: List<DialogueDef>, val rules: List<RuleDef>, val deductions: List<DeductionDef>,
     val missions: List<MissionDef>, val suspects: List<SuspectDef>, val accusations: List<AccusationDef>,
     val endings: List<EndingDef>, val news: List<String>, val blocks: List<BlockDef> = emptyList(),
+    /** Quantas acusações o jogador pode fazer: errar (final de derrota) gasta uma e descarta o suspeito, até a última encerrar o caso. */
+    val accusationAttempts: Int = DEFAULT_ACCUSATIONS,
 ) {
     fun block(id: String) = blocks.firstOrNull { it.id == id }
     fun faction(id: String) = factions.firstOrNull { it.id == id }

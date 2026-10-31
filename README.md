@@ -196,3 +196,8 @@ Já feito: Mercúrio, Vênus, Saturno, Encélado, Reia, Titã e o Posto Titã na
 `patrulhar` (rota de corpos em ciclo) e `fugir`; equilíbrio do combate (primeiros disparos escalonados, no máximo 3 mísseis
 inimigos em voo e ritmo de fogo que cresce menos que o número de atacantes); efeitos sonoros sintetizados em código
 (`Sound.kt`), tocados no Android por `SoundPlayer`.
+
+Piloto automático: ao tocar em INTERC., a rota é verificada antes de engajar, rodando o próprio piloto numa cópia da
+simulação. Rota boa engaja direto; rota que termina em colisão, sem combustível ou fora do tempo abre o aviso **ROTA
+INVIÁVEL** com `CANCELAR`, `ENGAJAR MESMO ASSIM` e, quando existe, `USAR n%` (um empuxo que chega). O tempo fica parado
+durante a verificação e o aviso. Em voo, `ROTA COLIDE COM <corpo>` avisa se a trajetória atual bate em algo.

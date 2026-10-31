@@ -122,3 +122,89 @@ class CollisionHudTest {
         assertTrue(after.none { it.startsWith("ROTA COLIDE") })
     }
 }
+
+class PreflightTest {
+    private fun controllerBehindPlanet(speed: Double, distKm: Double): com.theexpanse.render.AppController {
+        val c = com.theexpanse.render.AppController(com.theexpanse.game.MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        val sim = c.session!!.sim
+        val helena = sim.world.body("lab_helena")!!
+        sim.selectTarget(sim.bodies.indexOf(helena))
+        val dir = -helena.position(sim.time).unit()
+        sim.ship.pos = dir * (distKm * 1000.0)
+        sim.ship.vel = -dir * speed
+        sim.ship.angle = (helena.position(sim.time) - sim.ship.pos).angle
+        return c
+    }
+
+    private fun check(c: com.theexpanse.render.AppController) {
+        c.press("ap_intercept")
+        assertNotNull(c.preflight)
+        var frames = 0
+        while (c.preflight != null && frames++ < 20000) c.update(1.0 / 60)
+    }
+
+    @Test
+    fun viableRouteEngagesTheAutopilotWithoutAsking() {
+        val c = controllerBehindPlanet(0.0, 300_000.0)
+        check(c)
+        assertNull(c.verdict)
+        assertEquals(AutopilotMode.INTERCEPT, c.session!!.sim.autopilot)
+        assertNotNull(c.banner)
+        assertTrue(c.banner!!.startsWith("Rota verificada"), c.banner)
+    }
+
+    @Test
+    fun unviableRouteWarnsAndDoesNotEngageUntilConfirmed() {
+        val c = controllerBehindPlanet(57_000.0, 250_000.0)
+        val sim = c.session!!.sim
+        val t0 = sim.time
+        check(c)
+        val v = c.verdict
+        assertNotNull(v, "esperava aviso de rota inviável")
+        println("veredito: ${v.reason} | ${v.detail} | alternativa=${v.alternative?.thrustPct}")
+        assertTrue(v.reason.contains("AURÉLIA"), v.reason)
+        assertEquals(AutopilotMode.OFF, sim.autopilot, "não engaja sozinho")
+        // enquanto o aviso está aberto, o tempo de jogo não corre
+        c.update(1.0)
+        assertEquals(t0, sim.time, 1e-9)
+        // o aviso aparece na tela, com os botões
+        val ids = c.frame().buttons.map { it.id }
+        assertTrue("pf_cancel" in ids && "pf_force" in ids, "botões: $ids")
+        // cancelar fecha o aviso e o tempo volta a correr
+        c.press("pf_cancel")
+        assertNull(c.verdict)
+        assertEquals(AutopilotMode.OFF, sim.autopilot)
+        c.update(1.0)
+        assertTrue(sim.time > t0)
+    }
+
+    @Test
+    fun forcingEngagesAnyway() {
+        val c = controllerBehindPlanet(57_000.0, 250_000.0)
+        check(c)
+        assertNotNull(c.verdict)
+        c.press("pf_force")
+        assertNull(c.verdict)
+        assertEquals(AutopilotMode.INTERCEPT, c.session!!.sim.autopilot)
+    }
+
+    @Test
+    fun cancelDuringTheCheckDropsIt() {
+        val c = controllerBehindPlanet(0.0, 300_000.0)
+        c.press("ap_intercept")
+        assertNotNull(c.preflight)
+        c.press("pf_cancel")
+        assertNull(c.preflight)
+        assertEquals(AutopilotMode.OFF, c.session!!.sim.autopilot)
+    }
+
+    @Test
+    fun pressingInterceptAgainTurnsItOff() {
+        val c = controllerBehindPlanet(0.0, 300_000.0)
+        check(c)
+        assertEquals(AutopilotMode.INTERCEPT, c.session!!.sim.autopilot)
+        c.press("ap_intercept")
+        assertEquals(AutopilotMode.OFF, c.session!!.sim.autopilot)
+    }
+}

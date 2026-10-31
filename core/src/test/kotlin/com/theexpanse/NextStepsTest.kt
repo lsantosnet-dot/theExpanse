@@ -89,3 +89,42 @@ class NextStepsTest {
         assertTrue(s.incoming().size <= before, "não deve lançar mais mísseis acima do teto")
     }
 }
+
+class SoundTest {
+    @Test
+    fun everyEffectRendersAudibleBoundedPcm() {
+        for (sfx in com.theexpanse.game.Sfx.values()) {
+            val pcm = com.theexpanse.game.Synth.render(sfx)
+            assertEquals((sfx.seconds * com.theexpanse.game.Synth.RATE).toInt(), pcm.size)
+            val peak = pcm.maxOf { kotlin.math.abs(it.toInt()) }
+            assertTrue(peak in 3000..32767, "$sfx pico $peak")
+        }
+    }
+
+    @Test
+    fun engineLoopSeamIsContinuous() {
+        val pcm = com.theexpanse.game.Synth.render(com.theexpanse.game.Sfx.ENGINE)
+        val jump = kotlin.math.abs(pcm.last().toInt() - pcm.first().toInt())
+        assertTrue(jump < 4000, "salto na emenda do laço: $jump")
+    }
+
+    @Test
+    fun gameEventsAndButtonsPlaySounds() {
+        val played = ArrayList<com.theexpanse.game.Sfx>()
+        val host = object : com.theexpanse.game.Host {
+            override fun importPackage() {}
+            override fun exportFile(fileName: String, text: String) {}
+            override fun copyText(text: String) {}
+            override fun promptText(title: String, initial: String, onResult: (String?) -> Unit) {}
+            override fun play(sfx: com.theexpanse.game.Sfx) { played.add(sfx) }
+        }
+        val c = com.theexpanse.render.AppController(com.theexpanse.game.MemoryStorage(), host, seed = { 1L })
+        c.press("home_play:albatroz")
+        assertTrue(played.contains(com.theexpanse.game.Sfx.CLICK))
+        val g = c.session!!
+        g.sim.missiles.add(Missile(1, Owner.ENEMY, g.sim.ship.pos, g.sim.ship.vel, "jogador", "x"))
+        c.update(0.05)
+        c.update(0.05)
+        assertTrue(played.contains(com.theexpanse.game.Sfx.HIT), "impacto deve tocar HIT, tocou $played")
+    }
+}

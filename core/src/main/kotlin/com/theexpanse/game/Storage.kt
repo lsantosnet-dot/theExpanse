@@ -20,6 +20,12 @@ interface Host {
 
     /** Pede um texto ao jogador (por exemplo, o nome de um salvamento). [onResult] recebe null se cancelar. */
     fun promptText(title: String, initial: String, onResult: (String?) -> Unit)
+
+    /** Toca um efeito sonoro. */
+    fun play(sfx: Sfx) {}
+
+    /** Liga ou desliga o ronco do motor. */
+    fun engine(on: Boolean) {}
 }
 
 class MemoryStorage : Storage {

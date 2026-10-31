@@ -15,6 +15,7 @@ import com.theexpanse.game.NoHost
 import com.theexpanse.game.RouteOption
 import com.theexpanse.game.RoutePlanJob
 import com.theexpanse.game.SaveInfo
+import com.theexpanse.game.Sfx
 import com.theexpanse.game.Saves
 import com.theexpanse.game.Storage
 import kotlinx.serialization.json.Json
@@ -75,6 +76,7 @@ class AppController(
     var savesPage = 0
     var savesFrom = Screen.HOME
     var pendingDelete: String? = null
+    private var engineOn = false
 
     val cam = Camera()
     val eta = EtaEstimator()
@@ -138,6 +140,7 @@ class AppController(
     /** Começa um jogo novo ([slot] nulo) ou carrega um salvamento. */
     fun start(entry: Entry, resume: Boolean, slot: String? = null) {
         val s = GameSession(entry.pack, seed())
+        s.sound = { host.play(it) }
         if (resume) {
             val info = (if (slot != null) saveList(entry.pack.id).firstOrNull { it.slot == slot } else saveList(entry.pack.id).firstOrNull())
             if (info != null) {
@@ -255,6 +258,8 @@ class AppController(
             if (animTime - c.start >= c.kind.duration) finishCinematic()
         }
         if (sc == Screen.ROUTE) routeJob?.advance(60_000)
+        val burning = sc == Screen.FLIGHT && s.sim.status == Status.FLYING && s.sim.ship.burnAccel > 0.0
+        if (burning != engineOn) { engineOn = burning; host.engine(burning) }
         if (sc == Screen.FLIGHT || sc == Screen.MAP) {
             s.update(realDt)
             eta.update(s.sim, animTime)
@@ -311,6 +316,7 @@ class AppController(
     fun press(id: String) {
         val s = session
         val sim = s?.sim
+        if (id != "engine" && !id.startsWith("turn_") && !id.startsWith("cam_")) host.play(Sfx.CLICK)
         when {
             id == "back" -> screen = when (screen) { Screen.ERRORS -> Screen.HOME; Screen.SAVES -> savesFrom; else -> Screen.FLIGHT }
             id.startsWith("home_") -> homeAction(id)

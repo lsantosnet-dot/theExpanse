@@ -145,7 +145,18 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
 
     /** Converte os eventos da simulação em mensagens e em eventos de história. */
     private fun drainSim() {
-        for (e in sim.drainEvents()) when (e) {
+        for (e in sim.drainEvents()) {
+        sound(when (e) {
+            is SimEvent.Docked -> Sfx.DOCK
+            SimEvent.Crashed, is SimEvent.ShipDestroyed, is SimEvent.BodyDestroyed -> Sfx.EXPLOSION
+            is SimEvent.Hit -> Sfx.HIT
+            is SimEvent.Launched -> if (e.owner == Owner.ENEMY) Sfx.ALERT else Sfx.LAUNCH
+            is SimEvent.Boarded -> Sfx.ALERT
+            is SimEvent.BoardingResult -> if (e.success) Sfx.DOCK else Sfx.HIT
+            is SimEvent.EscortIntercepted -> Sfx.INTERCEPT
+            is SimEvent.DecoyResult -> Sfx.DECOY
+        })
+        when (e) {
             is SimEvent.Docked -> queue.add(GameEvent.Dock(e.body))
             SimEvent.Crashed -> queue.add(GameEvent.Destroyed)
             is SimEvent.ShipDestroyed -> { addMessage("A nave foi destruída."); queue.add(GameEvent.Destroyed) }
@@ -177,7 +188,11 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
                 else if (e.diverted == 0) "O despistador falhou! O míssil continua vindo."
                 else "Despistador desviou ${e.diverted} de ${e.total} mísseis.")
         }
+        }
     }
+
+    /** Quem toca os efeitos sonoros (o aplicativo liga isto ao [Host]); por padrão, silêncio. */
+    var sound: (Sfx) -> Unit = {}
 
     /** Dispara um míssil no alvo selecionado (só no papel militar). */
     fun fire() {

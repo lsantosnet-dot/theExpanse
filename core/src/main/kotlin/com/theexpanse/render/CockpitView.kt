@@ -174,7 +174,7 @@ object CockpitView {
             if (abs(bearing) > half + 0.3) return
             val len = (110.0 * sqrt(b.size / 90.0) * sqrt(25_000.0 / (dist + 25_000.0))).toFloat().coerceIn(8f, 150f) * (ppr / (Layout.W / FOV)).coerceAtMost(2f)
             val dyn = sim.dynamics[b.id]
-            val heading = if (dyn != null && dyn.mode != AiMode.ORBIT) (sim.ship.pos - dyn.pos).angle else sim.velocity(b).angle
+            val heading = if (dyn != null && dyn.mode != AiMode.ORBIT) dyn.heading(sim.ship.pos) else sim.velocity(b).angle
             profile(d, x, HORIZON, len, color, sin(wrapAngle(heading - rel.angle)), dyn != null && dyn.mode != AiMode.ORBIT, t)
             r = len * 0.5f
             if (dyn?.mode == AiMode.ATTACK) d.text(x, HORIZON - r - 30f, "HOSTIL", Palette.RED_SOFT, 9f, Align.CENTER, bold = true)

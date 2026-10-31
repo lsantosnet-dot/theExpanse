@@ -178,6 +178,7 @@ object Validator {
                     is Effect.Ai -> {
                         need("corpo", e.body, p.body(e.body) != null, at)
                         p.body(e.body)?.let { if (it.kind != BodyKind.SHIP) err("$at: só naves têm comportamento ('${e.body}' não é uma nave).") }
+                        for (r in e.route) need("corpo da rota", r, p.body(r) != null, at)
                     }
                     is Effect.If -> { cond(e.cond, "$at.condicao"); effects(e.then, "$at.entao"); effects(e.otherwise, "$at.senao") }
                     is Effect.Run -> need("bloco", e.block, p.block(e.block) != null, at)

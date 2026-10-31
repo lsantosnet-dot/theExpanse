@@ -321,4 +321,19 @@ class UiTest {
         println("ETA antes ${before.toInt()} s, 6 s depois da manobra ${after.toInt()} s")
         assertTrue(after < before - 300, "a estimativa deveria cair bem mais que a contagem regressiva: $before → $after")
     }
+
+    @Test
+    fun strandedWithoutFuelCanCallRescue() {
+        val c = controller()
+        c.tap("home_play:albatroz")
+        val g = c.session!!
+        assertTrue(c.frame().buttons.none { it.id == "rescue" })
+        g.sim.ship.fuel = 0.0
+        assertTrue(g.stranded)
+        val before = g.story.credits
+        c.tap("rescue")
+        assertTrue(g.sim.ship.fuel > 0.0 && !g.stranded)
+        assertTrue(g.story.credits <= before)
+        assertTrue(c.frame().buttons.none { it.id == "rescue" })
+    }
 }

@@ -151,7 +151,7 @@ sealed interface Effect {
     class OpenDialogue(val id: String) : Effect
     class News(val text: String) : Effect
     class End(val id: String) : Effect
-    class Ai(val body: String, val mode: AiMode) : Effect
+    class Ai(val body: String, val mode: AiMode, val route: List<String> = emptyList()) : Effect
     class SetTarget(val body: String) : Effect
     object LoseCargo : Effect
     class Mission(val id: String, val state: String) : Effect
@@ -173,4 +173,13 @@ sealed interface Effect {
 }
 
 /** Comportamento de uma nave: perseguir, atacar (persegue e dispara mísseis) ou orbitar (deriva sem empuxo). */
-enum class AiMode(val key: String) { PURSUE("perseguir"), ATTACK("atacar"), ORBIT("orbitar"), ESCORT("escoltar"), BOARD("abordar") }
+enum class AiMode(val key: String) {
+    PURSUE("perseguir"), ATTACK("atacar"), ORBIT("orbitar"), ESCORT("escoltar"), BOARD("abordar"),
+    /** Percorre, em ciclo, uma rota de corpos (`rota`). */
+    PATROL("patrulhar"),
+    /** Foge do jogador, acelerando no sentido oposto. */
+    FLEE("fugir");
+
+    /** Aponta a proa para o jogador (os demais voam na direção do próprio movimento). */
+    val facesPlayer: Boolean get() = this == PURSUE || this == ATTACK || this == BOARD || this == ESCORT
+}

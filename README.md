@@ -189,5 +189,10 @@ reagem ao combate. O validador confere o papel, a facção do militar e que só 
 
 ## Próximos passos
 
-Física 3D de verdade (hoje a simulação é plana); mais corpos do Sistema Solar (Vênus, Mercúrio, Saturno e suas luas);
-mais comportamentos de IA (patrulha por rota, fuga); equilíbrio do combate com jogadores; sons.
+Física 3D de verdade (hoje a simulação é plana). Exige trocar `Vec2` por um vetor 3D em toda a simulação, dar à nave um
+controle de arfagem, incluir inclinação e nodo nas órbitas e refazer o piloto automático e o planejador de rota.
+
+Já feito: Mercúrio, Vênus, Saturno, Encélado, Reia, Titã e o Posto Titã na campanha `rota_do_gelo`; comportamentos de IA
+`patrulhar` (rota de corpos em ciclo) e `fugir`; equilíbrio do combate (primeiros disparos escalonados, no máximo 3 mísseis
+inimigos em voo e ritmo de fogo que cresce menos que o número de atacantes); efeitos sonoros sintetizados em código
+(`Sound.kt`), tocados no Android por `SoundPlayer`.

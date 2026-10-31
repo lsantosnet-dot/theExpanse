@@ -20,12 +20,14 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.theexpanse.game.Host
+import com.theexpanse.game.Sfx
 import com.theexpanse.render.AppController
 
 /** Hospeda a tela do jogo e faz o que só o Android sabe: escolher arquivos, compartilhar e copiar texto. */
 class MainActivity : ComponentActivity(), Host {
     private lateinit var controller: AppController
     private var pendingExport: String? = null
+    private val sounds = SoundPlayer()
 
     private val picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { importUri(it) } }
 
@@ -67,7 +69,13 @@ class MainActivity : ComponentActivity(), Host {
 
     override fun onPause() {
         super.onPause()
+        sounds.engine(false)
         controller.saveNow()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sounds.release()
     }
 
     private fun handleIntent(intent: Intent?) {
@@ -98,6 +106,10 @@ class MainActivity : ComponentActivity(), Host {
         pendingExport = text
         creator.launch(fileName)
     }
+
+    override fun play(sfx: Sfx) = sounds.play(sfx)
+
+    override fun engine(on: Boolean) = sounds.engine(on)
 
     override fun copyText(text: String) {
         val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

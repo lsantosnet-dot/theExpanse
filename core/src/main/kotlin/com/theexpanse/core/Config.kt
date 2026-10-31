@@ -24,6 +24,10 @@ object Config {
     /** Perseguidor: aceleração máxima e distância de parada (m). */
     const val PURSUER_ACCEL = 3.0
     const val PURSUER_STOP = 20_000.0
+    const val PATROL_STOP = 50_000.0
+    const val PATROL_ARRIVE_SPEED = 200.0
+    /** Distância do jogador abaixo da qual uma patrulha ou fuga limita o tempo acelerado. */
+    const val AI_WARP_RADIUS = 1_000_000.0
     const val PURSUIT_WARP_CAP = 30.0
     const val ATTACK_WARP_CAP = 10.0
 
@@ -34,6 +38,9 @@ object Config {
     const val MISSILE_RANGE = 150_000.0
     const val ENEMY_FIRE_RANGE = 80_000.0
     const val ENEMY_COOLDOWN = 30.0
+    /** Máximo de mísseis inimigos em voo contra o jogador, e quanto cada atacante extra alonga o intervalo de tiro. */
+    const val MAX_INCOMING = 3
+    const val ATTACKER_CROWDING = 0.5
     const val ATTACK_STOP = 40_000.0
     const val ESCORT_DISTANCE = 2_500.0
     const val ESCORT_INTERCEPT_RANGE = 8_000.0

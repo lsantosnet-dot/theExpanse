@@ -25,7 +25,10 @@ enum class Status { FLYING, DOCKED, CRASHED, DESTROYED }
 class Prediction(val points: List<Vec2>, val closestDistance: Double, val closestTime: Double)
 
 /** Corpo que saiu da órbita analítica e passou a ser integrado (perseguidor, atacante ou à deriva). */
-class Dynamic(var pos: Vec2, var vel: Vec2, var mode: AiMode)
+class Dynamic(var pos: Vec2, var vel: Vec2, var mode: AiMode, var route: List<String> = emptyList(), var leg: Int = 0) {
+    /** Direção em que a proa aponta: para o jogador quando persegue, senão para onde voa. */
+    fun heading(player: Vec2): Double = if (mode.facesPlayer || vel.length < 1e-6) (player - pos).angle else vel.angle
+}
 
 /**
  * Simulação pura: nave com inércia e gravidade, corpos em órbita analítica, perseguidores integrados, mísseis,
@@ -212,16 +215,29 @@ class Simulation(val world: World, seed: Long = 1L) {
     fun setThrust(pct: Int) { thrustPct = (pct / 10 * 10).coerceIn(10, 100) }
 
     /** Muda o comportamento de um corpo: perseguir/atacar (passa a ser integrado) ou orbitar (deriva sem empuxo). */
-    fun setAi(b: Body, mode: AiMode) {
+    fun setAi(b: Body, mode: AiMode, route: List<String> = emptyList()) {
         if (!alive(b)) return
         val d = dynamics[b.id]
         if (d == null) {
-            if (mode != AiMode.ORBIT) dynamics[b.id] = Dynamic(b.position(time), b.velocity(time), mode)
-        } else d.mode = mode
+            if (mode != AiMode.ORBIT) dynamics[b.id] = Dynamic(b.position(time), b.velocity(time), mode, route)
+        } else {
+            d.mode = mode
+            if (mode == AiMode.PATROL) { d.route = route; d.leg = 0 }
+        }
+    }
+
+    /** Ronda e fuga não ameaçam o jogador: não contam como perseguição. */
+    private fun threatens(d: Dynamic) = d.mode != AiMode.ORBIT && d.mode != AiMode.PATROL && d.mode != AiMode.FLEE
+
+    /** Quem limita o tempo acelerado: ameaças e fugitivos próximos; patrulhas só quando estão perto do jogador. */
+    private fun limitsWarp(d: Dynamic) = when (d.mode) {
+        AiMode.ORBIT -> false
+        AiMode.PATROL, AiMode.FLEE -> (d.pos - ship.pos).length < Config.AI_WARP_RADIUS
+        else -> true
     }
 
     /** Há alguma nave perseguindo ou atacando o jogador. */
-    fun isPursued(): Boolean = dynamics.any { (id, d) -> d.mode != AiMode.ORBIT && id !in destroyed }
+    fun isPursued(): Boolean = dynamics.any { (id, d) -> threatens(d) && id !in destroyed }
 
     fun isUnderAttack(): Boolean = dynamics.any { (id, d) -> d.mode == AiMode.ATTACK && id !in destroyed }
 
@@ -345,7 +361,8 @@ class Simulation(val world: World, seed: Long = 1L) {
         return true
     }
 
-    private fun armsOf(b: Body) = arms.getOrPut(b.id) { NpcArms(b.def.missiles, b.def.decoys, 4.0) }
+    /** O primeiro disparo de cada nave sai em momentos diferentes (4–11 s), para vários atacantes não dispararem juntos. */
+    private fun armsOf(b: Body) = arms.getOrPut(b.id) { NpcArms(b.def.missiles, b.def.decoys, 4.0 + (b.id.hashCode().toLong() and 0x7fffffffL) % 8) }
 
     // ---- avanço do tempo ----
 
@@ -366,7 +383,7 @@ class Simulation(val world: World, seed: Long = 1L) {
             if (closing > 0.0) cap = min(cap, max(1.0, (dist - b.def.radius) / closing / 15.0))
         }
         for ((id, dyn) in dynamics) {
-            if (dyn.mode == AiMode.ORBIT || id in destroyed) continue
+            if (!limitsWarp(dyn) || id in destroyed) continue
             val b = world.body(id) ?: continue
             val rel = position(b) - ship.pos
             val dist = rel.length
@@ -383,7 +400,7 @@ class Simulation(val world: World, seed: Long = 1L) {
     fun staticWarpCap(): Double {
         var cap = Double.MAX_VALUE
         for ((id, dyn) in dynamics) {
-            if (dyn.mode == AiMode.ORBIT || id in destroyed) continue
+            if (!limitsWarp(dyn) || id in destroyed) continue
             cap = min(cap, if (dyn.mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP)
         }
         if (missiles.isNotEmpty()) cap = 1.0
@@ -506,17 +523,23 @@ class Simulation(val world: World, seed: Long = 1L) {
             if (id in destroyed) continue
             var thrust = Vec2.ZERO
             if (d.mode != AiMode.ORBIT) {
-                val stop = when (d.mode) {
-                    AiMode.ATTACK -> Config.ATTACK_STOP
-                    AiMode.ESCORT -> Config.ESCORT_DISTANCE
-                    AiMode.BOARD -> Config.BOARD_STOP
-                    else -> Config.PURSUER_STOP
-                }
                 val accelMax = world.body(id)?.def?.maxAccel ?: Config.PURSUER_ACCEL
-                val cmd = Autopilot.rendezvous(world, time, d.pos, d.vel, ship.pos, ship.vel, accelMax, stop, 1e9)
-                if (cmd != null) {
-                    val mag = cmd.length
-                    thrust = if (mag > accelMax) cmd * (accelMax / mag) else cmd
+                when (d.mode) {
+                    AiMode.FLEE -> thrust = (d.pos - ship.pos).unit() * accelMax
+                    AiMode.PATROL -> thrust = patrolThrust(d, accelMax)
+                    else -> {
+                        val stop = when (d.mode) {
+                            AiMode.ATTACK -> Config.ATTACK_STOP
+                            AiMode.ESCORT -> Config.ESCORT_DISTANCE
+                            AiMode.BOARD -> Config.BOARD_STOP
+                            else -> Config.PURSUER_STOP
+                        }
+                        val cmd = Autopilot.rendezvous(world, time, d.pos, d.vel, ship.pos, ship.vel, accelMax, stop, 1e9)
+                        if (cmd != null) {
+                            val mag = cmd.length
+                            thrust = if (mag > accelMax) cmd * (accelMax / mag) else cmd
+                        }
+                    }
                 }
                 when (d.mode) {
                     AiMode.ATTACK -> enemyFire(id, d, h)
@@ -531,6 +554,18 @@ class Simulation(val world: World, seed: Long = 1L) {
             d.vel = d.vel + (world.gravity(d.pos, time) + thrust) * h
             d.pos = d.pos + d.vel * h
         }
+    }
+
+    /** Patrulha: vai de corpo em corpo da rota, parando perto de cada um antes de seguir para o próximo. */
+    private fun patrolThrust(d: Dynamic, accelMax: Double): Vec2 {
+        if (d.route.isEmpty()) return Vec2.ZERO
+        val wp = world.body(d.route[d.leg % d.route.size]) ?: run { d.leg++; return Vec2.ZERO }
+        val stop = wp.def.radius + Config.PATROL_STOP
+        val wpPos = position(wp)
+        val wpVel = velocity(wp)
+        if ((wpPos - d.pos).length < stop * 1.5 && (wpVel - d.vel).length < Config.PATROL_ARRIVE_SPEED) d.leg = (d.leg + 1) % d.route.size
+        val cmd = Autopilot.rendezvous(world, time, d.pos, d.vel, wpPos, wpVel, accelMax, stop, 1e9) ?: return Vec2.ZERO
+        return if (cmd.length > accelMax) cmd * (accelMax / cmd.length) else cmd
     }
 
     /** Escolta: ataca naves hostis ao alcance com os próprios mísseis. */
@@ -568,8 +603,11 @@ class Simulation(val world: World, seed: Long = 1L) {
         a.cooldown -= h
         if (a.cooldown > 0 || a.missiles <= 0) return
         if ((ship.pos - d.pos).length > Config.ENEMY_FIRE_RANGE) return
+        // equilíbrio: poucos mísseis ao mesmo tempo sobre o jogador, e o ritmo de fogo não cresce linearmente com o número de atacantes
+        if (incoming().size >= Config.MAX_INCOMING) { a.cooldown = 1.0; return }
+        val attackers = dynamics.count { (aid, ad) -> ad.mode == AiMode.ATTACK && aid !in destroyed }
         a.missiles--
-        a.cooldown = Config.ENEMY_COOLDOWN
+        a.cooldown = Config.ENEMY_COOLDOWN * (1.0 + Config.ATTACKER_CROWDING * (attackers - 1).coerceAtLeast(0))
         missiles.add(Missile(nextId++, Owner.ENEMY, d.pos, d.vel, "jogador", id))
         blasts.add(Blast(d.pos, time, BlastKind.LAUNCH))
         events.add(SimEvent.Launched(Owner.ENEMY, id))
@@ -803,7 +841,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         put("casco", ship.hull); put("misseis", ship.missiles); put("despistadores", ship.decoys)
         put("rng", rng); put("proximoId", nextId)
         put("dinamicos", buildJsonObject {
-            for ((k, d) in dynamics) put(k, buildJsonObject { put("pos", vec(d.pos)); put("vel", vec(d.vel)); put("modo", d.mode.key) })
+            for ((k, d) in dynamics) put(k, buildJsonObject { put("pos", vec(d.pos)); put("vel", vec(d.vel)); put("modo", d.mode.key); put("rota", JsonArray(d.route.map { JsonPrimitive(it) })); put("etapa", d.leg) })
         })
         put("destruidos", JsonArray(destroyed.map { JsonPrimitive(it) }))
         put("escondidos", JsonArray(hidden.map { JsonPrimitive(it) }))
@@ -837,7 +875,8 @@ class Simulation(val world: World, seed: Long = 1L) {
         for ((k, v) in o["dinamicos"]!!.jsonObject) {
             val d = v.jsonObject
             val mode = AiMode.values().first { it.key == d["modo"]!!.jsonPrimitive.content }
-            dynamics[k] = Dynamic(vec(d["pos"]!!.jsonArray), vec(d["vel"]!!.jsonArray), mode)
+            dynamics[k] = Dynamic(vec(d["pos"]!!.jsonArray), vec(d["vel"]!!.jsonArray), mode,
+                d["rota"]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList(), d["etapa"]?.jsonPrimitive?.int ?: 0)
         }
         destroyed.clear(); o["destruidos"]!!.jsonArray.forEach { destroyed.add(it.jsonPrimitive.content) }
         hidden.clear(); o["escondidos"]!!.jsonArray.forEach { hidden.add(it.jsonPrimitive.content) }

@@ -196,7 +196,7 @@ object Space3DView {
 
     private fun headingOf(sim: Simulation, b: Body): Double {
         val dyn = sim.dynamics[b.id]
-        return if (dyn != null && dyn.mode != AiMode.ORBIT) (sim.ship.pos - dyn.pos).angle else sim.velocity(b).angle
+        return if (dyn != null && dyn.mode != AiMode.ORBIT) dyn.heading(sim.ship.pos) else sim.velocity(b).angle
     }
 
     private fun drawBody(d: Draw, sim: Simulation, c: Cam, b: Body, q: Vec2, t: Double, isTarget: Boolean) {
@@ -245,6 +245,8 @@ object Space3DView {
                     AiMode.ATTACK -> d.text(p[0], p[1] - r - 16f, "HOSTIL", Palette.RED_SOFT, 9f, Align.CENTER, bold = true)
                     AiMode.ESCORT -> d.text(p[0], p[1] - r - 16f, "ESCOLTA", Palette.GREEN, 9f, Align.CENTER, bold = true)
                     AiMode.BOARD -> d.text(p[0], p[1] - r - 16f, "ABORDAGEM", Palette.RED_SOFT, 9f, Align.CENTER, bold = true)
+                    AiMode.PATROL -> d.text(p[0], p[1] - r - 16f, "PATRULHA", Palette.MUTED, 9f, Align.CENTER, bold = true)
+                    AiMode.FLEE -> d.text(p[0], p[1] - r - 16f, "EM FUGA", Palette.AMBER_SOFT, 9f, Align.CENTER, bold = true)
                     else -> {}
                 }
             }

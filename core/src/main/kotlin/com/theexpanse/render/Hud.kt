@@ -191,6 +191,15 @@ object Hud {
     }
 
     /** Aviso quando a nave cai ou é destruída e nenhuma regra do pacote encerra a partida. */
+    /** Sem combustível e à deriva: oferece o resgate, para o jogo não ficar travado. */
+    fun drawStranded(d: Draw, game: GameSession): List<Button> {
+        if (!game.stranded) return emptyList()
+        val ui = Buttons(d)
+        val fee = minOf(game.story.credits, GameSession.RESCUE_FEE)
+        ui.add("rescue", Layout.W / 2 - 110f, 74f, 220f, 36f, "PEDIR RESGATE · -$fee ¢", active = true)
+        return ui.list
+    }
+
     fun drawCrash(d: Draw, sim: Simulation): List<Button> {
         if (sim.status != Status.CRASHED && sim.status != Status.DESTROYED) return emptyList()
         val ui = Buttons(d)

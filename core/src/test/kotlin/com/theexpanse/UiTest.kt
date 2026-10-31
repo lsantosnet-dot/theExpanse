@@ -259,8 +259,9 @@ class UiTest {
         val soldier = controller()
         soldier.tap("home_play:patrulha")
         val sb = soldier.frame().buttons
-        assertTrue(sb.any { it.id == "fire" } && sb.none { it.id == "decoy" })
+        assertTrue(sb.any { it.id == "fire" } && sb.any { it.id == "decoy" })
         assertTrue(!sb.first { it.id == "fire" }.enabled, "alvo fora de alcance")
+        assertTrue(!sb.first { it.id == "decoy" }.enabled, "sem míssil por perto o despistador fica desabilitado")
     }
 
     @Test

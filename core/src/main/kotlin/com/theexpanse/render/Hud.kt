@@ -105,6 +105,11 @@ object Hud {
             ui.add("fire", 440f, y - 2f, 124f, 34f, "MÍSSIL ×${sim.ship.missiles}" + (if (sub != null) "\n$sub" else ""), enabled = ready, accent = if (ready) Palette.RED else 0)
             val bc = sim.canBoard()
             ui.add("board", 568f, y - 2f, 58f, 34f, "ABORDAR", enabled = bc == com.theexpanse.core.BoardCheck.OK && sim.status == Status.FLYING, accent = if (bc == com.theexpanse.core.BoardCheck.OK) Palette.GREEN else 0)
+            // despistador: o militar também pode ser atacado por mísseis; o botão fica acima de MÍSSIL/ABORDAR
+            val incoming = sim.incoming().isNotEmpty()
+            val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING
+            val pulse = incoming && sin(t * 12) > 0
+            ui.add("decoy", 440f, y - 40f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}", enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
         } else {
             val incoming = sim.incoming().isNotEmpty()
             val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING

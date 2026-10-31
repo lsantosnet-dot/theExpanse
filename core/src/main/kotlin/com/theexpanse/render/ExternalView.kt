@@ -1,9 +1,7 @@
 package com.theexpanse.render
 
+import com.theexpanse.content.BodyKind
 import com.theexpanse.core.Body
-import com.theexpanse.core.BodyKind
-import com.theexpanse.core.Calice
-import com.theexpanse.core.Config
 import com.theexpanse.core.Simulation
 import kotlin.math.PI
 import kotlin.math.cos
@@ -55,11 +53,11 @@ object ExternalView {
             val s = radial(dPlanet)
             val px = CX + cos(ang).toFloat() * s
             val py = CY - sin(ang).toFloat() * s
-            val r = (Config.PLANET_RADIUS / dPlanet * 260.0).toFloat().coerceIn(18f, 150f)
+            val r = (sim.world.radius / dPlanet * 260.0).toFloat().coerceIn(18f, 150f)
             if (px > -r && px < w + r && py > -r && py < h + r) {
                 Planet.draw(d, px, py, r)
-                d.text(px, py + r + 13f, Calice.PLANET_NAME, Palette.AMBER_SOFT, 10f, Align.CENTER)
-                d.text(px, py + r + 24f, Fmt.distance(dPlanet - Config.PLANET_RADIUS) + " da superfície", Palette.MUTED, 9f, Align.CENTER)
+                d.text(px, py + r + 13f, sim.world.planetName, Palette.AMBER_SOFT, 10f, Align.CENTER)
+                d.text(px, py + r + 24f, Fmt.distance(dPlanet - sim.world.radius) + " da superfície", Palette.MUTED, 9f, Align.CENTER)
             }
         }
 
@@ -101,8 +99,8 @@ object ExternalView {
 
     private fun drawBody(d: Draw, b: Body, x: Float, y: Float, dist: Double, ang: Double, sim: Simulation, isTarget: Boolean) {
         val color = b.faction.argb
-        val r = (330.0 * (Config.STATION_SIZE / dist)).toFloat().coerceIn(9f, 110f)
-        if (b.kind == BodyKind.STATION) {
+        val r = (330.0 * (b.size / dist)).toFloat().coerceIn(9f, 110f)
+        if (b.kind != BodyKind.SHIP) {
             d.glow(x, y, r * 1.8f, color.alpha(0.18f))
             if (r > 18f) {
                 d.circle(x, y, r, stroke = 0xFF8C949F.toInt(), strokeW = (r * 0.12f).coerceAtLeast(2f))

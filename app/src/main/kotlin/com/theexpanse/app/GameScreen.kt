@@ -29,7 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.theexpanse.render.Align
 import com.theexpanse.render.Circle
 import com.theexpanse.render.Clip
-import com.theexpanse.render.GameController
+import com.theexpanse.render.AppController
 import com.theexpanse.render.Glow
 import com.theexpanse.render.Layout
 import com.theexpanse.render.Line
@@ -49,8 +49,7 @@ private fun fit(w: Float, h: Float): Fit {
 }
 
 @Composable
-fun GameScreen() {
-    val game = remember { GameController() }
+fun GameScreen(game: AppController) {
     var tick by remember { mutableLongStateOf(0L) }
 
     // relógio do jogo: um passo por quadro, com teto de 0,1 s para não dar salto depois de uma pausa

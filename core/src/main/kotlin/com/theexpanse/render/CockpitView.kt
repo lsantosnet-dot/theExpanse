@@ -1,9 +1,7 @@
 package com.theexpanse.render
 
+import com.theexpanse.content.BodyKind
 import com.theexpanse.core.Body
-import com.theexpanse.core.BodyKind
-import com.theexpanse.core.Calice
-import com.theexpanse.core.Config
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.wrapAngle
 import kotlin.math.PI
@@ -56,13 +54,13 @@ object CockpitView {
         val dPlanet = toPlanet.length
         run {
             val b = wrapAngle(toPlanet.angle - ship.angle)
-            val rho = asin((Config.PLANET_RADIUS / dPlanet).coerceAtMost(1.0))
+            val rho = asin((sim.world.radius / dPlanet).coerceAtMost(1.0))
             val r = (rho * PPR).toFloat().coerceAtMost(2000f)
             if (abs(b) - rho < FOV / 2 + 0.1) {
                 val x = screenX(b)
                 Planet.draw(d, x, HORIZON, r)
                 val ly = (HORIZON + r + 14f).coerceAtMost(h - 12f)
-                d.text(x.coerceIn(150f, w - 150f), ly, Calice.PLANET_NAME + " · " + Fmt.distance(dPlanet - Config.PLANET_RADIUS), Palette.AMBER_SOFT, 10f, Align.CENTER)
+                d.text(x.coerceIn(150f, w - 150f), ly, sim.world.planetName + " · " + Fmt.distance(dPlanet - sim.world.radius), Palette.AMBER_SOFT, 10f, Align.CENTER)
             }
         }
 
@@ -115,13 +113,17 @@ object CockpitView {
         val dist = rel.length
         val bearing = wrapAngle(rel.angle - ship.angle)
         if (abs(bearing) > FOV / 2 + 0.1) return
+        if (dist < 1.0) return
         val x = screenX(bearing)
         val isTarget = b === sim.target
         val color = b.faction.argb
         val r = (b.size / 2 / dist * PPR).toFloat().coerceAtLeast(2.5f)
         d.glow(x, HORIZON, 14f + r, color.alpha(0.35f))
-        if (b.kind == BodyKind.STATION) d.rect(x - r, HORIZON - r, r * 2, r * 2, fill = color)
-        else d.poly(floatArrayOf(x - r, HORIZON + r, x, HORIZON - r, x + r, HORIZON + r), fill = color)
+        when (b.kind) {
+            BodyKind.STATION -> d.rect(x - r, HORIZON - r, r * 2, r * 2, fill = color)
+            BodyKind.WRECK -> d.poly(floatArrayOf(x - r, HORIZON, x, HORIZON - r, x + r, HORIZON, x, HORIZON + r), fill = color.alpha(0.8f))
+            BodyKind.SHIP -> d.poly(floatArrayOf(x - r, HORIZON + r, x, HORIZON - r, x + r, HORIZON + r), fill = color)
+        }
         if (isTarget) {
             val k = r + 9f
             val c = Palette.AMBER

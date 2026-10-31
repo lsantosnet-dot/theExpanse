@@ -1,0 +1,124 @@
+{
+  "formato": 1,
+  "id": "albatroz",
+  "titulo": "O silêncio do Albatroz",
+  "resumo": "O cargueiro Albatroz perdeu o reator sem explicação. Siga as pistas por quatro lugares e decida quem acusar. Mistério de investigação, sem combate.",
+  "autor": "The Expanse (campanha incluída)",
+  "planeta": {"nome": "Aurélia", "gm": 1.0e17, "raio": 6.0e7},
+  "facoes": [
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8"},
+    {"id": "atlas", "nome": "Seguradora Atlas", "cor": "#C9A06A"}
+  ],
+  "corpos": [
+    {"id": "estacao_ceifa", "nome": "Estação Ceifa", "curto": "Ceifa", "tipo": "estacao", "faccao": "liga", "raioOrbita": 3.6e8, "fase": 0.5, "tamanho": 150},
+    {"id": "destrocos_albatroz", "nome": "Destroços do Albatroz", "curto": "Albatroz", "tipo": "destroco", "faccao": "liga", "raioOrbita": 3.9e8, "fase": 1.2, "tamanho": 60, "atracavel": true},
+    {"id": "lab_helena", "nome": "Laboratório Helena", "curto": "Helena", "tipo": "estacao", "faccao": "coalizao", "raioOrbita": 4.3e8, "fase": 2.2, "tamanho": 120},
+    {"id": "arquivo_vesta", "nome": "Arquivo Vesta", "curto": "Vesta", "tipo": "estacao", "faccao": "federacao", "raioOrbita": 5.2e8, "fase": 2.6, "tamanho": 150}
+  ],
+  "nave": {"nome": "Cutelo", "massaSeca": 180000, "carga": 12000, "combustivel": 30000, "nomeCarga": "12 t de suprimentos", "perto": "estacao_ceifa", "altitude": 30000, "alvo": "destrocos_albatroz"},
+  "creditos": 800,
+  "reputacao": {"coalizao": 0, "federacao": 5, "liga": 10, "atlas": 0},
+  "objetos": [
+    {"id": "caixa_preta", "nome": "Caixa-preta do Albatroz", "massa": 40},
+    {"id": "relatorio_lab", "nome": "Relatório do laboratório", "massa": 0.1}
+  ],
+  "fatos": [
+    {"id": "f_sem_registro", "texto": "A caixa-preta do Albatroz tem 11 minutos sem registro antes da falha."},
+    {"id": "f_homem_terno", "texto": "Um homem de terno embarcou no Albatroz com uma maleta da manutenção."},
+    {"id": "f_sabotagem", "texto": "O reator foi desligado por comando remoto, não por falha."},
+    {"id": "f_codigo_marte", "texto": "O comando usou um código de acesso da Federação Marciana."},
+    {"id": "f_codigo_roubado", "texto": "Esse código foi roubado do Arquivo Vesta seis meses antes."},
+    {"id": "f_apolice", "texto": "A Atlas triplicou a apólice do Albatroz três semanas antes do desastre."}
+  ],
+  "personagens": [
+    {"id": "ilse_moraga", "nome": "Ilse Moraga", "papel": "estivadora", "faccao": "liga", "local": "estacao_ceifa", "dialogo": "d_ilse"},
+    {"id": "dra_okafor", "nome": "Dra. Okafor", "papel": "perita em registros de voo", "faccao": "coalizao", "local": "lab_helena", "dialogo": "d_okafor"},
+    {"id": "noor", "nome": "Noor Haddad", "papel": "arquivista", "faccao": "federacao", "local": "arquivo_vesta", "dialogo": "d_noor"}
+  ],
+  "dialogos": [
+    {
+      "id": "d_ilse", "personagem": "ilse_moraga",
+      "texto": "“Eu carreguei o Albatroz na véspera. Vi um homem de terno subir a bordo. Terno, aqui no Cinturão? Ninguém usa terno aqui. Mas não falo de graça, capitão.”",
+      "escolhas": [
+        {"texto": "Pagar 200 créditos pela informação", "detalhe": "Créditos -200. Revela uma pista.", "se": {"tipo": "creditos", "min": 200}, "bloqueio": "Você não tem 200 créditos.",
+         "efeitos": [{"tipo": "creditos", "delta": -200}, {"tipo": "revelar_fato", "fato": "f_homem_terno"}]},
+        {"texto": "“A caixa-preta tem 11 minutos apagados. O que você viu?”", "detalhe": "Usa a pista da caixa-preta. Liga +2.",
+         "se": {"tipo": "sabe", "fato": "f_sem_registro"}, "bloqueio": "Requer a pista da caixa-preta.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_homem_terno"}, {"tipo": "reputacao", "faccao": "liga", "delta": 2}]},
+        {"texto": "Deixar para lá"}
+      ]
+    },
+    {
+      "id": "d_okafor", "personagem": "dra_okafor",
+      "texto": "“Registros de voo são a minha vida. Se você trouxe a caixa-preta do Albatroz, eu a leio agora. Sem ela, só posso especular.”",
+      "escolhas": [
+        {"texto": "Entregar a caixa-preta para análise", "detalhe": "Revela duas pistas e entrega um relatório.",
+         "se": {"tipo": "tem_objeto", "objeto": "caixa_preta"}, "bloqueio": "Você precisa da caixa-preta dos destroços.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_sabotagem"}, {"tipo": "revelar_fato", "fato": "f_codigo_marte"}, {"tipo": "dar_objeto", "objeto": "relatorio_lab"},
+                     {"tipo": "reputacao", "faccao": "coalizao", "delta": 3}], "proximo": "d_okafor_fim"},
+        {"texto": "Voltar depois"}
+      ]
+    },
+    {
+      "id": "d_okafor_fim", "personagem": "dra_okafor",
+      "texto": "“O reator não falhou: alguém o desligou à distância, com um código de comando. E o código é marciano. Mas repare, capitão: código é uma chave, e chaves se roubam.”"
+    },
+    {
+      "id": "d_noor", "personagem": "noor",
+      "texto": "“O Arquivo Vesta guarda tudo da Federação: códigos, escalas, apólices. Posso procurar, mas preciso saber o que procurar.”",
+      "escolhas": [
+        {"texto": "Perguntar sobre o código de comando marciano", "detalhe": "Usa a pista do código marciano.",
+         "se": {"tipo": "sabe", "fato": "f_codigo_marte"}, "bloqueio": "Requer a pista do código marciano.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_codigo_roubado"}]},
+        {"texto": "Pedir os contratos de seguro do Albatroz", "detalhe": "Usa a pista da caixa-preta.",
+         "se": {"tipo": "sabe", "fato": "f_sem_registro"}, "bloqueio": "Requer a pista da caixa-preta.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_apolice"}]},
+        {"texto": "Deixar para lá"}
+      ]
+    }
+  ],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: descobrir quem desligou o reator do Albatroz."}]},
+    {"id": "r_destrocos", "quando": {"tipo": "atracar", "local": "destrocos_albatroz"},
+     "entao": [{"tipo": "dar_objeto", "objeto": "caixa_preta"}, {"tipo": "revelar_fato", "fato": "f_sem_registro"}, {"tipo": "mensagem", "texto": "Você recuperou a caixa-preta do Albatroz."}]},
+    {"id": "r_dia3", "quando": {"tipo": "tempo", "depoisDe": 259200}, "entao": [{"tipo": "noticia", "texto": "Famílias da tripulação do Albatroz exigem uma investigação independente."}]}
+  ],
+  "deducoes": [
+    {"id": "ded_armacao", "precisa": ["f_codigo_marte", "f_codigo_roubado"], "conclusao": "Alguém usou um código roubado para culpar Marte.", "efeitos": [{"tipo": "flag", "nome": "armacao"}]},
+    {"id": "ded_atlas", "precisa": ["f_homem_terno", "f_apolice"], "conclusao": "O homem de terno agia pela Atlas: a apólice foi triplicada antes do desastre.", "efeitos": [{"tipo": "flag", "nome": "atlas_ligada"}]}
+  ],
+  "missoes": [
+    {"id": "m_verdade", "titulo": "O silêncio do Albatroz", "texto": "Descobrir quem desligou o reator do cargueiro Albatroz e acusar o responsável.", "inicial": true}
+  ],
+  "suspeitos": [
+    {"id": "s_marte", "nome": "Federação Marciana", "texto": "O código usado no comando era deles."},
+    {"id": "s_terno", "nome": "O homem de terno", "texto": "Embarcou com uma maleta; identidade desconhecida."},
+    {"id": "s_atlas", "nome": "Seguradora Atlas", "texto": "Pagou o casco do Albatroz em dois dias."}
+  ],
+  "acusacoes": [
+    {"id": "ac_atlas_prova", "suspeito": "s_atlas",
+     "se": {"tipo": "e", "condicoes": [{"tipo": "deduziu", "id": "ded_armacao"}, {"tipo": "deduziu", "id": "ded_atlas"}, {"tipo": "tem_objeto", "objeto": "relatorio_lab"}]},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "reputacao", "faccao": "federacao", "delta": 10}, {"tipo": "reputacao", "faccao": "atlas", "delta": -30}, {"tipo": "final", "id": "verdade"}]},
+    {"id": "ac_atlas_parcial", "suspeito": "s_atlas", "se": {"tipo": "deduziu", "id": "ded_atlas"},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "final", "id": "parcial"}]},
+    {"id": "ac_atlas_vazia", "suspeito": "s_atlas", "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "reputacao", "faccao": "atlas", "delta": -10}, {"tipo": "final", "id": "sem_provas"}]},
+    {"id": "ac_terno_parcial", "suspeito": "s_terno", "se": {"tipo": "deduziu", "id": "ded_atlas"},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "final", "id": "parcial"}]},
+    {"id": "ac_terno_vazia", "suspeito": "s_terno", "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "final", "id": "sem_provas"}]},
+    {"id": "ac_marte", "suspeito": "s_marte",
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "reputacao", "faccao": "federacao", "delta": -40}, {"tipo": "final", "id": "guerra_injusta"}]}
+  ],
+  "finais": [
+    {"id": "verdade", "titulo": "A VERDADE VEM À TONA", "tipo": "vitoria", "manchete": "Atlas é acusada de sabotar o próprio cargueiro; Marte é inocentada e o inquérito é reaberto."},
+    {"id": "parcial", "titulo": "VERDADE PELA METADE", "tipo": "neutro", "manchete": "Corretor da Atlas é preso, mas a seguradora escapa ilesa; Marte segue sob suspeita."},
+    {"id": "sem_provas", "titulo": "ACUSAÇÃO SEM PROVAS", "tipo": "derrota", "manchete": "Acusação sem provas cai no tribunal; capitão independente é processado por difamação."},
+    {"id": "guerra_injusta", "titulo": "ACUSAÇÃO INJUSTA", "tipo": "derrota", "manchete": "Coalizão e Federação trocam tiros no Cinturão após acusação contra Marte; investigação arquivada."}
+  ],
+  "noticias": [
+    "Cargueiro Albatroz perde o reator em órbita de Aurélia; tripulação resgatada.",
+    "Seguradora Atlas paga o casco do Albatroz em tempo recorde.",
+    "Coalizão e Federação trocam acusações sobre a rota do Albatroz."
+  ]
+}

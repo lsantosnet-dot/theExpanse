@@ -1,0 +1,279 @@
+package com.theexpanse.content
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
+
+class DecodeResult(val pack: ContentPackage?, val errors: List<String>)
+
+/** Lê o JSON de um pacote. Todo erro cita o caminho do trecho, para a pessoa (ou a IA) corrigir. */
+object Decoder {
+    const val FORMAT = 1
+
+    fun decode(text: String): DecodeResult {
+        val root = try {
+            Json.parseToJsonElement(text)
+        } catch (e: Exception) {
+            return DecodeResult(null, listOf("JSON inválido: ${e.message?.lineSequence()?.firstOrNull() ?: "erro de sintaxe"}"))
+        }
+        val obj = root as? JsonObject ?: return DecodeResult(null, listOf("O arquivo deve ser um objeto JSON { ... }."))
+        val errors = ArrayList<String>()
+        val pack = Reader(errors).pack(Node(obj, "pacote", errors))
+        return DecodeResult(if (errors.isEmpty()) pack else null, errors)
+    }
+
+    private class Node(val obj: JsonObject, val path: String, private val errors: MutableList<String>) {
+        fun err(msg: String) { errors.add("$path: $msg") }
+        fun has(k: String) = obj[k].let { it != null && it !is JsonNull }
+
+        fun only(allowed: Set<String>) {
+            for (k in obj.keys) if (k !in allowed) err("campo desconhecido '$k' (campos válidos: ${allowed.sorted().joinToString(", ")})")
+        }
+
+        private fun prim(key: String, required: Boolean): JsonPrimitive? {
+            val e = obj[key]
+            if (e == null || e is JsonNull) { if (required) err("falta o campo '$key'"); return null }
+            return e as? JsonPrimitive ?: run { err("'$key' tem o tipo errado"); null }
+        }
+
+        fun str(key: String, required: Boolean = true): String? {
+            val p = prim(key, required) ?: return null
+            if (!p.isString) { err("'$key' deve ser texto"); return null }
+            return p.content
+        }
+
+        fun num(key: String, required: Boolean = true): Double? {
+            val p = prim(key, required) ?: return null
+            val v = if (p.isString) null else p.doubleOrNull
+            if (v == null) { err("'$key' deve ser um número"); return null }
+            return v
+        }
+
+        fun int(key: String, required: Boolean = true): Int? = num(key, required)?.let {
+            if (it != Math.floor(it)) { err("'$key' deve ser um número inteiro"); null } else it.toInt()
+        }
+
+        fun bool(key: String, default: Boolean): Boolean {
+            val p = prim(key, false) ?: return default
+            return p.booleanOrNull ?: run { err("'$key' deve ser verdadeiro ou falso"); default }
+        }
+
+        fun child(key: String, required: Boolean = true): Node? {
+            val e = obj[key]
+            if (e == null || e is JsonNull) { if (required) err("falta o campo '$key'"); return null }
+            val o = e as? JsonObject ?: run { err("'$key' deve ser um objeto { ... }"); return null }
+            return Node(o, "$path.$key", errors)
+        }
+
+        fun nodes(key: String, required: Boolean = false): List<Node> {
+            val e = obj[key]
+            if (e == null || e is JsonNull) { if (required) err("falta a lista '$key'"); return emptyList() }
+            val a = e as? JsonArray ?: run { err("'$key' deve ser uma lista [ ... ]"); return emptyList() }
+            return a.mapIndexedNotNull { i, el ->
+                (el as? JsonObject)?.let { Node(it, "$path.$key[$i]", errors) } ?: run { errors.add("$path.$key[$i]: deve ser um objeto { ... }"); null }
+            }
+        }
+
+        fun strings(key: String, required: Boolean = false): List<String> {
+            val e = obj[key]
+            if (e == null || e is JsonNull) { if (required) err("falta a lista '$key'"); return emptyList() }
+            val a = e as? JsonArray ?: run { err("'$key' deve ser uma lista de textos"); return emptyList() }
+            return a.mapIndexedNotNull { i, el ->
+                val p = el as? JsonPrimitive
+                if (p == null || !p.isString) { errors.add("$path.$key[$i]: deve ser texto"); null } else p.content
+            }
+        }
+    }
+
+    private class Reader(val errors: MutableList<String>) {
+        fun pack(n: Node): ContentPackage? {
+            n.only(setOf("formato", "id", "titulo", "resumo", "autor", "planeta", "facoes", "corpos", "nave", "creditos", "reputacao",
+                "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "finais", "noticias"))
+            val format = n.int("formato")
+            if (format != null && format != FORMAT) n.err("formato $format não suportado (este jogo lê o formato $FORMAT)")
+            val id = n.str("id") ?: ""
+            if (id.isNotEmpty() && !ID.matches(id)) n.err("'id' deve ter só letras minúsculas, números e _ (ex.: meu_pacote)")
+            val title = n.str("titulo") ?: ""
+            val summary = n.str("resumo", false) ?: ""
+            val author = n.str("autor", false) ?: ""
+            val planet = n.child("planeta", false)?.let { pn ->
+                pn.only(setOf("nome", "gm", "raio"))
+                PlanetDef(pn.str("nome") ?: "Planeta", pn.num("gm") ?: 1e17, pn.num("raio") ?: 6e7)
+            } ?: PlanetDef("Aurélia", 1.0e17, 6.0e7)
+
+            val factions = n.nodes("facoes", true).map { fn ->
+                fn.only(setOf("id", "nome", "cor"))
+                FactionDef(fn.str("id") ?: "", fn.str("nome") ?: "", color(fn, fn.str("cor") ?: "#8A95A8"))
+            }
+            val bodies = n.nodes("corpos", true).map { bn ->
+                bn.only(setOf("id", "nome", "curto", "tipo", "faccao", "raioOrbita", "fase", "tamanho", "atracavel"))
+                val kindKey = bn.str("tipo") ?: "estacao"
+                val kind = BodyKind.values().firstOrNull { it.key == kindKey } ?: run {
+                    bn.err("'tipo' deve ser estacao, nave ou destroco"); BodyKind.STATION
+                }
+                val name = bn.str("nome") ?: ""
+                BodyDef(
+                    bn.str("id") ?: "", name, bn.str("curto", false) ?: name.substringBefore(' '), bn.str("faccao") ?: "",
+                    kind, bn.num("raioOrbita") ?: 1e8, bn.num("fase", false) ?: 0.0,
+                    bn.num("tamanho", false) ?: if (kind == BodyKind.STATION) 150.0 else 90.0,
+                    bn.bool("atracavel", kind != BodyKind.SHIP),
+                )
+            }
+            val ship = n.child("nave")?.let { sn ->
+                sn.only(setOf("nome", "massaSeca", "carga", "combustivel", "nomeCarga", "perto", "altitude", "alvo"))
+                ShipDef(
+                    sn.str("nome", false) ?: "Nave", sn.num("massaSeca", false) ?: 240_000.0, sn.num("carga", false) ?: 40_000.0,
+                    sn.num("combustivel", false) ?: 32_000.0, sn.str("perto") ?: "", sn.num("altitude", false) ?: 40_000.0,
+                    sn.str("alvo", false), sn.str("nomeCarga", false) ?: "a carga",
+                )
+            } ?: ShipDef("Nave", 240_000.0, 40_000.0, 32_000.0, "", 40_000.0, null, "a carga")
+            val credits = n.int("creditos", false) ?: 0
+            val reputation = n.child("reputacao", false)?.let { rn ->
+                rn.obj.keys.associateWith { k -> rn.int(k) ?: 0 }
+            } ?: emptyMap()
+
+            val objects = n.nodes("objetos").map { o -> o.only(setOf("id", "nome", "massa")); ObjectDef(o.str("id") ?: "", o.str("nome") ?: "", o.num("massa", false) ?: 0.0) }
+            val facts = n.nodes("fatos").map { o -> o.only(setOf("id", "texto")); FactDef(o.str("id") ?: "", o.str("texto") ?: "") }
+            val characters = n.nodes("personagens").map { c ->
+                c.only(setOf("id", "nome", "papel", "faccao", "local", "dialogo", "se"))
+                CharacterDef(c.str("id") ?: "", c.str("nome") ?: "", c.str("papel", false) ?: "", c.str("faccao", false),
+                    c.str("local", false), c.str("dialogo", false), c.child("se", false)?.let { cond(it) })
+            }
+            val dialogues = n.nodes("dialogos").map { d ->
+                d.only(setOf("id", "personagem", "texto", "escolhas"))
+                DialogueDef(d.str("id") ?: "", d.str("personagem", false), d.str("texto") ?: "", d.nodes("escolhas").map { c ->
+                    c.only(setOf("texto", "detalhe", "se", "bloqueio", "efeitos", "proximo"))
+                    ChoiceDef(c.str("texto") ?: "", c.str("detalhe", false), c.child("se", false)?.let { cond(it) },
+                        c.str("bloqueio", false), c.nodes("efeitos").mapNotNull { effect(it) }, c.str("proximo", false))
+                })
+            }
+            val rules = n.nodes("regras").map { r ->
+                r.only(setOf("id", "quando", "se", "entao", "repetir"))
+                val trig = r.child("quando")?.let { trigger(it) } ?: Trigger.Start
+                RuleDef(r.str("id") ?: "", trig, r.child("se", false)?.let { cond(it) }, r.nodes("entao").mapNotNull { effect(it) }, !r.bool("repetir", false))
+            }
+            val deductions = n.nodes("deducoes").map { d ->
+                d.only(setOf("id", "precisa", "conclusao", "efeitos", "automatica"))
+                DeductionDef(d.str("id") ?: "", d.strings("precisa", true), d.str("conclusao") ?: "", d.nodes("efeitos").mapNotNull { effect(it) }, d.bool("automatica", false))
+            }
+            val missions = n.nodes("missoes").map { m ->
+                m.only(setOf("id", "titulo", "texto", "inicial"))
+                MissionDef(m.str("id") ?: "", m.str("titulo") ?: "", m.str("texto", false) ?: "", m.bool("inicial", false))
+            }
+            val suspects = n.nodes("suspeitos").map { s -> s.only(setOf("id", "nome", "texto")); SuspectDef(s.str("id") ?: "", s.str("nome") ?: "", s.str("texto", false) ?: "") }
+            val accusations = n.nodes("acusacoes").map { a ->
+                a.only(setOf("id", "suspeito", "se", "efeitos"))
+                AccusationDef(a.str("id") ?: "", a.str("suspeito") ?: "", a.child("se", false)?.let { cond(it) }, a.nodes("efeitos").mapNotNull { effect(it) })
+            }
+            val endings = n.nodes("finais", true).map { e ->
+                e.only(setOf("id", "titulo", "manchete", "tipo"))
+                val kindKey = e.str("tipo", false) ?: "neutro"
+                val kind = EndingKind.values().firstOrNull { it.key == kindKey } ?: run { e.err("'tipo' deve ser vitoria, derrota ou neutro"); EndingKind.NEUTRAL }
+                EndingDef(e.str("id") ?: "", e.str("titulo") ?: "", e.str("manchete") ?: "", kind)
+            }
+            val news = n.strings("noticias")
+            if (errors.isNotEmpty()) return null
+            return ContentPackage(format ?: FORMAT, id, title, summary, author, planet, factions, bodies, ship, credits, reputation,
+                objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news)
+        }
+
+        private fun color(n: Node, hex: String): Int {
+            val m = Regex("^#([0-9a-fA-F]{6})$").matchEntire(hex)
+            if (m == null) { n.err("'cor' deve ser #RRGGBB"); return 0xFF8A95A8.toInt() }
+            return (0xFF000000L or m.groupValues[1].toLong(16)).toInt()
+        }
+
+        private fun typeOf(n: Node, kind: String, specs: List<Spec>): Spec? {
+            val t = n.str("tipo") ?: return null
+            val spec = Vocabulary.spec(specs, t)
+            if (spec == null) { n.err("$kind '$t' desconhecido (válidos: ${specs.joinToString(", ") { it.name }})"); return null }
+            n.only(spec.keys)
+            return spec
+        }
+
+        fun trigger(n: Node): Trigger? {
+            val spec = typeOf(n, "gatilho", Vocabulary.triggers) ?: return null
+            return when (spec.name) {
+                "inicio" -> Trigger.Start
+                "atracar" -> Trigger.Dock(n.str("local") ?: "")
+                "distancia" -> {
+                    val below = n.num("menorQue", false)
+                    val above = n.num("maiorQue", false)
+                    if (below == null && above == null) n.err("informe 'menorQue' ou 'maiorQue'")
+                    Trigger.Distance(n.str("de") ?: "jogador", n.str("ate") ?: "", below, above)
+                }
+                "tempo" -> Trigger.Time(n.num("depoisDe") ?: 0.0)
+                "fim_dialogo" -> Trigger.DialogueEnd(n.str("dialogo") ?: "")
+                "fato_revelado" -> Trigger.FactRevealed(n.str("fato") ?: "")
+                "aproximacao" -> Trigger.Approach(n.str("corpo") ?: "", n.num("distMenorQue") ?: 0.0, n.num("velMenorQue") ?: 0.0)
+                else -> Trigger.Destroyed
+            }
+        }
+
+        fun cond(n: Node): Cond? {
+            val spec = typeOf(n, "condição", Vocabulary.conditions) ?: return null
+            return when (spec.name) {
+                "tem_objeto" -> Cond.HasObject(n.str("objeto") ?: "")
+                "sabe" -> Cond.Knows(n.str("fato") ?: "")
+                "flag" -> Cond.Flag(n.str("nome") ?: "", n.bool("valor", true))
+                "reputacao" -> {
+                    val mn = n.int("min", false)
+                    val mx = n.int("max", false)
+                    if (mn == null && mx == null) n.err("informe 'min' ou 'max'")
+                    Cond.Rep(n.str("faccao") ?: "", mn, mx)
+                }
+                "creditos" -> Cond.Credits(n.int("min") ?: 0)
+                "deduziu" -> Cond.Deduced(n.str("id") ?: "")
+                "tem_carga" -> Cond.HasCargo
+                "missao" -> Cond.MissionIs(n.str("id") ?: "", state(n, n.str("estado") ?: ""))
+                "e" -> Cond.All(n.nodes("condicoes", true).mapNotNull { cond(it) })
+                "ou" -> Cond.Any(n.nodes("condicoes", true).mapNotNull { cond(it) })
+                else -> Cond.Not(n.child("condicao")?.let { cond(it) } ?: Cond.HasCargo)
+            }
+        }
+
+        private fun state(n: Node, s: String): String {
+            if (s !in setOf("ativa", "concluida", "falhou")) n.err("'estado' deve ser ativa, concluida ou falhou")
+            return s
+        }
+
+        fun effect(n: Node): Effect? {
+            val spec = typeOf(n, "efeito", Vocabulary.effects) ?: return null
+            return when (spec.name) {
+                "mensagem" -> Effect.Message(n.str("texto") ?: "")
+                "reputacao" -> Effect.Rep(n.str("faccao") ?: "", n.int("delta") ?: 0)
+                "creditos" -> Effect.Credits(n.int("delta") ?: 0)
+                "dar_objeto" -> Effect.GiveObject(n.str("objeto") ?: "")
+                "tirar_objeto" -> Effect.TakeObject(n.str("objeto") ?: "")
+                "revelar_fato" -> Effect.Reveal(n.str("fato") ?: "")
+                "flag" -> Effect.SetFlag(n.str("nome") ?: "", n.bool("valor", true))
+                "dialogo" -> Effect.OpenDialogue(n.str("id") ?: "")
+                "noticia" -> Effect.News(n.str("texto") ?: "")
+                "final" -> Effect.End(n.str("id") ?: "")
+                "ia" -> {
+                    val key = n.str("comportamento") ?: ""
+                    val mode = AiMode.values().firstOrNull { it.key == key } ?: run { n.err("'comportamento' deve ser perseguir ou orbitar"); AiMode.ORBIT }
+                    Effect.Ai(n.str("corpo") ?: "", mode)
+                }
+                "alvo" -> Effect.SetTarget(n.str("corpo") ?: "")
+                "perder_carga" -> Effect.LoseCargo
+                "missao" -> Effect.Mission(n.str("id") ?: "", state(n, n.str("estado") ?: ""))
+                else -> {
+                    val c = n.child("chance")
+                    val chance = if (c == null) Chance(0.5, null, 0.0, 0.0, 1.0) else {
+                        c.only(setOf("base", "faccao", "por", "min", "max"))
+                        Chance(c.num("base") ?: 0.5, c.str("faccao", false), c.num("por", false) ?: 0.0, c.num("min", false) ?: 0.0, c.num("max", false) ?: 1.0)
+                    }
+                    Effect.Roll(chance, n.nodes("sucesso").mapNotNull { effect(it) }, n.nodes("falha").mapNotNull { effect(it) })
+                }
+            }
+        }
+    }
+
+    private val ID = Regex("^[a-z0-9_]+$")
+}

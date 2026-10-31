@@ -1,0 +1,128 @@
+package com.theexpanse.content
+
+/** Campo de um tipo do vocabulário: serve tanto para validar o JSON quanto para gerar o guia da IA. */
+class Field(val name: String, val type: String, val required: Boolean, val doc: String)
+
+class Spec(val name: String, val doc: String, val fields: List<Field>) {
+    val keys: Set<String> = fields.map { it.name }.toSet() + "tipo"
+}
+
+/** O que o motor sabe fazer. Pacotes combinam estas peças; mecânicas novas exigem atualizar o app. */
+object Vocabulary {
+    private fun f(name: String, type: String, doc: String, required: Boolean = true) = Field(name, type, required, doc)
+
+    val triggers = listOf(
+        Spec("inicio", "No começo da partida.", emptyList()),
+        Spec("atracar", "Quando a nave atraca em um corpo atracável.", listOf(f("local", "id de corpo", "onde atracou"))),
+        Spec("distancia", "Quando a distância entre dois corpos passa a ficar dentro do limite.", listOf(
+            f("de", "\"jogador\" ou id de corpo", "origem"), f("ate", "id de corpo", "destino"),
+            f("menorQue", "número (m)", "dispara ao ficar abaixo disto", false), f("maiorQue", "número (m)", "dispara ao ficar acima disto", false),
+        )),
+        Spec("tempo", "Quando o tempo de missão passa de um valor.", listOf(f("depoisDe", "número (s)", "segundos de missão"))),
+        Spec("fim_dialogo", "Quando um diálogo termina.", listOf(f("dialogo", "id de diálogo", "qual diálogo"))),
+        Spec("fato_revelado", "Quando uma pista é descoberta.", listOf(f("fato", "id de fato", "qual pista"))),
+        Spec("aproximacao", "Quando a nave chega perto de um corpo e devagar (abordagem).", listOf(
+            f("corpo", "id de corpo", "o outro corpo"), f("distMenorQue", "número (m)", "distância máxima"), f("velMenorQue", "número (m/s)", "velocidade relativa máxima"),
+        )),
+        Spec("nave_destruida", "Quando a nave cai no planeta.", emptyList()),
+    )
+
+    val conditions = listOf(
+        Spec("tem_objeto", "O jogador tem o objeto.", listOf(f("objeto", "id de objeto", "qual"))),
+        Spec("sabe", "O jogador conhece a pista.", listOf(f("fato", "id de fato", "qual"))),
+        Spec("flag", "Uma marca de história está (ou não) ligada.", listOf(f("nome", "texto", "nome da marca"), f("valor", "verdadeiro/falso", "padrão: verdadeiro", false))),
+        Spec("reputacao", "Reputação com uma facção dentro de uma faixa (-100 a 100).", listOf(
+            f("faccao", "id de facção", "qual"), f("min", "inteiro", "mínimo", false), f("max", "inteiro", "máximo", false),
+        )),
+        Spec("creditos", "Créditos suficientes.", listOf(f("min", "inteiro", "mínimo"))),
+        Spec("deduziu", "A dedução foi feita no caderno.", listOf(f("id", "id de dedução", "qual"))),
+        Spec("tem_carga", "A carga do contrato ainda está a bordo.", emptyList()),
+        Spec("missao", "Estado de uma missão: ativa, concluida ou falhou.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "estado"))),
+        Spec("e", "Todas as condições.", listOf(f("condicoes", "lista de condições", "todas devem valer"))),
+        Spec("ou", "Qualquer condição.", listOf(f("condicoes", "lista de condições", "basta uma"))),
+        Spec("nao", "Nega uma condição.", listOf(f("condicao", "condição", "a negada"))),
+    )
+
+    val effects = listOf(
+        Spec("mensagem", "Mostra uma mensagem no registro.", listOf(f("texto", "texto", "a mensagem"))),
+        Spec("reputacao", "Muda a reputação com uma facção.", listOf(f("faccao", "id de facção", "qual"), f("delta", "inteiro", "variação"))),
+        Spec("creditos", "Soma ou subtrai créditos.", listOf(f("delta", "inteiro", "variação"))),
+        Spec("dar_objeto", "Entrega um objeto (sua massa entra no porão).", listOf(f("objeto", "id de objeto", "qual"))),
+        Spec("tirar_objeto", "Retira um objeto.", listOf(f("objeto", "id de objeto", "qual"))),
+        Spec("revelar_fato", "O jogador descobre uma pista (vai para o caderno).", listOf(f("fato", "id de fato", "qual"))),
+        Spec("flag", "Liga ou desliga uma marca de história.", listOf(f("nome", "texto", "nome da marca"), f("valor", "verdadeiro/falso", "padrão: verdadeiro", false))),
+        Spec("dialogo", "Abre um diálogo (a simulação pausa).", listOf(f("id", "id de diálogo", "qual"))),
+        Spec("noticia", "Publica uma manchete.", listOf(f("texto", "texto", "a manchete"))),
+        Spec("final", "Encerra a partida com um final.", listOf(f("id", "id de final", "qual"))),
+        Spec("ia", "Muda o comportamento de uma nave: perseguir ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|orbitar", "o que fazer"))),
+        Spec("alvo", "Seleciona um corpo como alvo.", listOf(f("corpo", "id de corpo", "qual"))),
+        Spec("perder_carga", "A carga do contrato é apreendida (a massa some).", emptyList()),
+        Spec("missao", "Muda o estado de uma missão.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "novo estado"))),
+        Spec("sorteio", "Sorteia entre sucesso e falha. A chance é base + reputação × por, entre min e max.", listOf(
+            f("chance", "objeto {base, faccao?, por?, min?, max?}", "probabilidade (0 a 1)"),
+            f("sucesso", "lista de efeitos", "se der certo", false), f("falha", "lista de efeitos", "se der errado", false),
+        )),
+    )
+
+    fun spec(list: List<Spec>, name: String) = list.firstOrNull { it.name == name }
+
+    private fun describe(list: List<Spec>): String = list.joinToString("\n") { s ->
+        val fields = if (s.fields.isEmpty()) "(sem campos)" else s.fields.joinToString("; ") { "`${it.name}` (${it.type}${if (it.required) "" else ", opcional"}): ${it.doc}" }
+        "- `${s.name}`: ${s.doc} Campos: $fields"
+    }
+
+    /** Guia em português para uma IA gerar pacotes válidos. */
+    fun guide(): String = """
+# Guia para criar uma campanha para o jogo
+
+Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar. O jogo tem física newtoniana real (inércia, gravidade do planeta, empuxo só na direção do nariz, combustível limitado, tempo acelerado). O pacote descreve o universo, as pessoas, as missões, o mistério e os finais; o jogo faz o resto. Nada no pacote executa código.
+
+## Regras
+- Todo texto em português do Brasil. Nomes, facções e lugares **originais** (não use personagens, nomes ou enredo de obras existentes).
+- Todos os `id` são minúsculos, sem espaços (`porto_kaua`). Referências a ids que não existem são erros.
+- Distâncias em metros, tempos em segundos, massas em kg. O planeta padrão tem `gm` 1e17 e raio 6e7; as órbitas das estações ficam entre 1e8 e 8e8 m. Uma viagem entre duas estações leva de 5 a 12 horas de jogo com o piloto automático.
+- A nave começa perto de um corpo (`nave.perto`), com a carga do contrato a bordo. Ao atracar, o combustível é reabastecido.
+- **Todo mistério precisa ter solução alcançável**: toda pista usada numa dedução ou condição precisa ser revelada por alguma regra ou diálogo; todo objeto exigido precisa ser entregue por algum efeito. O jogo simula o pacote ao importar e recusa se encontrar um final inalcançável.
+- Cada final deve ter `manchete` (uma frase de jornal).
+
+## Estrutura do arquivo
+```
+{
+  "formato": 1, "id": "...", "titulo": "...", "resumo": "...", "autor": "...",
+  "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
+  "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB"}],
+  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true}],
+  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo"},
+  "creditos": 500, "reputacao": {"id da facção": 0},
+  "objetos": [{"id": "...", "nome": "...", "massa": 40}],
+  "fatos": [{"id": "...", "texto": "..."}],
+  "personagens": [{"id": "...", "nome": "...", "papel": "...", "faccao": "id", "local": "id de corpo", "dialogo": "id de diálogo", "se": condição}],
+  "dialogos": [{"id": "...", "personagem": "id", "texto": "...", "escolhas": [{"texto": "...", "detalhe": "...", "se": condição, "bloqueio": "por que está bloqueada", "efeitos": [efeitos], "proximo": "id de diálogo"}]}],
+  "regras": [{"id": "...", "quando": gatilho, "se": condição, "entao": [efeitos], "repetir": false}],
+  "deducoes": [{"id": "...", "precisa": ["id de fato", "id de fato"], "conclusao": "...", "efeitos": [efeitos], "automatica": false}],
+  "missoes": [{"id": "...", "titulo": "...", "texto": "...", "inicial": true}],
+  "suspeitos": [{"id": "...", "nome": "...", "texto": "..."}],
+  "acusacoes": [{"id": "...", "suspeito": "id", "se": condição, "efeitos": [efeitos, normalmente um final]}],
+  "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
+  "noticias": ["manchetes iniciais"]
+}
+```
+Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}` em `detalhe` mostra a chance do primeiro sorteio da escolha. Uma acusação escolhe o suspeito: vale a primeira cujo `se` seja verdadeiro (ponha a mais exigente primeiro e uma sem `se` por último).
+
+## Gatilhos (`quando`: {"tipo": "...", ...})
+${describe(triggers)}
+
+## Condições (`se`: {"tipo": "...", ...})
+${describe(conditions)}
+
+## Efeitos (em `entao`, `efeitos`, `sucesso`, `falha`)
+${describe(effects)}
+
+## Como montar um mistério
+1. Liste as pistas (`fatos`) e onde cada uma é descoberta (um diálogo, ou uma regra `atracar`).
+2. Faça a ordem importar: uma pista só aparece se o jogador já tem outra (`se: {"tipo": "sabe", ...}`) ou um objeto (`tem_objeto`).
+3. `deducoes` combinam pistas no caderno e liberam consequências.
+4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega.
+5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
+""".trimIndent()
+}

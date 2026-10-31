@@ -1,12 +1,12 @@
 package com.theexpanse
 
 import com.theexpanse.core.AutopilotMode
-import com.theexpanse.core.Calice
+import com.theexpanse.content.Builtin
+import com.theexpanse.core.World
 import com.theexpanse.core.Config
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
 import com.theexpanse.core.Vec2
-import com.theexpanse.core.gravityAt
 import kotlin.math.abs
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -15,39 +15,46 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SimulationTest {
+    private val pack = Builtin.pack("calice")
+    private val world = World(pack)
+    private val dock = world.body("doca_meridiano")!!
+    private val port = world.body("porto_kaua")!!
+
+    private fun newSim() = Simulation(world)
+
     /** Voa com o piloto automático até o fim (pausas do rádio não existem aqui) e devolve os números da viagem. */
     private class Flight(val sim: Simulation, val dockTime: Double, val minCenterDistance: Double, val fuelUsed: Double)
 
     private fun autoFlight(thrustPct: Int): Flight {
-        val sim = Simulation()
+        val sim = newSim()
         sim.adjustThrust((thrustPct - Config.DEFAULT_THRUST_PCT) / 10)
         sim.setAutopilot(AutopilotMode.INTERCEPT)
         var minR = Double.MAX_VALUE
-        var minFuel = Config.FUEL_MASS
+        var minFuel = sim.ship.fuelCapacity
         while (sim.status == Status.FLYING && sim.time < 200_000.0) {
             sim.step(Config.SUBSTEP)
             minR = minOf(minR, sim.ship.pos.length)
             minFuel = minOf(minFuel, sim.ship.fuel)
         }
-        return Flight(sim, sim.time, minR, Config.FUEL_MASS - minFuel)
+        return Flight(sim, sim.time, minR, sim.ship.fuelCapacity - minFuel)
     }
 
     @Test
     fun initialOrbitIsCircularAtStationAltitude() {
-        val sim = Simulation()
+        val sim = newSim()
         val r = sim.ship.pos.length
-        val expected = Calice.dock.orbitRadius + 40_000.0
+        val expected = dock.orbitRadius + 40_000.0
         assertEquals(expected, r, 1.0)
-        assertEquals(sqrt(Config.GM / r), sim.ship.vel.length, 1e-6)
+        assertEquals(sqrt(world.gm / r), sim.ship.vel.length, 1e-6)
         // velocidade perpendicular ao raio
         assertEquals(0.0, sim.ship.pos.unit() dot sim.ship.vel.unit(), 1e-9)
     }
 
     @Test
     fun circularOrbitConservesRadiusOverAnOrbit() {
-        val sim = Simulation()
+        val sim = newSim()
         val r0 = sim.ship.pos.length
-        val period = 2 * Math.PI * sqrt(r0 * r0 * r0 / Config.GM)
+        val period = 2 * Math.PI * sqrt(r0 * r0 * r0 / world.gm)
         var maxDev = 0.0
         while (sim.time < period) {
             sim.step(Config.SUBSTEP)
@@ -58,7 +65,7 @@ class SimulationTest {
 
     @Test
     fun fuelFollowsTheRocketEquation() {
-        val sim = Simulation()
+        val sim = newSim()
         sim.setAutopilot(AutopilotMode.OFF)
         val dvBefore = sim.ship.deltaV
         // queima manual, alinhado ao prograde: Δv obtido ≈ Δv gasto
@@ -75,16 +82,16 @@ class SimulationTest {
 
     @Test
     fun gravityPointsToThePlanet() {
-        val g = gravityAt(Vec2(3.2e8, 0.0))
+        val g = world.gravity(Vec2(3.2e8, 0.0))
         assertTrue(g.x < 0.0)
-        assertEquals(Config.GM / (3.2e8 * 3.2e8), g.length, 1e-9)
+        assertEquals(world.gm / (3.2e8 * 3.2e8), g.length, 1e-9)
     }
 
     @Test
     fun dockingRefuelsAndStopsTheClock() {
         val f = autoFlight(50)
         assertEquals(Status.DOCKED, f.sim.status)
-        assertEquals(Config.FUEL_MASS, f.sim.ship.fuel, 1e-6)
+        assertEquals(f.sim.ship.fuelCapacity, f.sim.ship.fuel, 1e-6)
     }
 
     @Test
@@ -94,11 +101,11 @@ class SimulationTest {
             val f = autoFlight(pct)
             println("empuxo $pct%: atraca em ${f.dockTime.toInt()} s (esperado ~${target.toInt()}), " +
                 "distância mínima ao centro de Aurélia ${(f.minCenterDistance / 1000).toInt()} km, " +
-                "vel. relativa final ${f.sim.relativeVelocity(Calice.port).length.toInt()} m/s, " +
+                "vel. relativa final ${f.sim.relativeVelocity(port).length.toInt()} m/s, " +
                 "combustível gasto ${f.fuelUsed.toInt()} kg")
             assertEquals(Status.DOCKED, f.sim.status, "empuxo $pct%")
-            assertTrue(f.minCenterDistance > Config.PLANET_RADIUS, "colidiu com o planeta a $pct%")
-            assertTrue(f.sim.relativeVelocity(Calice.port).length <= Config.DOCK_SPEED, "velocidade final a $pct%")
+            assertTrue(f.minCenterDistance > world.radius, "colidiu com o planeta a $pct%")
+            assertTrue(f.sim.relativeVelocity(port).length <= Config.DOCK_SPEED, "velocidade final a $pct%")
             assertTrue(abs(f.dockTime - target) / target <= 0.05, "tempo a $pct%: ${f.dockTime} vs $target")
         }
     }
@@ -111,7 +118,7 @@ class SimulationTest {
 
     @Test
     fun manualFlipThenBurnBrakesTheShip() {
-        val sim = Simulation()
+        val sim = newSim()
         sim.setAutopilot(AutopilotMode.PROGRADE)
         repeat(3000) { sim.step(Config.SUBSTEP) }
         sim.manualEngine = true
@@ -130,7 +137,7 @@ class SimulationTest {
 
     @Test
     fun predictionFindsClosestApproach() {
-        val sim = Simulation()
+        val sim = newSim()
         val p = sim.prediction()
         assertTrue(p.points.size > 100)
         assertTrue(p.closestDistance < sim.distanceTo())

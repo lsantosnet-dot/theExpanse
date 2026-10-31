@@ -151,7 +151,14 @@ class UiTest {
         assertTrue("ded_armacao" in g.story.deduced)
         c.tap("suspect:s_marte")
         c.tap("accuse")
-        assertEquals("guerra_injusta", g.ending?.id)
+        // errar não encerra: gasta uma tentativa e descarta o suspeito
+        assertEquals(null, g.ending)
+        assertEquals(2, g.story.accusationsLeft)
+        assertEquals(Screen.NOTEBOOK, c.effective())
+        val marte = c.frame().buttons.first { it.id == "suspect:s_marte" }
+        assertTrue(!marte.enabled, "suspeito descartado fica desabilitado")
+        for (s in listOf("s_terno", "s_atlas")) { c.tap("suspect:$s"); c.tap("accuse") }
+        assertEquals("sem_provas", g.ending?.id)
         assertEquals(Screen.END, c.effective())
         assertTrue(c.frame().buttons.any { it.id == "restart" } && c.frame().buttons.any { it.id == "continue" })
         c.tap("restart")

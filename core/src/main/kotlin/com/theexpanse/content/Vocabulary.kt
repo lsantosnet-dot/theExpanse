@@ -147,6 +147,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "missoes": [{"id": "...", "titulo": "...", "texto": "...", "inicial": true}],
   "suspeitos": [{"id": "...", "nome": "...", "texto": "..."}],
   "acusacoes": [{"id": "...", "suspeito": "id", "se": condição, "efeitos": [efeitos, normalmente um final]}],
+  "tentativasAcusacao": 3,
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
   "noticias": ["manchetes iniciais"],
   "blocos": [{"id": "...", "efeitos": [efeitos]}]
@@ -167,7 +168,7 @@ ${describe(effects)}
 1. Liste as pistas (`fatos`) e onde cada uma é descoberta (um diálogo, ou uma regra `atracar`).
 2. Faça a ordem importar: uma pista só aparece se o jogador já tem outra (`se: {"tipo": "sabe", ...}`) ou um objeto (`tem_objeto`).
 3. `deducoes` combinam pistas no caderno e liberam consequências.
-4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega.
+4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
 """.trimIndent()
 }

@@ -431,10 +431,15 @@ object NotebookScreen {
         if (g.pack.suspects.isNotEmpty()) {
             d.text(600f, 66f, "SUSPEITOS", Palette.MUTED, 9f)
             for ((i, s) in g.pack.suspects.take(4).withIndex()) {
-                ui.add("suspect:${s.id}", 600f, 72f + i * 56f, 228f, 52f, s.name, active = c.selectedSuspect == s.id, sub = s.text, left = true)
+                val out = s.id in g.story.refuted
+                ui.add("suspect:${s.id}", 600f, 72f + i * 56f, 228f, 52f, if (out) "✗ " + s.name else s.name, active = !out && c.selectedSuspect == s.id,
+                    sub = if (out) "descartado (acusação errada)" else s.text, left = true, enabled = !out)
             }
+            val left = g.story.accusationsLeft
             ui.add("accuse", 600f, 304f, 228f, 46f, "ACUSAR", active = c.selectedSuspect != null, enabled = c.selectedSuspect != null)
-            d.text(600f, 366f, "Uma acusação encerra o caso.", Palette.MUTED, 9f)
+            val line1 = if (left == 1) "Última acusação: encerra o caso" else "Acusações restantes: $left de ${g.pack.accusationAttempts}"
+            d.text(600f, 362f, Ui.clip(line1, 9f, 228f), if (left == 1) Palette.RED_SOFT else Palette.AMBER_SOFT, 9f)
+            d.text(600f, 374f, Ui.clip("Errar gasta uma; certo encerra.", 9f, 228f), Palette.MUTED, 9f)
         }
         return ui.list
     }

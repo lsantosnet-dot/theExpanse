@@ -37,6 +37,9 @@ class Frame(val prims: List<Prim>, val buttons: List<Button>)
  * Controlador do app: catálogo de campanhas, sessão de jogo, telas e botões. Quem hospeda (Android, preview)
  * chama [update] a cada quadro, [frame] para desenhar e [press]/[release] nos toques.
  */
+/** Folga de toque, em unidades de desenho (844×390): ~12 px num celular de 1560 px de largura. */
+const val TOUCH_SLOP = 6.5f
+
 class AppController(
     val storage: Storage = MemoryStorage(),
     val host: Host = NoHost,
@@ -306,7 +309,23 @@ class AppController(
         session?.let { it.update(0.0) }
     }
 
-    fun hit(x: Float, y: Float): Button? = buttons.lastOrNull { it.contains(x, y) }
+    /**
+     * Botão sob o toque. Um dedo raramente acerta o retângulo no pixel (e o toque pode chegar um pouco deslocado):
+     * se nenhum botão contém o ponto, vale o botão visível mais próximo até [TOUCH_SLOP] unidades de desenho de distância.
+     */
+    fun hit(x: Float, y: Float): Button? {
+        buttons.lastOrNull { it.contains(x, y) }?.let { return it }
+        var best: Button? = null
+        var bestD = TOUCH_SLOP
+        for (b in buttons) {
+            if (!b.enabled || b.hidden) continue
+            val dx = maxOf(b.x - x, 0f, x - (b.x + b.w))
+            val dy = maxOf(b.y - y, 0f, y - (b.y + b.h))
+            val d = kotlin.math.hypot(dx, dy)
+            if (d <= bestD) { best = b; bestD = d }
+        }
+        return best
+    }
 
     fun release(id: String) {
         held.remove(id)

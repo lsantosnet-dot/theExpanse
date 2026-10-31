@@ -351,3 +351,54 @@ class UiTest {
         assertTrue(c.frame().buttons.none { it.id == "rescue" })
     }
 }
+
+class TouchSlopTest {
+    private fun notebook(): com.theexpanse.render.AppController {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        c.screen = Screen.NOTEBOOK
+        c.frame()
+        c.press("suspect:s_atlas")
+        c.frame()
+        return c
+    }
+
+    @Test
+    fun aTapJustOutsideAButtonStillHitsIt() {
+        val c = notebook()
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        val cx = b.x + b.w / 2
+        assertEquals("accuse", c.hit(cx, b.y + b.h / 2)?.id)
+        // um pouco abaixo, acima, à esquerda e à direita (a folga é de 6,5 unidades)
+        assertEquals("accuse", c.hit(cx, b.y + b.h + 5f)?.id)
+        assertEquals("accuse", c.hit(cx, b.y - 5f)?.id)
+        assertEquals("accuse", c.hit(b.x - 5f, b.y + b.h / 2)?.id)
+        assertEquals("accuse", c.hit(b.x + b.w + 5f, b.y + b.h / 2)?.id)
+    }
+
+    @Test
+    fun aTapFarFromEveryButtonHitsNothing() {
+        val c = notebook()
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        assertEquals(null, c.hit(b.x + b.w / 2, b.y + b.h + 25f))
+    }
+
+    @Test
+    fun anExactHitBeatsTheNearestButton() {
+        val c = notebook()
+        val btns = c.frame().buttons
+        // entre dois suspeitos vizinhos, o ponto dentro de um deles escolhe esse, não o outro
+        val a = btns.first { it.id == "suspect:s_marte" }
+        assertEquals("suspect:s_marte", c.hit(a.x + a.w / 2, a.y + a.h - 1f)?.id)
+    }
+
+    @Test
+    fun disabledButtonsAreNotPulledByTheSlop() {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        c.screen = Screen.NOTEBOOK
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        assertTrue(!b.enabled)
+        assertEquals(null, c.hit(b.x + b.w / 2, b.y + b.h + 4f))
+    }
+}

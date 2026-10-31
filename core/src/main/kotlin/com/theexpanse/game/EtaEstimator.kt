@@ -32,12 +32,13 @@ class EtaEstimator {
     val calculating: Boolean get() = work != null
 
     fun update(sim: Simulation, clock: Double, budgetSteps: Int = 20_000) {
-        val k = "${sim.target.id}|${sim.thrustPct}|${sim.status}|${sim.autopilot}"
+        val k = "${sim.target.id}|${sim.thrustPct}|${sim.status}|${sim.autopilot}|${sim.manualEngine}|${sim.manualTurn != 0}"
         if (sim.status != Status.FLYING || !sim.alive(sim.target)) {
             kind = Kind.NONE; work = null; key = k
             return
         }
-        if (k != key || clock - lastStart > 10.0) {
+        // refaz a cada 2 s reais (depois que a estimativa anterior terminou), para acompanhar as manobras; enquanto calcula, o número antigo continua contando
+        if (k != key || (work == null && clock - lastStart > REFRESH)) {
             key = k
             lastStart = clock
             if (!sim.target.dockable) {
@@ -67,6 +68,10 @@ class EtaEstimator {
     }
 
     private var limitCache = 0.0
+
+    companion object {
+        const val REFRESH = 2.0
+    }
 
     private fun limitFor(c: Simulation): Double {
         if (limitCache == 0.0) limitCache = maxOf(90_000.0, 4.0 * 2.0 * kotlin.math.sqrt(c.distanceTo() / (c.accelLimit * 0.85)))

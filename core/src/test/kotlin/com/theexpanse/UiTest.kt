@@ -303,4 +303,22 @@ class UiTest {
         assertEquals(2 * 3600.0, capped.realSecondsFor(8520.0), 1.0e5) // só confere que roda
         assertTrue(capped.realSecondsFor(8520.0) > 600.0, "2 h 22 min a ×10 levam mais de 10 min reais")
     }
+
+    @Test
+    fun etaReactsToManeuversWithinAFewSeconds() {
+        val c = controller()
+        c.tap("home_play:calice")
+        val sim = c.session!!.sim
+        sim.setThrust(50)
+        repeat(150) { c.update(1.0 / 30) }
+        val before = c.eta.remaining(sim)!!
+        // uma manobra: +3 km/s na direção do alvo
+        val dir = sim.relativePosition().unit()
+        sim.ship.vel = sim.ship.vel + dir * 3000.0
+        var t = 0.0
+        var after = before
+        while (t < 6.0) { c.update(1.0 / 30); t += 1.0 / 30; after = c.eta.remaining(sim)!! }
+        println("ETA antes ${before.toInt()} s, 6 s depois da manobra ${after.toInt()} s")
+        assertTrue(after < before - 300, "a estimativa deveria cair bem mais que a contagem regressiva: $before → $after")
+    }
 }

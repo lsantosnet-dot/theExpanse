@@ -351,3 +351,78 @@ class UiTest {
         assertTrue(c.frame().buttons.none { it.id == "rescue" })
     }
 }
+
+class TouchSlopTest {
+    private fun notebook(): com.theexpanse.render.AppController {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        c.screen = Screen.NOTEBOOK
+        c.frame()
+        c.press("suspect:s_atlas")
+        c.frame()
+        return c
+    }
+
+    @Test
+    fun aTapJustOutsideAButtonStillHitsIt() {
+        val c = notebook()
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        val cx = b.x + b.w / 2
+        assertEquals("accuse", c.hit(cx, b.y + b.h / 2)?.id)
+        // um pouco abaixo, acima, à esquerda e à direita (a folga é de 6,5 unidades)
+        assertEquals("accuse", c.hit(cx, b.y + b.h + 5f)?.id)
+        assertEquals("accuse", c.hit(cx, b.y - 5f)?.id)
+        assertEquals("accuse", c.hit(b.x - 5f, b.y + b.h / 2)?.id)
+        assertEquals("accuse", c.hit(b.x + b.w + 5f, b.y + b.h / 2)?.id)
+    }
+
+    @Test
+    fun aTapFarFromEveryButtonHitsNothing() {
+        val c = notebook()
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        assertEquals(null, c.hit(b.x + b.w / 2, b.y + b.h + 25f))
+    }
+
+    @Test
+    fun anExactHitBeatsTheNearestButton() {
+        val c = notebook()
+        val btns = c.frame().buttons
+        // entre dois suspeitos vizinhos, o ponto dentro de um deles escolhe esse, não o outro
+        val a = btns.first { it.id == "suspect:s_marte" }
+        assertEquals("suspect:s_marte", c.hit(a.x + a.w / 2, a.y + a.h - 1f)?.id)
+    }
+
+    @Test
+    fun disabledButtonsAreNotPulledByTheSlop() {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        c.screen = Screen.NOTEBOOK
+        val b = c.frame().buttons.first { it.id == "accuse" }
+        assertTrue(!b.enabled)
+        assertEquals(null, c.hit(b.x + b.w / 2, b.y + b.h + 4f))
+    }
+}
+
+class ClosedCaseNotebookTest {
+    @Test
+    fun afterTheCaseEndsTheNotebookSaysSoAndDisablesAccusing() {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        val g = c.session!!
+        g.runEffects(listOf(com.theexpanse.content.Effect.Reveal("f_homem_terno"), com.theexpanse.content.Effect.Reveal("f_apolice")))
+        g.deduce(setOf("f_homem_terno", "f_apolice"))
+        c.screen = Screen.NOTEBOOK
+        c.frame()
+        c.press("suspect:s_terno"); c.press("accuse")
+        assertEquals("parcial", g.ending?.id)
+        c.press("continue")
+        c.screen = Screen.NOTEBOOK
+        val f = c.frame()
+        val accuse = f.buttons.first { it.id == "accuse" }
+        assertTrue(!accuse.enabled, "ACUSAR desabilitado com o caso encerrado")
+        assertTrue(f.buttons.filter { it.id.startsWith("suspect:") }.none { it.enabled }, "suspeitos desabilitados")
+        val texts = f.prims.filterIsInstance<com.theexpanse.render.Txt>().map { it.text }
+        assertTrue(texts.any { it.contains("CASO ENCERRADO") }, "textos: $texts")
+        assertTrue(texts.any { it.contains("VERDADE PELA METADE") }, "mostra o final")
+    }
+}

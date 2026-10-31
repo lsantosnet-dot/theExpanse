@@ -432,14 +432,21 @@ object NotebookScreen {
             d.text(600f, 66f, "SUSPEITOS", Palette.MUTED, 9f)
             for ((i, s) in g.pack.suspects.take(4).withIndex()) {
                 val out = s.id in g.story.refuted
-                ui.add("suspect:${s.id}", 600f, 72f + i * 56f, 228f, 52f, if (out) "✗ " + s.name else s.name, active = !out && c.selectedSuspect == s.id,
-                    sub = if (out) "descartado (acusação errada)" else s.text, left = true, enabled = !out)
+                ui.add("suspect:${s.id}", 600f, 72f + i * 56f, 228f, 52f, if (out) "✗ " + s.name else s.name, active = !out && !g.ended && c.selectedSuspect == s.id,
+                    sub = if (out) "descartado (acusação errada)" else s.text, left = true, enabled = !out && !g.ended)
             }
             val left = g.story.accusationsLeft
-            ui.add("accuse", 600f, 304f, 228f, 46f, "ACUSAR", active = c.selectedSuspect != null, enabled = c.selectedSuspect != null)
-            val line1 = if (left == 1) "Última acusação: encerra o caso" else "Acusações restantes: $left de ${g.pack.accusationAttempts}"
-            d.text(600f, 362f, Ui.clip(line1, 9f, 228f), if (left == 1) Palette.RED_SOFT else Palette.AMBER_SOFT, 9f)
-            d.text(600f, 374f, Ui.clip("Errar gasta uma; certo encerra.", 9f, 228f), Palette.MUTED, 9f)
+            if (g.ended) {
+                // o caso já foi decidido por uma acusação (ou por outro final): sem isto o toque em ACUSAR parecia não fazer nada
+                ui.add("accuse", 600f, 304f, 228f, 46f, "CASO ENCERRADO", enabled = false)
+                d.text(600f, 362f, Ui.clip(g.ending?.title ?: "Fim", 9f, 228f), Palette.AMBER_SOFT, 9f)
+                d.text(600f, 374f, Ui.clip("Reinicie pelo MENU para acusar de novo.", 9f, 228f), Palette.MUTED, 9f)
+            } else {
+                ui.add("accuse", 600f, 304f, 228f, 46f, "ACUSAR", active = c.selectedSuspect != null, enabled = c.selectedSuspect != null)
+                val line1 = if (left == 1) "Última acusação: encerra o caso" else "Acusações restantes: $left de ${g.pack.accusationAttempts}"
+                d.text(600f, 362f, Ui.clip(line1, 9f, 228f), if (left == 1) Palette.RED_SOFT else Palette.AMBER_SOFT, 9f)
+                d.text(600f, 374f, Ui.clip("Errar gasta uma; certo encerra.", 9f, 228f), Palette.MUTED, 9f)
+            }
         }
         return ui.list
     }

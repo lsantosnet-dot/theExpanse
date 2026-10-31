@@ -458,6 +458,17 @@ private fun accusations() {
     shot(c, "57_acusacoes_tentativas")
     g.accuse("s_atlas")
     shot(c, "58_acusacoes_ultima")
+
+    // caso já encerrado (acusação certa ou parcial): o Caderno avisa e desabilita ACUSAR
+    val c2 = newController()
+    c2.press("home_play:albatroz")
+    val g2 = c2.session!!
+    g2.runEffects(listOf(com.theexpanse.content.Effect.Reveal("f_homem_terno"), com.theexpanse.content.Effect.Reveal("f_apolice")))
+    g2.deduce(setOf("f_homem_terno", "f_apolice"))
+    g2.accuse("s_terno")
+    c2.press("continue")
+    c2.screen = Screen.NOTEBOOK
+    shot(c2, "59_caderno_caso_encerrado")
 }
 
 fun main(args: Array<String>) {

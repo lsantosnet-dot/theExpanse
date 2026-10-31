@@ -295,12 +295,15 @@ class UiTest {
         assertEquals(Status.DOCKED, sim.status)
         assertTrue(Math.abs(predicted - actual) / actual < 0.2, "previsto $predicted, medido $actual")
 
-        // com um atacante (teto ×60: uma hora de jogo por minuto real), a estimativa tem de refletir o limite
+        // com um atacante longe, o teto cresce com a distância; perto, cai para ×60 (uma hora de jogo por minuto real)
         val capped = com.theexpanse.core.Simulation(com.theexpanse.core.World(pack))
-        capped.setAi(capped.world.body("fragata_tribunal")!!, com.theexpanse.content.AiMode.ATTACK)
+        val frigate = capped.world.body("fragata_tribunal")!!
+        capped.setAi(frigate, com.theexpanse.content.AiMode.ATTACK)
         capped.setWarp(3)
-        assertEquals(60.0, capped.plannedWarp())
-        assertEquals(2 * 3600.0, capped.realSecondsFor(8520.0), 1.0e5) // só confere que roda
+        val far = capped.distanceTo(frigate)
+        assertEquals(minOf(1440.0, 60.0 * maxOf(1.0, far / Config.HOSTILE_CAP_RANGE)), capped.plannedWarp(), 1e-6)
+        capped.dynamics[frigate.id]!!.pos = capped.ship.pos + com.theexpanse.core.Vec2(100_000.0, 0.0)
+        assertEquals(60.0, capped.plannedWarp(), 1e-6)
         assertTrue(capped.realSecondsFor(8520.0) in 120.0..300.0, "2 h 22 min a ×60 levam uns 2-3 min reais")
     }
 

@@ -26,6 +26,8 @@ object Config {
     const val PURSUER_STOP = 20_000.0
     const val PURSUIT_WARP_CAP = 120.0
     const val ATTACK_WARP_CAP = 60.0
+    /** Até esta distância (m) de uma nave hostil vale o teto fixo; além dela o teto cresce na proporção da distância. */
+    const val HOSTILE_CAP_RANGE = 200_000.0
 
     /** Combate: mísseis guiados, despistadores e dano. */
     const val MISSILE_ACCEL = 80.0

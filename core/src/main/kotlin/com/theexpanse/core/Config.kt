@@ -28,10 +28,12 @@ object Config {
     const val PATROL_ARRIVE_SPEED = 200.0
     /** Distância do jogador abaixo da qual uma patrulha ou fuga limita o tempo acelerado. */
     const val AI_WARP_RADIUS = 1_000_000.0
-    const val PURSUIT_WARP_CAP = 30.0
     /** Segundos reais que o jogador deve ter, no mínimo, entre o aviso de colisão e o impacto. */
     const val COLLISION_REACTION = 60.0
-    const val ATTACK_WARP_CAP = 10.0
+    const val PURSUIT_WARP_CAP = 120.0
+    const val ATTACK_WARP_CAP = 60.0
+    /** Até esta distância (m) de uma nave hostil vale o teto fixo; além dela o teto cresce na proporção da distância. */
+    const val HOSTILE_CAP_RANGE = 200_000.0
 
     /** Combate: mísseis guiados, despistadores e dano. */
     const val MISSILE_ACCEL = 80.0

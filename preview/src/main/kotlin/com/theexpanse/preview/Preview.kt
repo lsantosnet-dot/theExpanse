@@ -2,7 +2,18 @@ package com.theexpanse.preview
 
 import com.theexpanse.content.Builtin
 import com.theexpanse.core.AutopilotMode
+import com.theexpanse.content.HullStyle
 import com.theexpanse.core.Config
+import com.theexpanse.core.Missile
+import com.theexpanse.core.Owner
+import com.theexpanse.core.Vec2
+import com.theexpanse.render.CinematicKind
+import com.theexpanse.render.Draw
+import com.theexpanse.render.Frame
+import com.theexpanse.render.Models
+import com.theexpanse.render.Palette
+import com.theexpanse.render.Layout
+import com.theexpanse.render.Align
 import com.theexpanse.core.Status
 import com.theexpanse.core.wrapAngle
 import com.theexpanse.game.GameSession
@@ -154,11 +165,177 @@ private fun albatroz() {
     shot(c, "20_final_albatroz")
 }
 
+
+/** Galeria dos cruzadores de cada facção e do cargueiro, no mesmo quadro. */
+private fun gallery() {
+    val d = Draw()
+    d.rect(0f, 0f, Layout.W, Layout.H, fill = Palette.BG)
+    for (i in 0 until 120) d.circle(Fx0.h(i * 2) * Layout.W, Fx0.h(i * 2 + 1) * Layout.H, 0.8f, fill = 0xFFC9D3E6.toInt().alpha80())
+    d.text(Layout.W / 2, 30f, "NAVES DAS FACÇÕES", Palette.AMBER, 16f, Align.CENTER, bold = true)
+    val items = listOf(
+        Triple("Coalizão Terrana", HullStyle.TERRAN, 0xFF5B9BF0.toInt()),
+        Triple("Federação Marciana", HullStyle.MARTIAN, 0xFFE8645A.toInt()),
+        Triple("Liga do Cinturão", HullStyle.BELT, 0xFF3FD0B8.toInt()),
+    )
+    for ((i, it) in items.withIndex()) {
+        val cx = 150f + (i % 3) * 270f
+        d.text(cx, 62f, it.first, it.third, 11f, Align.CENTER, bold = true)
+        Models.cruiser(d, it.second, it.third, cx, 150f, 0.0, 1.5f, 0.8f, 0.0, 0.37 + i * 0.1)
+    }
+    d.text(150f, 262f, "Cargueiro independente", Palette.INK, 11f, Align.CENTER, bold = true)
+    Models.freighter(d, 150f, 330f, 0.0, 1.5f, 0.8f, 0.0, 0.5)
+    d.text(420f, 262f, "Genérico (corsário)", 0xFFC9A06A.toInt(), 11f, Align.CENTER, bold = true)
+    Models.cruiser(d, HullStyle.GENERIC, 0xFFC9A06A.toInt(), 420f, 330f, 0.0, 1.5f, 0.6f, 0.0, 0.9)
+    d.text(690f, 262f, "Destroços", Palette.MUTED, 11f, Align.CENTER, bold = true)
+    Models.wreck(d, 0xFF3FD0B8.toInt(), 690f, 330f, 0.2, 1.6f, 0.5)
+    val img = Raster.render(Frame(d.prims, emptyList()), 2f)
+    ImageIO.write(img, "png", File(outDir, "21_galeria_naves.png"))
+    println("gravado 21_galeria_naves.png")
+}
+
+private object Fx0 { fun h(i: Int): Float = com.theexpanse.render.Fx.hash(i) }
+private fun Int.alpha80(): Int = (this and 0x00FFFFFF) or (0xB0 shl 24)
+
+/** Mercador atacado por uma fragata: lançamento, míssil em voo, despistador, desvio e explosão. */
+private fun ambush() {
+    val c = AppController(MemoryStorage(), seed = { 11L })
+    c.press("home_play:emboscada")
+    val g = c.session!!
+    g.choose(1)
+    g.sim.setThrust(100)
+    g.sim.setAutopilot(AutopilotMode.INTERCEPT)
+    c.view = ViewMode.EXTERNAL
+    val ext = ArrayList<BufferedImage>()
+    val cab = ArrayList<BufferedImage>()
+    fun snap(anim: Double) {
+        c.view = ViewMode.EXTERNAL; ext.add(quiet(c, anim, 1f))
+        c.view = ViewMode.COCKPIT; cab.add(quiet(c, anim, 1f))
+    }
+    var guard = 0
+    while (g.sim.missiles.isEmpty() && guard++ < 400_000) g.stepFixed(0.05)
+    for (i in 0 until 3) g.stepFixed(0.05)
+    c.view = ViewMode.EXTERNAL; shot(c, "22_missil_lancado", 0.4)
+    snap(0.4)
+    guard = 0
+    while ((g.sim.impactEta() ?: 99.0) > 14.0 && guard++ < 100_000) g.stepFixed(0.05)
+    c.view = ViewMode.EXTERNAL; shot(c, "23_missil_em_voo", 0.7)
+    c.view = ViewMode.COCKPIT; shot(c, "24_missil_cabine", 0.7)
+    snap(0.7)
+    guard = 0
+    while ((g.sim.impactEta() ?: 99.0) > 7.0 && guard++ < 100_000) g.stepFixed(0.05)
+    c.press("decoy")
+    for (i in 0 until 6) g.stepFixed(0.05)
+    c.view = ViewMode.EXTERNAL; shot(c, "25_despistador", 0.2)
+    snap(0.2)
+    repeat(60) { g.stepFixed(0.05) }
+    snap(0.5)
+    guard = 0
+    while (g.sim.missiles.isNotEmpty() && guard++ < 10_000) g.stepFixed(0.05)
+    snap(0.9)
+    ImageIO.write(mosaic(ext, 2), "png", File(outDir, "sequencia_missil_externa.png"))
+    ImageIO.write(mosaic(cab, 2), "png", File(outDir, "sequencia_missil_cabine.png"))
+
+    // impacto sem despistador: clarão, vibração e casco caindo
+    val c2 = AppController(MemoryStorage(), seed = { 3L })
+    c2.press("home_play:emboscada")
+    val g2 = c2.session!!
+    g2.choose(1)
+    val dir = Vec2.fromAngle(0.4)
+    g2.sim.missiles.add(Missile(900, Owner.ENEMY, g2.sim.ship.pos + dir * 12_000.0, g2.sim.ship.vel, "jogador", "fragata_vigilia"))
+    guard = 0
+    while (g2.sim.ship.hull >= 100.0 && guard++ < 100_000) g2.stepFixed(0.02)
+    for (i in 0 until 10) g2.stepFixed(0.02)
+    c2.view = ViewMode.EXTERNAL; shot(c2, "26_impacto_externa", 0.3)
+    c2.view = ViewMode.COCKPIT; shot(c2, "27_impacto_cabine", 0.3)
+}
+
+/** Cruzador da Coalizão (papel militar) dispara e abate o corsário. */
+private fun patrol() {
+    val c = AppController(MemoryStorage(), seed = { 5L })
+    c.press("home_play:patrulha")
+    val g = c.session!!
+    shot(c, "28_patrulha_cabine_inicio")
+    val corvo = g.world.body("corvo")!!
+    val p = g.sim.position(corvo)
+    g.sim.ship.pos = p + Vec2.fromAngle(2.0) * 70_000.0
+    g.sim.ship.vel = g.sim.velocity(corvo)
+    g.sim.ship.angle = (p - g.sim.ship.pos).angle
+    g.stepFixed(0.05)
+    g.choose(1)
+    g.fire()
+    repeat(10) { g.stepFixed(0.05) }
+    c.view = ViewMode.EXTERNAL; shot(c, "29_patrulha_disparo", 0.3)
+    c.view = ViewMode.COCKPIT; shot(c, "30_patrulha_disparo_cabine", 0.3)
+    var guard = 0
+    var shotKill = false
+    while (guard++ < 40_000) {
+        g.stepFixed(0.05)
+        val eta = g.sim.impactEta()
+        if (eta != null && eta < 10.0 && g.sim.ship.decoys > 0) g.decoy()
+        if (g.sim.ship.missiles > 0 && g.sim.missiles.none { it.owner == Owner.PLAYER } && corvo.id !in g.sim.destroyed) g.fire()
+        if (corvo.id in g.sim.destroyed && !shotKill) {
+            shotKill = true
+            g.continueFlying()
+            repeat(6) { g.stepFixed(0.05) }
+            c.view = ViewMode.EXTERNAL; shot(c, "31_patrulha_abate", 0.3)
+            c.view = ViewMode.COCKPIT; shot(c, "36_patrulha_abate_cabine", 0.3)
+            break
+        }
+    }
+}
+
+/** A cena de atracação (e a de saída) em seis instantes cada. */
+private fun docking() {
+    val c = AppController(MemoryStorage(), seed = { 7L })
+    c.press("home_play:albatroz")
+    val g = c.session!!
+    g.sim.selectTarget(g.world.body("lab_helena")!!)
+    g.sim.setThrust(100); g.sim.setAutopilot(AutopilotMode.INTERCEPT)
+    var guard = 0
+    while (g.sim.status != Status.DOCKED && guard++ < 400_000) g.stepFixed(Config.SUBSTEP)
+    c.frame()
+    val frames = ArrayList<BufferedImage>()
+    val total = CinematicKind.DOCK.duration
+    val marks = listOf(0.08, 0.28, 0.5, 0.7, 0.82, 0.93)
+    var at = 0.0
+    for (m in marks) {
+        c.animate(m * total - at); at = m * total
+        frames.add(Raster.render(c.frame(), 1f))
+    }
+    ImageIO.write(frames[2], "png", File(outDir, "32_atracacao.png"))
+    ImageIO.write(mosaic(frames, 2), "png", File(outDir, "sequencia_atracacao.png"))
+    println("gravado sequencia_atracacao.png")
+}
+
+/** Painel com chegada em tempo de jogo e tempo real; câmera girada na cabine e na externa. */
+private fun panelAndCamera() {
+    val c = AppController(MemoryStorage(), seed = { 9L })
+    c.press("home_play:calice")
+    c.session!!.sim.setThrust(50)
+    c.session!!.sim.setAutopilot(AutopilotMode.INTERCEPT)
+    c.press("warp_3")
+    repeat(240) { c.update(1.0 / 30) }
+    c.view = ViewMode.COCKPIT
+    shot(c, "33_painel_chegada_cruzeiro")
+    c.press("cam_l")
+    repeat(45) { c.update(1.0 / 30) }
+    c.release("cam_l")
+    shot(c, "34_camera_cabine_girada")
+    c.view = ViewMode.EXTERNAL
+    c.cam.reset(); c.cam.rotate(-0.9); c.cam.zoomBy(1.4)
+    shot(c, "35_camera_externa_girada")
+}
+
 fun main(args: Array<String>) {
     outDir = File(args.firstOrNull() ?: "docs/preview")
     outDir.mkdirs()
     calice()
     albatroz()
+    gallery()
+    ambush()
+    patrol()
+    docking()
+    panelAndCamera()
     File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
     println("gravado the_expanse_template.md")
 }

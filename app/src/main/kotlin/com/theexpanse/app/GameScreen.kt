@@ -70,9 +70,11 @@ fun GameScreen(game: AppController) {
         Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                // multitoque: cada dedo segura o seu botão (girar e motor ao mesmo tempo)
+                // multitoque: cada dedo segura o seu botão (girar e motor ao mesmo tempo); um dedo livre na cena gira a
+                // câmera e dois dedos livres fazem zoom (pinça)
                 awaitPointerEventScope {
                     val held = HashMap<PointerId, String>()
+                    val free = HashMap<PointerId, Offset>()
                     while (true) {
                         val event = awaitPointerEvent()
                         val f = fit(size.width.toFloat(), size.height.toFloat())
@@ -80,11 +82,35 @@ fun GameScreen(game: AppController) {
                             val x = (c.position.x - f.ox) / f.scale
                             val y = (c.position.y - f.oy) / f.scale
                             if (c.pressed && !c.previousPressed) {
-                                game.hit(x, y)?.let { held[c.id] = it.id; game.press(it.id) }
+                                val b = game.hit(x, y)
+                                if (b != null) { held[c.id] = b.id; game.press(b.id) }
+                                else if (game.canDrag && y < Layout.SCENE_H) free[c.id] = c.position
                             } else if (!c.pressed && c.previousPressed) {
                                 held.remove(c.id)?.let { game.release(it) }
+                                free.remove(c.id)
                             }
                             c.consume()
+                        }
+                        val ids = free.keys.toList()
+                        if (ids.size == 1) {
+                            val c = event.changes.firstOrNull { it.id == ids[0] }
+                            val last = free[ids[0]]
+                            if (c != null && c.pressed && last != null) {
+                                game.drag((c.position.x - last.x) / f.scale)
+                                free[ids[0]] = c.position
+                            }
+                        } else if (ids.size >= 2) {
+                            val a = event.changes.firstOrNull { it.id == ids[0] }
+                            val b = event.changes.firstOrNull { it.id == ids[1] }
+                            val la = free[ids[0]]
+                            val lb = free[ids[1]]
+                            if (a != null && b != null && la != null && lb != null) {
+                                val before = (la - lb).getDistance()
+                                val now = (a.position - b.position).getDistance()
+                                if (before > 10f) game.pinch(now / before)
+                                free[ids[0]] = a.position
+                                free[ids[1]] = b.position
+                            }
                         }
                     }
                 }

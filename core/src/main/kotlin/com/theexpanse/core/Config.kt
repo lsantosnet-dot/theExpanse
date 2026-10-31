@@ -25,6 +25,16 @@ object Config {
     const val PURSUER_ACCEL = 3.0
     const val PURSUER_STOP = 20_000.0
     const val PURSUIT_WARP_CAP = 30.0
+    const val ATTACK_WARP_CAP = 10.0
 
-    val WARP_FACTORS = doubleArrayOf(1.0, 10.0, 100.0, 1000.0, 5000.0)
+    /** Combate: mísseis guiados, despistadores e dano. */
+    const val MISSILE_ACCEL = 80.0
+    const val MISSILE_LIFE = 70.0
+    const val MISSILE_FUZE = 600.0
+    const val MISSILE_RANGE = 150_000.0
+    const val ENEMY_FIRE_RANGE = 80_000.0
+    const val ENEMY_COOLDOWN = 30.0
+    const val ATTACK_STOP = 40_000.0
+    const val MISSILE_DAMAGE_MIN = 45.0
+    const val MISSILE_DAMAGE_MAX = 80.0
 }

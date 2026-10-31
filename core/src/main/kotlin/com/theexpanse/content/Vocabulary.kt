@@ -24,7 +24,8 @@ object Vocabulary {
         Spec("aproximacao", "Quando a nave chega perto de um corpo e devagar (abordagem).", listOf(
             f("corpo", "id de corpo", "o outro corpo"), f("distMenorQue", "número (m)", "distância máxima"), f("velMenorQue", "número (m/s)", "velocidade relativa máxima"),
         )),
-        Spec("nave_destruida", "Quando a nave cai no planeta.", emptyList()),
+        Spec("nave_destruida", "Quando a nave do jogador cai no planeta ou é destruída por mísseis.", emptyList()),
+        Spec("corpo_destruido", "Quando uma nave é destruída (por exemplo, abatida por um míssil do jogador).", listOf(f("corpo", "id de corpo", "qual nave"))),
     )
 
     val conditions = listOf(
@@ -37,6 +38,7 @@ object Vocabulary {
         Spec("creditos", "Créditos suficientes.", listOf(f("min", "inteiro", "mínimo"))),
         Spec("deduziu", "A dedução foi feita no caderno.", listOf(f("id", "id de dedução", "qual"))),
         Spec("tem_carga", "A carga do contrato ainda está a bordo.", emptyList()),
+        Spec("papel", "O papel do jogador na campanha (fixo): mercador ou militar.", listOf(f("valor", "mercador|militar", "qual papel"))),
         Spec("missao", "Estado de uma missão: ativa, concluida ou falhou.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "estado"))),
         Spec("e", "Todas as condições.", listOf(f("condicoes", "lista de condições", "todas devem valer"))),
         Spec("ou", "Qualquer condição.", listOf(f("condicoes", "lista de condições", "basta uma"))),
@@ -54,7 +56,7 @@ object Vocabulary {
         Spec("dialogo", "Abre um diálogo (a simulação pausa).", listOf(f("id", "id de diálogo", "qual"))),
         Spec("noticia", "Publica uma manchete.", listOf(f("texto", "texto", "a manchete"))),
         Spec("final", "Encerra a partida com um final.", listOf(f("id", "id de final", "qual"))),
-        Spec("ia", "Muda o comportamento de uma nave: perseguir ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|orbitar", "o que fazer"))),
+        Spec("ia", "Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador) ou orbitar.", listOf(f("corpo", "id de corpo", "qual nave"), f("comportamento", "perseguir|atacar|orbitar", "o que fazer"))),
         Spec("alvo", "Seleciona um corpo como alvo.", listOf(f("corpo", "id de corpo", "qual"))),
         Spec("perder_carga", "A carga do contrato é apreendida (a massa some).", emptyList()),
         Spec("missao", "Muda o estado de uma missão.", listOf(f("id", "id de missão", "qual"), f("estado", "ativa|concluida|falhou", "novo estado"))),
@@ -77,6 +79,13 @@ object Vocabulary {
 
 Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar. O jogo tem física newtoniana real (inércia, gravidade do planeta, empuxo só na direção do nariz, combustível limitado, tempo acelerado). O pacote descreve o universo, as pessoas, as missões, o mistério e os finais; o jogo faz o resto. Nada no pacote executa código.
 
+## Papel do jogador (vale a campanha inteira e não muda durante o jogo)
+- `{"tipo": "mercador"}`: o jogador pilota um cargueiro independente, sem armas. Se uma nave hostil o atacar, só pode **lançar despistadores** (cada um tem uma chance aleatória, `chanceDespistar`, de desviar cada míssil).
+- `{"tipo": "militar", "faccao": "id"}`: o jogador comanda o **cruzador** dessa facção, com mísseis (`nave.misseis`) e casco mais forte. Pode abater naves hostis; não dispara em naves da própria facção.
+- `escalaTempo` é quantos segundos de jogo passam por segundo real no nível "cruzeiro" do relógio (1440 = um dia de jogo por minuto real; uma viagem de 5 dias dura 5 minutos).
+- Naves de facções aparecem como **cruzadores estelares**; `estilo` escolhe o desenho (terrano, marciano, cinturao ou generico).
+- Uma nave hostil só dispara se um efeito `ia` com `atacar` a liberar. Use `corpo_destruido` para reagir quando o jogador (militar) a abater.
+
 ## Regras
 - Todo texto em português do Brasil. Nomes, facções e lugares **originais** (não use personagens, nomes ou enredo de obras existentes).
 - Todos os `id` são minúsculos, sem espaços (`porto_kaua`). Referências a ids que não existem são erros.
@@ -89,10 +98,12 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 ```
 {
   "formato": 1, "id": "...", "titulo": "...", "resumo": "...", "autor": "...",
+  "papel": {"tipo": "mercador"} ou {"tipo": "militar", "faccao": "id da facção"},
+  "escalaTempo": 1440,
   "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
-  "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB"}],
-  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true}],
-  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo"},
+  "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB", "estilo": "terrano|marciano|cinturao|generico"}],
+  "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4}],
+  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5},
   "creditos": 500, "reputacao": {"id da facção": 0},
   "objetos": [{"id": "...", "nome": "...", "massa": 40}],
   "fatos": [{"id": "...", "texto": "..."}],

@@ -4,11 +4,13 @@
   "titulo": "O silêncio do Albatroz",
   "resumo": "O cargueiro Albatroz perdeu o reator sem explicação. Siga as pistas por quatro lugares e decida quem acusar. Mistério de investigação, sem combate.",
   "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "mercador"},
+  "escalaTempo": 1440,
   "planeta": {"nome": "Aurélia", "gm": 1.0e17, "raio": 6.0e7},
   "facoes": [
-    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0"},
-    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A"},
-    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8"},
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
     {"id": "atlas", "nome": "Seguradora Atlas", "cor": "#C9A06A"}
   ],
   "corpos": [

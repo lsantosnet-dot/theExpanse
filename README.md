@@ -7,6 +7,21 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 
 ## O que o jogo tem
 
+- **Papel fixo por campanha**, definido no JSON e que não muda durante o jogo: **mercador** independente (cargueiro,
+  sem armas, com despistadores de mísseis) ou **militar** (comanda o cruzador de uma facção, com mísseis).
+- **Cruzadores estelares** com desenho próprio por facção (terrano, marciano, cinturão), lançadores de mísseis e
+  três motores com jato azul. Veja a [galeria](docs/preview/21_galeria_naves.png).
+- **Combate com mísseis guiados** (navegação proporcional): naves hostis disparam em você; o mercador lança
+  **despistadores com chance aleatória** de desviar cada míssil (sorteio por míssil, `chanceDespistar`); o militar
+  dispara nos hostis e é impedido de atirar em aliados. Casco, munição, explosões e o tempo cai para ×1 enquanto
+  há míssil no ar. Veja a [sequência do míssil](docs/preview/sequencia_missil_externa.png).
+- **Cena de atracação e de saída**: aproximação final, alinhamento com propulsores de manobra, travas e a estação
+  girando ([sequência](docs/preview/sequencia_atracacao.png)). Toque para pular.
+- **Chegada no painel**: tempo de jogo até chegar e o **tempo real** na escala escolhida, com contagem regressiva.
+  O nível de cruzeiro (`escalaTempo`, padrão 1440 = um dia de jogo por minuto real) faz uma viagem de 5 dias durar
+  5 minutos. O tempo estimado é calculado em segundo plano com o próprio piloto automático.
+- **Câmera giratória** na cabine e na externa: botões de segurar, arrastar o dedo e pinça para zoom.
+
 - **Física real**: gravidade do planeta, inércia, empuxo só na direção do nariz (para frear é preciso girar e queimar),
   combustível pela equação do foguete, corpos em órbita analítica, previsão balística, tempo de ×1 a ×5000 com limite
   automático de segurança, atracação e colisão.
@@ -19,8 +34,9 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
   (pistas → deduções → acusação), **porão** (objetos têm massa e pesam na física), **reputação** de facções,
   **notícias**, **finais** e **salvamento automático**.
 - **Perseguição**: a fragata do Cálice passa a ser integrada (3 m/s², para a 20 km) quando você corta o rádio.
-- **Campanhas** incluídas: **Cálice** (política e rádio, 8 finais) e **O silêncio do Albatroz** (mistério de
-  investigação em 4 lugares, 6 pistas, 3 suspeitos, 4 finais).
+- **Campanhas** incluídas: **Cálice** (mercador; política e rádio, 8 finais), **O silêncio do Albatroz** (mercador;
+  mistério de investigação, 6 pistas, 3 suspeitos, 4 finais), **Emboscada sobre Aurélia** (mercador atacado por
+  fragata com mísseis) e **Patrulha do Tribunal** (militar: cruzador da Coalizão contra um corsário).
 
 ### Telas (geradas pelo próprio código em `docs/preview`)
 
@@ -35,6 +51,18 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 | Mapa tático | Plano de rota |
 |---|---|
 | ![](docs/preview/08_mapa.png) | ![](docs/preview/09_rota.png) |
+
+| Míssil em voo | Despistador lançado |
+|---|---|
+| ![](docs/preview/23_missil_em_voo.png) | ![](docs/preview/25_despistador.png) |
+
+| Impacto (cabine) | Cruzador da Coalizão atira |
+|---|---|
+| ![](docs/preview/27_impacto_cabine.png) | ![](docs/preview/29_patrulha_disparo.png) |
+
+| Painel: chegada em tempo de jogo e real | Câmera girada (cabine) |
+|---|---|
+| ![](docs/preview/33_painel_chegada_cruzeiro.png) | ![](docs/preview/34_camera_cabine_girada.png) |
 
 | Rádio da fragata | Caderno |
 |---|---|
@@ -89,7 +117,7 @@ desenham. Por isso as telas e os fluxos de toque são testados sem aparelho.
 ## Como rodar
 
 ```
-./gradlew :core:test            # 41 testes: física, pacotes, validador, história, telas e fluxos de toque
+./gradlew :core:test            # 62 testes: física, combate, pacotes, validador, história, telas e fluxos de toque
 ./gradlew :preview:run          # gera os PNGs em docs/preview e o template
 ./gradlew :app:assembleDebug    # APK (precisa de Android SDK: ANDROID_HOME ou local.properties com sdk.dir)
 ```
@@ -103,10 +131,27 @@ piloto automático), salvamento e carga, importação de pacotes válidos e queb
 
 ## O que não foi verificado
 
-- **O APK compila (`assembleDebug`), mas nunca foi executado** em aparelho nem em emulador. Toque, multitoque, FPS,
-  tela cheia, seletor de arquivos, "Abrir com…" e área de transferência estão por testar de verdade.
+- **O APK compila (`assembleDebug`), mas nunca foi executado** em aparelho nem em emulador. Toque, multitoque,
+  arrastar e pinça da câmera, FPS, tela cheia, seletor de arquivos, "Abrir com…" e área de transferência estão por
+  testar de verdade.
+- Só estações e destroços são atracáveis. Chegar a um planeta destrói a nave (não há pouso).
+- O equilíbrio do combate (alcance de 80 km, mísseis a 80 m/s², dano de 45 a 80) é um primeiro ajuste, não testado
+  com jogadores.
 - O carregamento das campanhas incluídas (resources do `core`) foi conferido dentro do APK, mas não em execução.
 - Os PNGs vêm do rasterizador Java2D; a fonte e o anti-serrilhado no Android serão um pouco diferentes.
+
+## Papel, tempo e naves no JSON
+
+```json
+"papel": {"tipo": "militar", "faccao": "coalizao"},
+"escalaTempo": 1440,
+"facoes": [{"id": "coalizao", "nome": "...", "cor": "#5B9BF0", "estilo": "terrano"}],
+"nave": {"misseis": 8, "despistadores": 2, "chanceDespistar": 0.4, "casco": 220, "...": "..."},
+"corpos": [{"id": "corvo", "tipo": "nave", "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "...": "..."}]
+```
+
+Efeito `ia` com `atacar` libera uma nave hostil a perseguir e disparar; gatilho `corpo_destruido` e condição `papel`
+reagem ao combate. O validador confere o papel, a facção do militar e que só naves podem ser destruídas.
 
 ## Próximos passos
 

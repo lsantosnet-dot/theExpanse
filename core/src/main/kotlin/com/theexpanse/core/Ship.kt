@@ -3,7 +3,7 @@ package com.theexpanse.core
 import kotlin.math.ln
 
 /** Estado da nave do jogador. Só a simulação escreve aqui. */
-class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double) {
+class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double, val hullMax: Double = 100.0, val missilesMax: Int = 0, val decoysMax: Int = 4) {
     var pos: Vec2 = Vec2.ZERO
     var vel: Vec2 = Vec2.ZERO
 
@@ -11,6 +11,11 @@ class Ship(val dryMass: Double, val fuelCapacity: Double, cargo: Double) {
     var angle: Double = 0.0
     var omega: Double = 0.0
     var fuel: Double = fuelCapacity
+
+    /** Integridade do casco e munição (mísseis e despistadores). */
+    var hull: Double = hullMax
+    var missiles: Int = missilesMax
+    var decoys: Int = decoysMax
 
     /** Carga do contrato (kg). */
     var cargo: Double = cargo

@@ -28,6 +28,21 @@ object Fmt {
 
     fun speed(mps: Double): String = if (abs(mps) >= 1000.0) dec(mps / 1000, 2) + " km/s" else dec(mps, 1) + " m/s"
 
+    /** Duração legível: "5 d 3 h", "7 h 32 min", "12 min 10 s", "45 s". */
+    fun duration(seconds: Double): String {
+        val t = seconds.toLong().coerceAtLeast(0)
+        val d = t / 86_400
+        val h = (t % 86_400) / 3600
+        val m = (t % 3600) / 60
+        val s = t % 60
+        return when {
+            d > 0 -> "$d d $h h"
+            h > 0 -> "$h h ${m.toString().padStart(2, '0')} min"
+            m > 0 -> "$m min ${s.toString().padStart(2, '0')} s"
+            else -> "$s s"
+        }
+    }
+
     fun clock(seconds: Double): String {
         val total = seconds.toLong().coerceAtLeast(0)
         val d = total / 86_400

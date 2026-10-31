@@ -7,6 +7,7 @@ import com.theexpanse.content.Template
 import com.theexpanse.content.Validator
 import com.theexpanse.core.AutopilotMode
 import com.theexpanse.core.Status
+import com.theexpanse.game.EtaEstimator
 import com.theexpanse.game.GameSession
 import com.theexpanse.game.Host
 import com.theexpanse.game.MemoryStorage
@@ -17,9 +18,12 @@ import com.theexpanse.game.Storage
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 
-enum class Screen { HOME, FLIGHT, MAP, ROUTE, DIALOGUE, STATION, NOTEBOOK, HOLD, NEWS, MENU, END, ERRORS }
+enum class Screen { HOME, FLIGHT, MAP, ROUTE, DIALOGUE, STATION, NOTEBOOK, HOLD, NEWS, MENU, END, ERRORS, CINEMATIC }
 
 class Entry(val pack: ContentPackage, val builtin: Boolean, val hasSave: Boolean)
+
+/** Uma cena animada em andamento (atracar ou desatracar). */
+class Cinematic(val kind: CinematicKind, val start: Double)
 
 /** O que desenhar neste quadro e onde há botões. */
 class Frame(val prims: List<Prim>, val buttons: List<Button>)
@@ -60,6 +64,12 @@ class AppController(
     var selectedSuspect: String? = null
     var deduceText: String? = null
     var newsPage = 0
+
+    val cam = Camera()
+    val eta = EtaEstimator()
+    var cinematic: Cinematic? = null
+        private set
+    private var wasDocked = false
 
     private val held = HashSet<String>()
     private var buttons: List<Button> = emptyList()
@@ -120,6 +130,9 @@ class AppController(
         view = ViewMode.COCKPIT
         selectedFacts.clear(); selectedSuspect = null; deduceText = null; factPage = 0
         held.clear()
+        cam.reset()
+        cinematic = null
+        wasDocked = s.sim.status == Status.DOCKED
     }
 
     /** Grava o jogo em andamento (o app chama ao pausar). */
@@ -151,7 +164,17 @@ class AppController(
     }
 
     /** Tela efetiva: diálogos, finais e atracação têm prioridade sobre a tela escolhida. */
+    /** Detecta a chegada a uma estação e dispara a cena de atracação. */
+    private fun trackDock() {
+        val s = session ?: return
+        val docked = s.sim.status == Status.DOCKED
+        if (docked && !wasDocked && cinematic == null) cinematic = Cinematic(CinematicKind.DOCK, animTime)
+        wasDocked = docked
+    }
+
     fun effective(): Screen {
+        trackDock()
+        if (cinematic != null && session != null) return Screen.CINEMATIC
         val s = session
         if (s == null || screen == Screen.HOME || screen == Screen.ERRORS) return if (s == null && screen != Screen.ERRORS) Screen.HOME else screen
         if (s.dialogue != null) return Screen.DIALOGUE
@@ -166,12 +189,41 @@ class AppController(
         animTime += realDt
         if (banner != null && animTime > bannerUntil) banner = null
         val s = session ?: return
-        if (effective() == Screen.FLIGHT || effective() == Screen.MAP) s.update(realDt) else s.update(0.0)
+        // giro da câmera enquanto o botão está pressionado
+        if ("cam_l" in held) cam.rotate(1.6 * realDt)
+        if ("cam_r" in held) cam.rotate(-1.6 * realDt)
+        val sc = effective()
+        cinematic?.let { c ->
+            if (animTime - c.start >= c.kind.duration) finishCinematic()
+        }
+        if (sc == Screen.FLIGHT || sc == Screen.MAP) {
+            s.update(realDt)
+            eta.update(s.sim, animTime)
+        } else s.update(0.0)
         if (animTime - lastSave > 15.0) {
             lastSave = animTime
             saveNow()
         }
     }
+
+    private fun finishCinematic() {
+        val c = cinematic ?: return
+        cinematic = null
+        if (c.kind == CinematicKind.UNDOCK) {
+            session?.undock()
+            wasDocked = false
+            screen = Screen.FLIGHT
+        }
+    }
+
+    /** Arrastar na cena gira a câmera ([dx] em unidades de desenho). */
+    fun drag(dx: Float) = cam.rotate(dx * 0.004)
+
+    /** Pinça na cena aproxima ou afasta a câmera. */
+    fun pinch(factor: Float) = cam.zoomBy(factor.toDouble())
+
+    /** A cena aceita arrastar? Só no voo, fora dos botões. */
+    val canDrag: Boolean get() = session != null && effective() == Screen.FLIGHT
 
     /** Só a animação, sem avançar o tempo simulado (para o preview). */
     fun animate(dt: Double) {
@@ -214,9 +266,17 @@ class AppController(
             id == "target" -> sim.cycleTarget()
             id.startsWith("warp_") -> sim.setWarp(id.removePrefix("warp_").toInt())
             id == "menu" -> screen = Screen.MENU
-            id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null }
+            id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null; cam.reset(); cinematic = null; wasDocked = false }
             id == "continue" -> { s.continueFlying(); screen = Screen.FLIGHT }
-            id == "undock" -> { s.undock(); screen = Screen.FLIGHT }
+            id == "undock" -> if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
+            id == "skip" -> finishCinematic()
+            id == "cam_l" -> held.add(id)
+            id == "cam_r" -> held.add(id)
+            id == "cam_reset" -> cam.reset()
+            id == "zoom_in" -> cam.zoomBy(1.25)
+            id == "zoom_out" -> cam.zoomBy(0.8)
+            id == "fire" -> s.fire()
+            id == "decoy" -> s.decoy()
             id == "open_map" -> screen = Screen.MAP
             id == "open_route" -> { routeOptions = RoutePlanner.plan(sim); routeSelected = routeOptions.indexOfFirst { it.thrustPct == sim.thrustPct }.coerceAtLeast(0); screen = Screen.ROUTE }
             id == "open_notebook" -> { screen = Screen.NOTEBOOK }
@@ -280,13 +340,18 @@ class AppController(
                 when (sc) {
                     Screen.FLIGHT -> {
                         when (view) {
-                            ViewMode.COCKPIT -> CockpitView.draw(d, g.sim, animTime)
-                            ViewMode.EXTERNAL -> ExternalView.draw(d, g.sim, animTime)
+                            ViewMode.COCKPIT -> CockpitView.draw(d, g.sim, animTime, cam)
+                            ViewMode.EXTERNAL -> ExternalView.draw(d, g.sim, animTime, cam)
                         }
-                        Hud.drawTop(d, g, view)
-                        val l = ArrayList<Button>(Hud.drawPanel(d, g.sim, view, held))
+                        Hud.drawTop(d, g, view, animTime)
+                        val l = ArrayList<Button>(Hud.drawPanel(d, g.sim, view, held, eta))
+                        l.addAll(Hud.drawSceneButtons(d, g, cam, held, animTime))
                         l.addAll(Hud.drawCrash(d, g.sim))
                         l
+                    }
+                    Screen.CINEMATIC -> {
+                        val c = cinematic!!
+                        DockingScene.draw(d, g, c.kind, animTime - c.start, animTime)
                     }
                     Screen.MAP -> MapScreen.draw(d, this, g)
                     Screen.ROUTE -> RouteScreen.draw(d, this, g)

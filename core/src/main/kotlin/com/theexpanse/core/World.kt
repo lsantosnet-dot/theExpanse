@@ -4,6 +4,7 @@ import com.theexpanse.content.BodyDef
 import com.theexpanse.content.BodyKind
 import com.theexpanse.content.ContentPackage
 import com.theexpanse.content.FactionDef
+import com.theexpanse.content.RoleKind
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -42,6 +43,14 @@ class World(val pack: ContentPackage) {
     val radius: Double = pack.planet.radius
     val bodies: List<Body> = pack.bodies.map { d -> Body(d, pack.faction(d.factionId)!!, gm) }
     val ship = pack.ship
+    val role = pack.role
+    val timeScale: Double = pack.timeScale
+
+    /** Níveis do relógio: ×1, ×10, ×100, a escala de cruzeiro da campanha e cinco vezes ela. */
+    val warpLevels: DoubleArray = doubleArrayOf(1.0, 10.0, 100.0, pack.timeScale, pack.timeScale * 5)
+
+    val isMilitary: Boolean get() = role.kind == RoleKind.MILITARY
+    val playerFaction: FactionDef? get() = role.factionId?.let { pack.faction(it) }
 
     fun body(id: String): Body? = bodies.firstOrNull { it.id == id }
 

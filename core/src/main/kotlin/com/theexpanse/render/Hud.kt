@@ -1,12 +1,14 @@
 package com.theexpanse.render
 
 import com.theexpanse.core.AutopilotMode
-import com.theexpanse.core.Config
-import com.theexpanse.game.GameSession
+import com.theexpanse.core.FireResult
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
+import com.theexpanse.game.EtaEstimator
+import com.theexpanse.game.GameSession
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sin
 
 enum class ViewMode(val label: String) { COCKPIT("CABINE"), EXTERNAL("CÂMERA EXTERNA") }
 
@@ -25,38 +27,77 @@ object Hud {
         }
     }
 
-    fun drawTop(d: Draw, game: GameSession, mode: ViewMode) {
+    fun drawTop(d: Draw, game: GameSession, mode: ViewMode, t: Double) {
         val sim = game.sim
         val s = sim.ship
-        d.rect(8f, 8f, 232f, 50f, fill = Palette.PANEL.alpha(0.82f), stroke = Palette.PANEL_EDGE)
+        d.rect(8f, 8f, 244f, 64f, fill = Palette.PANEL.alpha(0.93f), stroke = Palette.PANEL_EDGE)
         d.text(16f, 22f, "T+ " + Fmt.clock(sim.time), Palette.MUTED, 10f)
-        val warp = Config.WARP_FACTORS[sim.warpIndex]
+        val warp = sim.warpLevels[sim.warpIndex]
         val eff = sim.effectiveWarp
         val warpText = "TEMPO ×${Fmt.int(warp)}" + if (eff < warp - 0.5) " · efetivo ×${Fmt.dec(eff, 1)}" else ""
         d.text(16f, 35f, warpText, Palette.AMBER, 10f)
         val apColor = if (sim.autopilot == AutopilotMode.OFF) Palette.INK else Palette.AMBER
         d.text(16f, 49f, "PILOTO ${sim.autopilot.label} · ${flightStatus(sim)}", apColor, 10f)
+        val hullPct = (s.hull / s.hullMax * 100).toInt()
+        val hullColor = if (hullPct > 60) Palette.INK else if (hullPct > 30) Palette.AMBER else Palette.RED_SOFT
+        val arms = if (sim.world.isMilitary) " · MÍSSEIS ${s.missiles}" else ""
+        d.text(16f, 63f, "CASCO $hullPct%$arms · DESPIST. ${s.decoys}", hullColor, 10f)
 
         d.text(Layout.W / 2, 20f, mode.label, Palette.MUTED, 9f, Align.CENTER)
-        if (sim.flipAlert()) {
+        val eta = sim.impactEta()
+        if (eta != null) {
+            val pulse = 0.55f + 0.45f * sin(t * 10).toFloat()
+            d.rect(Layout.W / 2 - 150f, 26f, 300f, 26f, fill = Palette.RED.alpha(0.18f + 0.15f * pulse), stroke = Palette.RED, radius = 3f)
+            d.text(Layout.W / 2, 44f, "ALERTA DE MÍSSIL · IMPACTO EM " + Fmt.duration(eta), Palette.RED_SOFT, 12f, Align.CENTER, bold = true)
+        } else if (sim.flipAlert()) {
             val sec = sim.secondsToFlip() ?: 0.0
             val msg = if (sec <= 0.5) "INVERTER AGORA" else "INVERTER EM " + Fmt.clock(sec)
             d.rect(Layout.W / 2 - 110f, 26f, 220f, 24f, fill = Palette.RED.alpha(0.18f), stroke = Palette.RED, radius = 3f)
             d.text(Layout.W / 2, 43f, msg, Palette.RED_SOFT, 12f, Align.CENTER, bold = true)
         }
-        if (s.fuel <= 0.0) d.text(Layout.W / 2, 62f, "SEM COMBUSTÍVEL", Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
+        if (s.fuel <= 0.0) d.text(Layout.W / 2, 66f, "SEM COMBUSTÍVEL", Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
 
-        game.activeMission?.let { d.text(16f, 72f, Ui.clip("Missão: " + it.title, 10f, 330f), Palette.AMBER_SOFT, 10f) }
+        game.activeMission?.let { d.text(16f, 86f, Ui.clip("Missão: " + it.title, 10f, 330f), Palette.AMBER_SOFT, 10f) }
         // registro de mensagens: some sozinho depois de alguns segundos
         var y = Layout.SCENE_H - 14f
         for (m in game.messages.asReversed()) {
             val age = game.clock - m.at
             if (age > 9.0) break
             val fade = if (age > 6.0) ((9.0 - age) / 3.0).toFloat() else 1f
-            d.text(16f, y, Ui.clip(m.text, 10f, 560f), Palette.AMBER_SOFT.alpha(fade), 10f)
+            d.text(16f, y, Ui.clip(m.text, 10f, 600f), Palette.AMBER_SOFT.alpha(fade), 10f)
             y -= 13f
             if (y < Layout.SCENE_H - 14f - 13f * 3) break
         }
+    }
+
+    /** Botões sobre a cena: câmera giratória, zoom e a ação de combate do papel (míssil ou despistador). */
+    fun drawSceneButtons(d: Draw, game: GameSession, cam: Camera, held: Set<String>, t: Double): List<Button> {
+        val ui = Buttons(d)
+        val sim = game.sim
+        val y = 204f
+        ui.add("cam_l", 636f, y, 34f, 30f, "⟲", ButtonKind.HOLD, pressed = "cam_l" in held)
+        ui.add("cam_reset", 674f, y, 34f, 30f, "●", active = !cam.centered)
+        ui.add("cam_r", 712f, y, 34f, 30f, "⟳", ButtonKind.HOLD, pressed = "cam_r" in held)
+        ui.add("zoom_out", 756f, y, 34f, 30f, "−")
+        ui.add("zoom_in", 794f, y, 34f, 30f, "+")
+        if (sim.world.isMilitary) {
+            val r = sim.canFire()
+            val ready = r == FireResult.FIRED && sim.status == Status.FLYING
+            val sub = when (r) {
+                FireResult.NO_AMMO -> "sem mísseis"
+                FireResult.NO_TARGET -> "alvo: nave"
+                FireResult.OUT_OF_RANGE -> "fora de alcance"
+                FireResult.FRIENDLY -> "alvo amigo"
+                else -> null
+            }
+            ui.add("fire", 440f, y - 2f, 186f, 34f, "MÍSSIL ×${sim.ship.missiles}" + (if (sub != null) " · $sub" else ""), enabled = ready, accent = if (ready) Palette.RED else 0)
+        } else {
+            val incoming = sim.incoming().isNotEmpty()
+            val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING
+            val pulse = incoming && sin(t * 12) > 0
+            ui.add("decoy", 440f, y - 2f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}", enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
+        }
+        return ui.list
     }
 
     private fun readout(d: Draw, x: Float, y: Float, label: String, value: String, color: Int = Palette.INK) {
@@ -65,12 +106,12 @@ object Hud {
     }
 
     /** Desenha o painel e devolve os botões (para a entrada de toque). */
-    fun drawPanel(d: Draw, sim: Simulation, mode: ViewMode, held: Set<String>): List<Button> {
-        val ui = Buttons(d)
+    fun drawPanel(d: Draw, sim: Simulation, mode: ViewMode, held: Set<String>, eta: EtaEstimator): List<Button> {
         val y0 = Layout.PANEL_Y
         d.rect(0f, y0, Layout.W, Layout.PANEL_H, fill = Palette.PANEL)
         d.line(0f, y0, Layout.W, y0, Palette.PANEL_EDGE, 1.5f)
         val s = sim.ship
+        val ui = Buttons(d)
 
         // --- esquerda: giro e motor ---
         d.text(14f, y0 + 16f, "GIRAR", Palette.MUTED, 9f)
@@ -89,18 +130,35 @@ object Hud {
         // --- centro: leituras ---
         val rel = sim.relativeVelocity()
         val approach = sim.approachSpeed()
-        readout(d, 244f, y0 + 16f, "VEL. RELATIVA", Fmt.speed(rel.length))
-        readout(d, 404f, y0 + 16f, "APROXIMAÇÃO", Fmt.speed(approach), if (approach > 0) Palette.GREEN else Palette.RED_SOFT)
-        readout(d, 244f, y0 + 52f, "ACELERAÇÃO", Fmt.dec(s.burnAccel / 9.80665, 2) + " g")
-        readout(d, 404f, y0 + 52f, "DIST. DE FRENAGEM", Fmt.distance(sim.brakingDistance()))
+        readout(d, 244f, y0 + 14f, "VEL. RELATIVA", Fmt.speed(rel.length))
+        readout(d, 404f, y0 + 14f, "APROXIMAÇÃO", Fmt.speed(approach), if (approach > 0) Palette.GREEN else Palette.RED_SOFT)
+        readout(d, 244f, y0 + 46f, "ACELERAÇÃO", Fmt.dec(s.burnAccel / 9.80665, 2) + " g")
+        readout(d, 404f, y0 + 46f, "DIST. DE FRENAGEM", Fmt.distance(sim.brakingDistance()))
+
+        // chegada: tempo de jogo e tempo real na escala escolhida
+        val rem = eta.remaining(sim)
+        val scale = maxOf(sim.warpLevels[sim.warpIndex], sim.world.timeScale)
+        val (lab1, lab2) = when (eta.kind) {
+            EtaEstimator.Kind.CLOSEST -> "MENOR DIST. EM" to "REAL ×${Fmt.int(scale)}"
+            else -> "CHEGADA EM" to "REAL ×${Fmt.int(scale)}"
+        }
+        val v1: String
+        val v2: String
+        when {
+            sim.status != Status.FLYING -> { v1 = "—"; v2 = "—" }
+            rem != null -> { v1 = Fmt.duration(rem); v2 = Fmt.duration(rem / scale) }
+            eta.kind == EtaEstimator.Kind.FAR -> { v1 = "> 25 h"; v2 = "—" }
+            else -> { v1 = "calculando…"; v2 = "…" }
+        }
+        readout(d, 244f, y0 + 78f, lab1, v1, Palette.AMBER)
+        readout(d, 404f, y0 + 78f, lab2, v2, Palette.AMBER_SOFT)
+
         val frac = (s.fuel / s.fuelCapacity).toFloat().coerceIn(0f, 1f)
-        d.text(244f, y0 + 92f, "COMBUSTÍVEL ${Fmt.int(frac * 100.0)}% · Δv ${Fmt.speed(s.deltaV)} · massa ${Fmt.dec(s.mass / 1000, 1)} t", Palette.MUTED, 9f)
-        d.rect(244f, y0 + 97f, 300f, 7f, fill = Palette.BUTTON, radius = 3f)
-        d.rect(244f, y0 + 97f, 300f * frac, 7f, fill = Palette.AMBER, radius = 3f)
+        d.text(244f, y0 + 114f, "COMBUSTÍVEL ${Fmt.int(frac * 100.0)}% · Δv ${Fmt.speed(s.deltaV)} · massa ${Fmt.dec(s.mass / 1000, 1)} t", Palette.MUTED, 9f)
+        d.rect(244f, y0 + 118f, 300f, 6f, fill = Palette.BUTTON, radius = 3f)
+        d.rect(244f, y0 + 118f, 300f * frac, 6f, fill = Palette.AMBER, radius = 3f)
         val tgt = sim.target
-        d.text(244f, y0 + 124f, "ALVO ${tgt.name} · ${Fmt.distance(sim.distanceTo())}", tgt.faction.argb, 10f, bold = true)
-        val p = sim.prediction()
-        d.text(244f, y0 + 138f, "Sem motor: ${Fmt.distance(p.closestDistance)} em ${Fmt.clock(p.closestTime)}", Palette.MUTED, 9f)
+        d.text(244f, y0 + 140f, "ALVO ${tgt.name} · ${Fmt.distance(sim.distanceTo())}", tgt.faction.argb, 10f, bold = true)
 
         // --- direita: piloto automático, tempo e sistema ---
         val bx = 566f
@@ -111,12 +169,10 @@ object Hud {
             Triple("ap_retro", "RETRO", AutopilotMode.RETROGRADE),
             Triple("ap_stop", "PARAR", AutopilotMode.STOP_SPIN),
         )
-        for ((i, m) in modes.withIndex()) {
-            ui.add(m.first, bx + i * (w4 + 4f), y0 + 12f, w4, 44f, m.second, active = sim.autopilot == m.third)
-        }
-        for (i in Config.WARP_FACTORS.indices) {
-            val f = Config.WARP_FACTORS[i]
-            val label = if (f >= 1000) "×${Fmt.int(f / 1000)}k" else "×${Fmt.int(f)}"
+        for ((i, m) in modes.withIndex()) ui.add(m.first, bx + i * (w4 + 4f), y0 + 12f, w4, 44f, m.second, active = sim.autopilot == m.third)
+        for (i in sim.warpLevels.indices) {
+            val f = sim.warpLevels[i]
+            val label = if (f >= 1000) "×${Fmt.dec(f / 1000, if (f % 1000 == 0.0) 0 else 1)}k" else "×${Fmt.int(f)}"
             ui.add("warp_$i", bx + i * 53.6f, y0 + 62f, 50f, 30f, label, active = sim.warpIndex == i)
         }
         ui.add("view", bx, y0 + 100f, 86f, 38f, if (mode == ViewMode.COCKPIT) "VER EXTERNA" else "VER CABINE")
@@ -125,13 +181,14 @@ object Hud {
         return ui.list
     }
 
-    /** Aviso quando a nave cai e nenhuma regra do pacote encerra a partida. */
+    /** Aviso quando a nave cai ou é destruída e nenhuma regra do pacote encerra a partida. */
     fun drawCrash(d: Draw, sim: Simulation): List<Button> {
-        if (sim.status != Status.CRASHED) return emptyList()
+        if (sim.status != Status.CRASHED && sim.status != Status.DESTROYED) return emptyList()
         val ui = Buttons(d)
         Ui.panel(d, 222f, 40f, 400f, 130f, Palette.PANEL.alpha(0.96f), Palette.RED)
         d.text(422f, 76f, "NAVE DESTRUÍDA", Palette.RED_SOFT, 18f, Align.CENTER, bold = true)
-        d.text(422f, 100f, "Colisão com " + sim.world.planetName + " · T+ " + Fmt.clock(sim.time), Palette.INK, 11f, Align.CENTER)
+        val why = if (sim.status == Status.DESTROYED) "Atingida por mísseis" else "Colisão com " + sim.world.planetName
+        d.text(422f, 100f, why + " · T+ " + Fmt.clock(sim.time), Palette.INK, 11f, Align.CENTER)
         ui.add("restart", 342f, 118f, 160f, 40f, "JOGAR DE NOVO", active = true)
         return ui.list
     }

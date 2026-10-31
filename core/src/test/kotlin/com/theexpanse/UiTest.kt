@@ -98,9 +98,15 @@ class UiTest {
         g.sim.setAutopilot(com.theexpanse.core.AutopilotMode.INTERCEPT)
         var guard = 0
         while (g.sim.status != Status.DOCKED && guard++ < 400_000) g.stepFixed(Config.SUBSTEP)
+        assertEquals(Screen.CINEMATIC, c.effective(), "a cena de atracação vem antes da estação")
+        assertTrue(c.frame().buttons.any { it.id == "skip" })
+        c.tap("skip")
         assertEquals(Screen.STATION, c.effective())
         assertTrue(c.frame().buttons.any { it.id == "undock" })
         c.tap("undock")
+        assertEquals(Screen.CINEMATIC, c.effective(), "a saída também tem cena")
+        assertEquals(Status.DOCKED, g.sim.status, "só desatraca no fim da cena")
+        c.tap("skip")
         assertEquals(Screen.FLIGHT, c.effective())
         assertEquals(Status.FLYING, g.sim.status)
         // logo após desatracar a nave não atraca de novo
@@ -153,8 +159,9 @@ class UiTest {
         val c = controller()
         val good = Builtin.text("albatroz")!!.replace("\"id\": \"albatroz\"", "\"id\": \"albatroz_b\"").replace("O silêncio do Albatroz", "Albatroz B")
         assertTrue(c.importText("b.json", good))
-        assertEquals(3, c.entries.size)
+        assertEquals(5, c.entries.size)
         assertTrue(c.storage.packages().containsKey("albatroz_b"))
+        c.homePage = 1
         c.frame()
         assertTrue(c.frame().buttons.any { it.id == "home_del:albatroz_b" })
 
@@ -166,10 +173,12 @@ class UiTest {
         val broken = Builtin.text("albatroz")!!.replace("\"id\": \"albatroz\"", "\"id\": \"albatroz_c\"").replace("{\"tipo\": \"dar_objeto\", \"objeto\": \"caixa_preta\"}, ", "")
         assertTrue(!c.importText("c.json", broken))
         assertTrue(c.errors.any { it.contains("nunca é alcançável") })
-        assertEquals(3, c.entries.size, "pacote inválido não é instalado")
+        assertEquals(5, c.entries.size, "pacote inválido não é instalado")
         c.press("back")
+        c.homePage = 1
+        c.frame()
         c.tap("home_del:albatroz_b")
-        assertEquals(2, c.entries.size)
+        assertEquals(4, c.entries.size)
     }
 
     @Test
@@ -187,5 +196,87 @@ class UiTest {
         c.frame()
         c.tap("home_resume:albatroz")
         assertEquals(t, c.session!!.sim.time, 1e-9)
+    }
+
+    @Test
+    fun dockingCinematicPlaysForItsDurationThenShowsTheStation() {
+        val c = controller()
+        c.tap("home_play:albatroz")
+        val g = c.session!!
+        g.sim.setThrust(100)
+        g.sim.setAutopilot(com.theexpanse.core.AutopilotMode.INTERCEPT)
+        var guard = 0
+        while (g.sim.status != Status.DOCKED && guard++ < 400_000) g.stepFixed(Config.SUBSTEP)
+        assertEquals(Screen.CINEMATIC, c.effective())
+        val frames = ArrayList<Int>()
+        var t = 0.0
+        while (c.effective() == Screen.CINEMATIC && t < 20.0) { c.update(0.1); frames.add(c.frame().prims.size); t += 0.1 }
+        assertTrue(t in 6.5..8.0, "duração ${t}s")
+        assertTrue(frames.dropLast(1).all { it > 50 })
+        assertEquals(Screen.STATION, c.effective())
+    }
+
+    @Test
+    fun cameraRotatesByHoldDragAndZoom() {
+        val c = controller()
+        c.tap("home_play:calice")
+        assertTrue(c.cam.centered)
+        c.press("cam_l")
+        repeat(30) { c.update(1.0 / 30) }
+        c.release("cam_l")
+        assertTrue(c.cam.yaw > 1.0, "yaw ${c.cam.yaw}")
+        c.tap("cam_reset")
+        assertTrue(c.cam.centered)
+        c.drag(100f)
+        assertTrue(c.cam.yaw > 0.3)
+        c.tap("zoom_in"); c.tap("zoom_in")
+        assertTrue(c.cam.zoom > 1.5)
+        c.pinch(0.1f)
+        assertTrue(c.cam.zoom >= 0.5)
+        c.view = ViewMode.COCKPIT; assertTrue(c.frame().prims.isNotEmpty())
+        c.view = ViewMode.EXTERNAL; assertTrue(c.frame().prims.isNotEmpty())
+    }
+
+    @Test
+    fun combatButtonsFollowTheRole() {
+        val merchant = controller()
+        merchant.tap("home_play:calice")
+        val mb = merchant.frame().buttons
+        assertTrue(mb.any { it.id == "decoy" } && mb.none { it.id == "fire" })
+        assertTrue(!mb.first { it.id == "decoy" }.enabled, "sem míssil por perto o despistador fica desabilitado")
+
+        val soldier = controller()
+        soldier.tap("home_play:patrulha")
+        val sb = soldier.frame().buttons
+        assertTrue(sb.any { it.id == "fire" } && sb.none { it.id == "decoy" })
+        assertTrue(!sb.first { it.id == "fire" }.enabled, "alvo fora de alcance")
+    }
+
+    @Test
+    fun arrivalEtaCountsDownAndMatchesTheRoutePlan() {
+        val c = controller()
+        c.tap("home_play:calice")
+        c.session!!.sim.setThrust(50)
+        repeat(120) { c.update(1.0 / 30) }
+        val eta = c.eta.remaining(c.session!!.sim)
+        assertNotNull(eta, "o cálculo termina em poucos quadros")
+        assertTrue(Math.abs(eta!! - 27_100) / 27_100 <= 0.05, "ETA $eta")
+        c.session!!.sim.setAutopilot(com.theexpanse.core.AutopilotMode.INTERCEPT)
+        c.tap("warp_3")
+        repeat(30) { c.update(1.0 / 30) }
+        val later = c.eta.remaining(c.session!!.sim)!!
+        assertTrue(later < eta, "a contagem regressiva diminui")
+        val panel = c.frame()
+        assertTrue(panel.prims.any { it is com.theexpanse.render.Txt && it.text.startsWith("CHEGADA") })
+        assertTrue(panel.prims.any { it is com.theexpanse.render.Txt && it.text.startsWith("REAL ×1.440") })
+    }
+
+    @Test
+    fun cruiseScaleTurnsDaysIntoMinutes() {
+        val sim = com.theexpanse.core.Simulation(com.theexpanse.core.World(Builtin.pack("calice")))
+        assertEquals(1440.0, sim.world.timeScale)
+        assertEquals(1440.0, sim.warpLevels[3])
+        // 5 dias de jogo na escala de cruzeiro = 5 minutos reais
+        assertEquals(5.0 * 60.0, 5 * 86_400.0 / sim.warpLevels[3], 1e-6)
     }
 }

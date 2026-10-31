@@ -1,0 +1,71 @@
+{
+  "formato": 1,
+  "id": "patrulha",
+  "titulo": "Patrulha do Tribunal",
+  "resumo": "Você comanda um cruzador da Coalizão Terrana, com mísseis. Intercepte o corsário Corvo antes que ele chegue ao Cinturão: renda-o ou abata-o.",
+  "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "militar", "faccao": "coalizao"},
+  "escalaTempo": 1440,
+  "planeta": {"nome": "Aurélia", "gm": 1.0e17, "raio": 6.0e7},
+  "facoes": [
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
+    {"id": "corsarios", "nome": "Corsários do Corvo", "cor": "#C9A06A", "estilo": "generico"}
+  ],
+  "corpos": [
+    {"id": "corvo", "nome": "Corsário Corvo", "curto": "Corvo", "tipo": "nave", "faccao": "corsarios", "raioOrbita": 4.4e8, "fase": 1.0, "tamanho": 70, "atracavel": false, "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4},
+    {"id": "cruzador_aurora", "nome": "Cruzador Aurora", "curto": "Aurora", "tipo": "nave", "faccao": "coalizao", "raioOrbita": 3.6e8, "fase": 0.35, "tamanho": 180, "atracavel": false, "misseis": 0},
+    {"id": "doca_meridiano", "nome": "Doca Meridiano", "curto": "Doca", "tipo": "estacao", "faccao": "coalizao", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150},
+    {"id": "porto_kaua", "nome": "Porto Kauã", "curto": "Porto", "tipo": "estacao", "faccao": "liga", "raioOrbita": 4.6e8, "fase": 1.4, "tamanho": 150},
+    {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Arsenal", "tipo": "estacao", "faccao": "federacao", "raioOrbita": 6.1e8, "fase": 3.3, "tamanho": 150}
+  ],
+  "nave": {"nome": "Cruzador Tribunal II", "massaSeca": 600000, "carga": 0, "combustivel": 90000, "nomeCarga": "sem carga", "perto": "doca_meridiano", "altitude": 40000, "alvo": "corvo", "casco": 220, "misseis": 8, "despistadores": 2, "chanceDespistar": 0.4},
+  "creditos": 0,
+  "reputacao": {"coalizao": 20, "federacao": 0, "liga": -5, "corsarios": -50},
+  "personagens": [
+    {"id": "cmd_corvo", "nome": "Capitão Valdez", "papel": "comandante do Corvo", "faccao": "corsarios"}
+  ],
+  "dialogos": [
+    {
+      "id": "d_corvo", "personagem": "cmd_corvo",
+      "texto": "“Cruzador da Coalizão, aqui é o Corvo. Estou em águas livres e não devo nada ao Tribunal. Afaste-se, ou a conversa muda de tom.”",
+      "escolhas": [
+        {"texto": "Ordenar a rendição", "detalhe": "Chance de ele se render: {chance}. Se recusar, abre fogo.",
+         "efeitos": [
+           {"tipo": "sorteio", "chance": {"base": 0.3, "faccao": "coalizao", "por": 0.004, "min": 0.1, "max": 0.7},
+            "sucesso": [{"tipo": "reputacao", "faccao": "coalizao", "delta": 5}, {"tipo": "missao", "id": "m_corvo", "estado": "concluida"}, {"tipo": "final", "id": "capturado"}],
+            "falha": [{"tipo": "ia", "corpo": "corvo", "comportamento": "atacar"}, {"tipo": "flag", "nome": "hostil"}, {"tipo": "mensagem", "texto": "O Corvo recusou a rendição e armou os mísseis!"}]}
+         ]},
+        {"texto": "Abrir fogo sem aviso", "detalhe": "Cinturão -5. O Corvo revida.",
+         "efeitos": [{"tipo": "reputacao", "faccao": "liga", "delta": -5}, {"tipo": "ia", "corpo": "corvo", "comportamento": "atacar"}, {"tipo": "flag", "nome": "hostil"},
+                     {"tipo": "mensagem", "texto": "Selecione o Corvo como alvo e dispare."}]},
+        {"texto": "Deixar passar", "detalhe": "O Corvo escapa e a missão falha.",
+         "efeitos": [{"tipo": "missao", "id": "m_corvo", "estado": "falhou"}, {"tipo": "final", "id": "fugiu"}]}
+      ]
+    }
+  ],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: interceptar o corsário Corvo."}]},
+    {"id": "r_chamada", "quando": {"tipo": "distancia", "de": "jogador", "ate": "corvo", "menorQue": 6e7},
+     "entao": [{"tipo": "mensagem", "texto": "Contato com o Corvo. Ele responde no rádio."}, {"tipo": "dialogo", "id": "d_corvo"}]},
+    {"id": "r_abatido", "quando": {"tipo": "corpo_destruido", "corpo": "corvo"},
+     "entao": [{"tipo": "reputacao", "faccao": "coalizao", "delta": 10}, {"tipo": "reputacao", "faccao": "liga", "delta": -4},
+               {"tipo": "missao", "id": "m_corvo", "estado": "concluida"}, {"tipo": "final", "id": "abatido"}]},
+    {"id": "r_perdido", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_corvo", "estado": "falhou"}, {"tipo": "final", "id": "perdido"}]}
+  ],
+  "missoes": [
+    {"id": "m_corvo", "titulo": "Interceptar o Corvo", "texto": "Interceptar o corsário Corvo, que tenta chegar ao Cinturão. Rendição ou abate.", "inicial": true}
+  ],
+  "finais": [
+    {"id": "capturado", "titulo": "CORSÁRIO CAPTURADO", "tipo": "vitoria", "manchete": "Cruzador Tribunal II intercepta o Corvo; corsário se rende e a carga ilegal é apreendida."},
+    {"id": "abatido", "titulo": "ALVO ABATIDO", "tipo": "vitoria", "manchete": "Cruzador da Coalizão abate corsário sobre Aurélia; Liga pede explicações sobre o uso da força."},
+    {"id": "fugiu", "titulo": "ALVO ESCAPOU", "tipo": "derrota", "manchete": "Corsário escapa da patrulha da Coalizão; ministro cobra explicações do comando."},
+    {"id": "perdido", "titulo": "CRUZADOR PERDIDO", "tipo": "derrota", "manchete": "Cruzador Tribunal II perdido em combate sobre Aurélia; Coalizão abre inquérito."}
+  ],
+  "noticias": [
+    "Corsário Corvo ataca comboios no Cinturão e foge para as órbitas de Aurélia.",
+    "Coalizão envia o Cruzador Tribunal II para interceptar o Corvo.",
+    "Liga do Cinturão pede cautela: 'não queremos guerra por causa de um pirata'."
+  ]
+}

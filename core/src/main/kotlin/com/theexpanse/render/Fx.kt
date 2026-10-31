@@ -1,5 +1,6 @@
 package com.theexpanse.render
 
+import com.theexpanse.core.BlastKind
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -86,5 +87,56 @@ object Fx {
             d.line(cx + cos(ang) * r0, cy + sin(ang) * r0, cx + cos(ang) * r1, cy + sin(ang) * r1, c.alpha((1f - ph) * 0.95f * intensity), 1.2f + ph * 1.4f)
         }
         d.glow(cx, cy, radius * 0.45f * (0.5f + 0.5f * intensity), Palette.PLUME_CORE.alpha(0.85f * intensity))
+    }
+
+    /** Explosão animada por [age] (s de simulação desde que aconteceu). */
+    fun blast(d: Draw, x: Float, y: Float, age: Float, kind: BlastKind, scale: Float = 1f) {
+        val life = when (kind) { BlastKind.KILL -> 2.8f; BlastKind.SHIP_HIT -> 1.8f; BlastKind.FLARE -> 3.0f; BlastKind.LAUNCH -> 0.6f; BlastKind.FIZZLE -> 0.7f }
+        if (age < 0f || age > life) return
+        val p = age / life
+        val fade = (1f - p).coerceIn(0f, 1f)
+        when (kind) {
+            BlastKind.KILL, BlastKind.SHIP_HIT -> {
+                val big = if (kind == BlastKind.KILL) 1.6f else 1.0f
+                val r = (18f + 70f * (1f - (1f - p) * (1f - p))) * big * scale
+                d.glow(x, y, r * 2.2f, 0xFFFF8A2A.toInt().alpha(0.55f * fade))
+                d.circle(x, y, r * 0.55f * (1f - p * 0.4f), fill = 0xFFFFD27A.toInt().alpha(0.9f * fade))
+                d.circle(x, y, r * 0.28f, fill = Palette.PLUME_CORE.alpha(fade))
+                d.circle(x, y, r, stroke = 0xFFFFB44A.toInt().alpha(0.8f * fade), strokeW = 2.5f * (1f - p) + 0.5f)
+                for (i in 0 until 14) {
+                    val a = hash(i + 40) * 2 * PI.toFloat()
+                    val l0 = r * 0.5f
+                    val l1 = r * (0.9f + hash(i + 80) * 0.9f)
+                    d.line(x + cos(a) * l0, y + sin(a) * l0, x + cos(a) * l1, y + sin(a) * l1, 0xFFFFE2A0.toInt().alpha(0.9f * fade), 1.4f)
+                }
+            }
+            BlastKind.FLARE -> {
+                val r = (10f + 28f * p) * scale
+                val tw = 0.7f + 0.3f * sin(age * 30).toFloat()
+                d.glow(x, y, r * 2.4f, 0xFFFFE9B0.toInt().alpha(0.6f * fade * tw))
+                d.circle(x, y, 3.2f * scale, fill = Palette.PLUME_CORE.alpha(fade))
+                for (i in 0 until 6) {
+                    val a = i * PI.toFloat() / 3 + age * 2f
+                    d.line(x, y, x + cos(a) * r, y + sin(a) * r, 0xFFFFE9B0.toInt().alpha(0.8f * fade), 1.2f)
+                }
+            }
+            BlastKind.LAUNCH -> {
+                d.glow(x, y, 26f * scale * (0.5f + p), Palette.PLUME_CORE.alpha(0.8f * fade))
+                d.circle(x, y, 4f * scale, fill = 0xFFFFD27A.toInt().alpha(fade))
+            }
+            BlastKind.FIZZLE -> d.glow(x, y, 14f * scale * (0.6f + p), 0xFFFFA860.toInt().alpha(0.5f * fade))
+        }
+    }
+
+    /** Míssil pequeno com rastro e chama. [dx],[dy] é a direção de voo na tela. */
+    fun missile(d: Draw, x: Float, y: Float, dx: Float, dy: Float, color: Int, t: Double, scale: Float = 1f) {
+        val px = -dy
+        val py = dx
+        val l = 9f * scale
+        val flick = 0.75f + 0.25f * sin(t * 60).toFloat()
+        d.line(x - dx * 4f * scale, y - dy * 4f * scale, x - dx * 40f * scale, y - dy * 40f * scale, color.alpha(0.35f), 2.2f * scale)
+        d.line(x - dx * 4f * scale, y - dy * 4f * scale, x - dx * 24f * scale, y - dy * 24f * scale, Palette.PLUME_HOT.alpha(0.7f * flick), 1.4f * scale)
+        d.glow(x - dx * 5f * scale, y - dy * 5f * scale, 11f * scale, color.alpha(0.7f * flick))
+        d.poly(floatArrayOf(x + dx * l, y + dy * l, x - dx * 4f * scale + px * 2.6f * scale, y - dy * 4f * scale + py * 2.6f * scale, x - dx * 4f * scale - px * 2.6f * scale, y - dy * 4f * scale - py * 2.6f * scale), fill = 0xFFE8ECF2.toInt(), stroke = color, strokeW = 0.8f)
     }
 }

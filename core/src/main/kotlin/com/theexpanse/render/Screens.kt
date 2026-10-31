@@ -35,8 +35,10 @@ object HomeScreen {
             Ui.paragraph(d, 28f, y + 38f, e.pack.summary, 10f, Palette.MUTED, 330f, 3, 12f)
             var px = 28f
             px += Ui.pill(d, px, y + 66f, if (e.builtin) "incluída" else "importada", if (e.builtin) Palette.AMBER else Palette.GREEN)
+            val role = if (e.pack.role.kind == com.theexpanse.content.RoleKind.MILITARY) "militar · " + (e.pack.faction(e.pack.role.factionId ?: "")?.name ?: "") else "mercador"
+            px += Ui.pill(d, px, y + 66f, role, if (e.pack.role.kind == com.theexpanse.content.RoleKind.MILITARY) Palette.RED_SOFT else Palette.GREEN)
             px += Ui.pill(d, px, y + 66f, "${e.pack.endings.size} finais", Palette.MUTED)
-            if (e.pack.facts.isNotEmpty()) px += Ui.pill(d, px, y + 66f, "${e.pack.facts.size} pistas", 0xFF9ADCF0.toInt())
+            if (e.pack.facts.isNotEmpty() && px < 330f) px += Ui.pill(d, px, y + 66f, "${e.pack.facts.size} pistas", 0xFF9ADCF0.toInt())
             ui.add("home_play:${e.pack.id}", 380f, y + 10f, 90f, 34f, if (e.hasSave) "NOVO JOGO" else "JOGAR", active = !e.hasSave)
             if (e.hasSave) ui.add("home_resume:${e.pack.id}", 476f, y + 10f, 80f, 34f, "CONTINUAR", active = true)
             if (!e.builtin) ui.add("home_del:${e.pack.id}", 520f, y + 50f, 36f, 28f, "✕")

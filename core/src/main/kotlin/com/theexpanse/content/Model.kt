@@ -3,18 +3,29 @@ package com.theexpanse.content
 /** Tipos de corpo no mapa. Estação e destroço podem permitir atracação; nave é só um ponto móvel. */
 enum class BodyKind(val key: String) { STATION("estacao"), SHIP("nave"), WRECK("destroco") }
 
-class FactionDef(val id: String, val name: String, val argb: Int)
+/** Desenho do casco dos cruzadores de uma facção. */
+enum class HullStyle(val key: String) { TERRAN("terrano"), MARTIAN("marciano"), BELT("cinturao"), GENERIC("generico") }
+
+class FactionDef(val id: String, val name: String, val argb: Int, val style: HullStyle = HullStyle.GENERIC)
+
+/** O papel do jogador, fixo na campanha inteira: mercador independente ou comandante de um cruzador de uma facção. */
+enum class RoleKind(val key: String) { MERCHANT("mercador"), MILITARY("militar") }
+
+class RoleDef(val kind: RoleKind, val factionId: String?)
 
 class PlanetDef(val name: String, val gm: Double, val radius: Double)
 
 class BodyDef(
     val id: String, val name: String, val shortName: String, val factionId: String,
     val kind: BodyKind, val orbitRadius: Double, val phase: Double, val size: Double, val dockable: Boolean,
+    /** Armas de uma nave hostil: mísseis, despistadores e a chance de cada despistador funcionar. */
+    val missiles: Int = 4, val decoys: Int = 2, val decoyChance: Double = 0.4,
 )
 
 class ShipDef(
     val name: String, val dryMass: Double, val cargoMass: Double, val fuelMass: Double,
     val startNear: String, val startAltitude: Double, val targetId: String?, val cargoName: String,
+    val hull: Double = 100.0, val missiles: Int = 0, val decoys: Int = 4, val decoyChance: Double = 0.5,
 )
 
 class ObjectDef(val id: String, val name: String, val mass: Double)
@@ -43,6 +54,7 @@ class EndingDef(val id: String, val title: String, val headline: String, val kin
 
 class ContentPackage(
     val format: Int, val id: String, val title: String, val summary: String, val author: String,
+    val role: RoleDef, val timeScale: Double,
     val planet: PlanetDef, val factions: List<FactionDef>, val bodies: List<BodyDef>, val ship: ShipDef,
     val credits: Int, val reputation: Map<String, Int>,
     val objects: List<ObjectDef>, val facts: List<FactDef>, val characters: List<CharacterDef>,
@@ -70,6 +82,7 @@ sealed interface Trigger {
     class FactRevealed(val fact: String) : Trigger
     class Approach(val body: String, val distBelow: Double, val speedBelow: Double) : Trigger
     object Destroyed : Trigger
+    class BodyDestroyed(val body: String) : Trigger
 }
 
 sealed interface Cond {
@@ -80,6 +93,7 @@ sealed interface Cond {
     class Credits(val min: Int) : Cond
     class Deduced(val id: String) : Cond
     object HasCargo : Cond
+    class Role(val kind: RoleKind) : Cond
     class MissionIs(val id: String, val state: String) : Cond
     class All(val items: List<Cond>) : Cond
     class Any(val items: List<Cond>) : Cond
@@ -107,4 +121,5 @@ sealed interface Effect {
     class Roll(val chance: Chance, val success: List<Effect>, val failure: List<Effect>) : Effect
 }
 
-enum class AiMode(val key: String) { PURSUE("perseguir"), ORBIT("orbitar") }
+/** Comportamento de uma nave: perseguir, atacar (persegue e dispara mísseis) ou orbitar (deriva sem empuxo). */
+enum class AiMode(val key: String) { PURSUE("perseguir"), ATTACK("atacar"), ORBIT("orbitar") }

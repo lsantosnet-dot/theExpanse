@@ -52,6 +52,11 @@ object Validator {
             if (p.bodies.isEmpty()) err("O pacote precisa de ao menos um corpo (estação).")
             if (p.endings.isEmpty()) err("O pacote precisa de ao menos um final.")
             if (p.planet.gm <= 0 || p.planet.radius <= 0) err("planeta: 'gm' e 'raio' devem ser positivos.")
+            if (p.role.kind == RoleKind.MILITARY) {
+                val f = p.role.factionId ?: ""
+                need("facção", f, p.faction(f) != null, "papel.faccao")
+                if (p.ship.missiles <= 0) warnings.add("O jogador é militar mas 'nave.misseis' é 0: ele não poderá disparar.")
+            }
 
             for (b in p.bodies) {
                 val w = "corpo '${b.id}'"
@@ -95,6 +100,10 @@ object Validator {
                     is Trigger.DialogueEnd -> need("diálogo", t.dialogue, p.dialogue(t.dialogue) != null, "$w.quando.dialogo")
                     is Trigger.FactRevealed -> need("fato", t.fact, p.fact(t.fact) != null, "$w.quando.fato")
                     is Trigger.Approach -> need("corpo", t.body, p.body(t.body) != null, "$w.quando.corpo")
+                    is Trigger.BodyDestroyed -> {
+                        need("corpo", t.body, p.body(t.body) != null, "$w.quando.corpo")
+                        p.body(t.body)?.let { if (it.kind != BodyKind.SHIP) err("$w: só naves podem ser destruídas ('${t.body}' não é uma nave).") }
+                    }
                     else -> {}
                 }
                 r.condition?.let { cond(it, "$w.se") }

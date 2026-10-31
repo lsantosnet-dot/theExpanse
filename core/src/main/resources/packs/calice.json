@@ -4,19 +4,21 @@
   "titulo": "Cálice",
   "resumo": "Cargueiro independente leva 40 t de filtros de água ao Porto Kauã, em quarentena. No caminho, uma fragata chama no rádio.",
   "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "mercador"},
+  "escalaTempo": 1440,
   "planeta": {"nome": "Aurélia", "gm": 1.0e17, "raio": 6.0e7},
   "facoes": [
-    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0"},
-    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A"},
-    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8"}
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"}
   ],
   "corpos": [
     {"id": "porto_kaua", "nome": "Porto Kauã", "curto": "Porto", "tipo": "estacao", "faccao": "liga", "raioOrbita": 4.6e8, "fase": 1.40, "tamanho": 150},
     {"id": "doca_meridiano", "nome": "Doca Meridiano", "curto": "Doca", "tipo": "estacao", "faccao": "coalizao", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150},
     {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Arsenal", "tipo": "estacao", "faccao": "federacao", "raioOrbita": 6.1e8, "fase": 3.30, "tamanho": 150},
-    {"id": "fragata_tribunal", "nome": "Fragata Tribunal", "curto": "Fragata", "tipo": "nave", "faccao": "coalizao", "raioOrbita": 4.52e8, "fase": 1.46, "tamanho": 90, "atracavel": false}
+    {"id": "fragata_tribunal", "nome": "Fragata Tribunal", "curto": "Fragata", "tipo": "nave", "faccao": "coalizao", "raioOrbita": 4.52e8, "fase": 1.46, "tamanho": 90, "atracavel": false, "misseis": 2, "despistadores": 0}
   ],
-  "nave": {"nome": "Peregrina", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "40 t de filtros de água", "perto": "doca_meridiano", "altitude": 40000, "alvo": "porto_kaua"},
+  "nave": {"nome": "Peregrina", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "40 t de filtros de água", "perto": "doca_meridiano", "altitude": 40000, "alvo": "porto_kaua", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5},
   "creditos": 500,
   "reputacao": {"coalizao": 15, "federacao": 0, "liga": -5},
   "personagens": [
@@ -50,11 +52,11 @@
            {"tipo": "ia", "corpo": "fragata_tribunal", "comportamento": "orbitar"}, {"tipo": "flag", "nome": "escolta"},
            {"tipo": "mensagem", "texto": "Navios marcianos assumem a escolta; a fragata recua."}
          ]},
-        {"texto": "Cortar o rádio e acelerar", "detalhe": "Coalizão -10, Cinturão +6. A fragata persegue até 3000 km do Porto Kauã.",
+        {"texto": "Cortar o rádio e acelerar", "detalhe": "Coalizão -10, Cinturão +6. A fragata persegue e dispara mísseis até 3000 km do Porto Kauã.",
          "efeitos": [
            {"tipo": "reputacao", "faccao": "coalizao", "delta": -10}, {"tipo": "reputacao", "faccao": "liga", "delta": 6},
-           {"tipo": "ia", "corpo": "fragata_tribunal", "comportamento": "perseguir"}, {"tipo": "flag", "nome": "fugiu"},
-           {"tipo": "mensagem", "texto": "Rádio cortado. A Fragata Tribunal iniciou a perseguição."}
+           {"tipo": "ia", "corpo": "fragata_tribunal", "comportamento": "atacar"}, {"tipo": "flag", "nome": "fugiu"},
+           {"tipo": "mensagem", "texto": "Rádio cortado. A Fragata Tribunal iniciou a perseguição e armou os mísseis."}
          ]}
       ]
     }

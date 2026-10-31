@@ -10,6 +10,9 @@ import com.theexpanse.content.EndingDef
 import com.theexpanse.content.RuleDef
 import com.theexpanse.content.Trigger
 import com.theexpanse.core.Body
+import com.theexpanse.core.FireResult
+import com.theexpanse.core.Owner
+import com.theexpanse.core.SimEvent
 import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
 import com.theexpanse.core.World
@@ -37,6 +40,7 @@ sealed interface GameEvent {
     object Destroyed : GameEvent
     class DialogueEnd(val id: String) : GameEvent
     class FactRevealed(val id: String) : GameEvent
+    class BodyDestroyed(val id: String) : GameEvent
 }
 
 /** Estado da história: o que o jogador sabe, tem, fez e quanto vale cada coisa. */
@@ -81,7 +85,7 @@ class StoryState(pack: ContentPackage, seed: Long) {
 /** Liga a simulação física ao motor de história: avalia gatilhos, executa efeitos e conduz diálogos. */
 class GameSession(val pack: ContentPackage, private val seed: Long = System.nanoTime()) {
     val world = World(pack)
-    val sim = Simulation(world)
+    val sim = Simulation(world, seed xor 0x5DEECE66DL)
     var story = StoryState(pack, seed)
         private set
 
@@ -98,6 +102,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
 
     fun restart() {
         sim.reset()
+        sim.seedRandom(seed xor 0x5DEECE66DL)
         story = StoryState(pack, seed)
         messages.clear()
         queue.clear()
@@ -114,25 +119,58 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
     fun update(realDt: Double) {
         clock += realDt
         if (paused) return
-        val before = sim.status
         sim.advance(realDt)
-        if (before == Status.FLYING) {
-            if (sim.status == Status.DOCKED) sim.dockedAt?.let { queue.add(GameEvent.Dock(it)) }
-            if (sim.status == Status.CRASHED) queue.add(GameEvent.Destroyed)
-        }
+        drainSim()
         pump()
     }
 
     /** Avança a simulação em passos fixos (para testes e planejamento), sem relógio de parede. */
     fun stepFixed(h: Double) {
         if (paused) return
-        val before = sim.status
         sim.step(h)
-        if (before == Status.FLYING) {
-            if (sim.status == Status.DOCKED) sim.dockedAt?.let { queue.add(GameEvent.Dock(it)) }
-            if (sim.status == Status.CRASHED) queue.add(GameEvent.Destroyed)
-        }
+        drainSim()
         pump()
+    }
+
+    /** Converte os eventos da simulação em mensagens e em eventos de história. */
+    private fun drainSim() {
+        for (e in sim.drainEvents()) when (e) {
+            is SimEvent.Docked -> queue.add(GameEvent.Dock(e.body))
+            SimEvent.Crashed -> queue.add(GameEvent.Destroyed)
+            is SimEvent.ShipDestroyed -> { addMessage("A nave foi destruída."); queue.add(GameEvent.Destroyed) }
+            is SimEvent.BodyDestroyed -> {
+                addMessage("${world.body(e.id)?.name ?: e.id} foi destruída.")
+                queue.add(GameEvent.BodyDestroyed(e.id))
+            }
+            is SimEvent.Hit -> addMessage("IMPACTO! Casco em ${sim.ship.hull.toInt() * 100 / sim.ship.hullMax.toInt().coerceAtLeast(1)}%.")
+            is SimEvent.Launched ->
+                if (e.owner == Owner.ENEMY) addMessage("ALERTA: míssil lançado por ${world.body(e.launcher)?.name ?: e.launcher}!")
+                else addMessage("Míssil disparado.")
+            is SimEvent.DecoyResult ->
+                addMessage(if (e.diverted == e.total) "Despistador funcionou: ${e.diverted} míssil(is) desviado(s)!"
+                else if (e.diverted == 0) "O despistador falhou! O míssil continua vindo."
+                else "Despistador desviou ${e.diverted} de ${e.total} mísseis.")
+        }
+    }
+
+    /** Dispara um míssil no alvo selecionado (só no papel militar). */
+    fun fire() {
+        when (sim.fireMissile()) {
+            FireResult.FIRED -> {}
+            FireResult.NOT_MILITARY -> addMessage("Você é um mercador: sem armas.")
+            FireResult.NO_AMMO -> addMessage("Sem mísseis.")
+            FireResult.NO_TARGET -> addMessage("Selecione uma nave como alvo.")
+            FireResult.OUT_OF_RANGE -> addMessage("Alvo fora do alcance (150 km).")
+            FireResult.FRIENDLY -> addMessage("Fogo amigo bloqueado.")
+        }
+        drainSim()
+        pump()
+    }
+
+    /** Lança um despistador contra os mísseis que vêm na sua direção. */
+    fun decoy() {
+        if (!sim.deployDecoy()) addMessage(if (sim.ship.decoys <= 0) "Sem despistadores." else "Nenhum míssil a despistar.")
+        drainSim()
     }
 
     // ---- gatilhos ----
@@ -156,6 +194,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         Trigger.Start -> ev is GameEvent.Start
         is Trigger.Dock -> ev is GameEvent.Dock && ev.body.id == t.place
         Trigger.Destroyed -> ev is GameEvent.Destroyed
+        is Trigger.BodyDestroyed -> ev is GameEvent.BodyDestroyed && ev.id == t.body
         is Trigger.DialogueEnd -> ev is GameEvent.DialogueEnd && ev.id == t.dialogue
         is Trigger.FactRevealed -> ev is GameEvent.FactRevealed && ev.id == t.fact
         else -> false
@@ -213,6 +252,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
         is Cond.Credits -> story.credits >= c.min
         is Cond.Deduced -> c.id in story.deduced
         Cond.HasCargo -> sim.ship.cargo > 0.0
+        is Cond.Role -> world.role.kind == c.kind
         is Cond.MissionIs -> story.missions[c.id] == c.state
         is Cond.All -> c.items.all { eval(it) }
         is Cond.Any -> c.items.any { eval(it) }

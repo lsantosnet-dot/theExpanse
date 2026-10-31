@@ -1,17 +1,23 @@
 package com.theexpanse.render
 
 import com.theexpanse.content.BodyKind
+import com.theexpanse.core.Blast
+import com.theexpanse.core.BlastKind
 import com.theexpanse.core.Body
+import com.theexpanse.core.Owner
 import com.theexpanse.core.Simulation
+import com.theexpanse.core.Vec2
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * Câmera externa vista de cima: o eixo da tela aponta da nave para o alvo, então a nave gira na tela quando
- * vira. Escala em duas zonas: até 60 m em escala real; além disso, log-radial (preserva a direção e cabe tudo).
+ * Câmera externa vista de cima: o eixo da tela aponta da nave para o alvo (mais o giro da câmera), então a nave
+ * gira na tela quando vira. Escala em duas zonas: até 60 m em escala real; além disso, log-radial (preserva a
+ * direção e cabe tudo). Mostra cruzadores, mísseis, despistadores e explosões.
  */
 object ExternalView {
     private const val CX = 260f
@@ -19,21 +25,29 @@ object ExternalView {
     private const val NEAR_LIMIT = 60.0
     private const val PX_PER_M = 4.4f
 
-    private fun radial(dist: Double): Float =
-        if (dist <= NEAR_LIMIT) (dist * PX_PER_M).toFloat() else (NEAR_LIMIT * PX_PER_M + 14.0 * ln(dist / NEAR_LIMIT)).toFloat()
+    private fun radial(dist: Double, z: Float): Float =
+        (if (dist <= NEAR_LIMIT) (dist * PX_PER_M).toFloat() else (NEAR_LIMIT * PX_PER_M + 14.0 * ln(dist / NEAR_LIMIT)).toFloat()) * z
 
-    private val SHIP_HULL = floatArrayOf(-50f, -13f, 28f, -13f, 52f, -6f, 52f, 6f, 28f, 13f, -50f, 13f)
-    private val SHIP_NOZZLE = floatArrayOf(-64f, -10f, -50f, -10f, -50f, 10f, -64f, 10f)
-    private val SHIP_CAB = floatArrayOf(34f, -5f, 48f, -3f, 48f, 3f, 34f, 5f)
+    private fun map(rel: Vec2, axis: Double, z: Float): FloatArray {
+        val ang = rel.angle - axis
+        val s = radial(rel.length, z)
+        return floatArrayOf(CX + cos(ang).toFloat() * s, CY - sin(ang).toFloat() * s)
+    }
 
-    fun draw(d: Draw, sim: Simulation, t: Double) {
+    fun draw(d: Draw, sim: Simulation, t: Double, cam: Camera) {
         val w = Layout.W
         val h = Layout.SCENE_H
+        val z = cam.zoom.toFloat()
+        val ship = sim.ship
         d.rect(0f, 0f, w, h, fill = Palette.BG)
         d.clip(0f, 0f, w, h)
 
-        val ship = sim.ship
-        val axis = sim.relativePosition().angle
+        val shake = Effects.hitShake(sim)
+        d.ox = (sin(t * 71) * shake).toFloat()
+        d.oy = (sin(t * 83 + 2) * shake).toFloat()
+
+        val tgt = sim.target
+        val axis = (if (sim.alive(tgt)) sim.relativePosition().angle else ship.angle) + cam.yaw
 
         // estrelas fixas no mundo: giram na tela quando a câmera gira
         for (i in 0 until 130) {
@@ -49,41 +63,50 @@ object ExternalView {
         val toPlanet = -ship.pos
         val dPlanet = toPlanet.length
         run {
-            val ang = toPlanet.angle - axis
-            val s = radial(dPlanet)
-            val px = CX + cos(ang).toFloat() * s
-            val py = CY - sin(ang).toFloat() * s
-            val r = (sim.world.radius / dPlanet * 260.0).toFloat().coerceIn(18f, 150f)
-            if (px > -r && px < w + r && py > -r && py < h + r) {
-                Planet.draw(d, px, py, r)
-                d.text(px, py + r + 13f, sim.world.planetName, Palette.AMBER_SOFT, 10f, Align.CENTER)
-                d.text(px, py + r + 24f, Fmt.distance(dPlanet - sim.world.radius) + " da superfície", Palette.MUTED, 9f, Align.CENTER)
+            val p = map(toPlanet, axis, z)
+            val r = (sim.world.radius / dPlanet * 260.0).toFloat().coerceIn(18f, 150f) * z.coerceAtMost(1.6f)
+            if (p[0] > -r && p[0] < w + r && p[1] > -r && p[1] < h + r) {
+                Planet.draw(d, p[0], p[1], r)
+                d.text(p[0], p[1] + r + 13f, sim.world.planetName, Palette.AMBER_SOFT, 10f, Align.CENTER)
+                d.text(p[0], p[1] + r + 24f, Fmt.distance(dPlanet - sim.world.radius) + " da superfície", Palette.MUTED, 9f, Align.CENTER)
             }
         }
 
-        // linha até o alvo e corpos
-        val tgt = sim.target
-        val tgtDist = sim.distanceTo()
-        val tgtX = CX + radial(tgtDist)
-        d.line(CX, CY, tgtX, CY, Palette.AMBER.alpha(0.5f), 1f, dash = 5f)
+        // linha até o alvo
+        if (sim.alive(tgt)) {
+            val tp = map(sim.relativePosition(), axis, z)
+            d.line(CX, CY, tp[0], tp[1], Palette.AMBER.alpha(0.5f), 1f, dash = 5f)
+        }
 
-        for (b in sim.bodies) {
-            val rel = sim.relativePosition(b)
-            val dist = rel.length
-            val ang = rel.angle - axis
-            val s = radial(dist)
-            val bx = CX + cos(ang).toFloat() * s
-            val by = CY - sin(ang).toFloat() * s
-            val isTarget = b === tgt
-            drawBody(d, b, bx, by, dist, ang, sim, isTarget)
+        // corpos, do mais longe ao mais perto
+        for (b in sim.bodies.filter { sim.alive(it) }.sortedByDescending { sim.distanceTo(it) }) {
+            drawBody(d, b, sim, axis, z, t, b === tgt)
+        }
+
+        // despistadores
+        for (f in sim.flares) {
+            val p = map(f.pos - ship.pos, axis, z)
+            val tw = 0.7f + 0.3f * sin(t * 25 + f.born).toFloat()
+            d.glow(p[0], p[1], 20f, 0xFFFFE9B0.toInt().alpha(0.55f * tw))
+            d.circle(p[0], p[1], 2.6f, fill = Palette.PLUME_CORE.alpha(tw))
+        }
+        // mísseis
+        for (m in sim.missiles) {
+            val rel = m.pos - ship.pos
+            val p = map(rel, axis, z)
+            val v = m.vel - ship.vel
+            val a = (if (v.length > 5.0) v.angle else (-rel).angle) - axis
+            val color = if (m.owner == Owner.ENEMY) 0xFFFF5A4A.toInt() else Palette.AMBER
+            Fx.missile(d, p[0], p[1], cos(a).toFloat(), -sin(a).toFloat(), color, t, 1.4f)
+            if (m.owner == Owner.ENEMY && m.targetId == "jogador") d.text(p[0] + 12f, p[1] - 8f, "MÍSSIL " + Fmt.distance(rel.length), Palette.RED_SOFT, 9f, bold = true)
         }
 
         // vetor de velocidade relativa ao alvo
         val vRel = sim.relativeVelocity()
         val speed = vRel.length
-        if (speed > 0.5) {
+        if (speed > 0.5 && sim.alive(tgt)) {
             val psi = vRel.angle - axis
-            val len = (26.0 + 16.0 * log10(1.0 + speed)).toFloat()
+            val len = (26.0 + 16.0 * log10(1.0 + speed)).toFloat() * z.coerceAtMost(1.5f)
             val ex = CX + cos(psi).toFloat() * len
             val ey = CY - sin(psi).toFloat() * len
             d.line(CX, CY, ex, ey, Palette.GREEN, 2.2f)
@@ -93,34 +116,66 @@ object ExternalView {
             d.text(ex + 6f, ey - 4f, "v " + Fmt.speed(speed), Palette.GREEN, 9f)
         }
 
-        drawShip(d, sim, t, axis)
+        drawPlayer(d, sim, t, axis, z)
+
+        // explosões
+        for (b in sim.blasts) {
+            val p = map(b.pos - ship.pos, axis, z)
+            Fx.blast(d, p[0], p[1], (sim.time - b.time).toFloat(), b.kind, 1.2f * z.coerceAtMost(1.5f))
+        }
+
+        d.ox = 0f; d.oy = 0f
+        Effects.hitFlash(d, sim, w, h)
         d.unclip()
     }
 
-    private fun drawBody(d: Draw, b: Body, x: Float, y: Float, dist: Double, ang: Double, sim: Simulation, isTarget: Boolean) {
+    private fun headingOf(sim: Simulation, b: Body): Double {
+        val dyn = sim.dynamics[b.id]
+        return if (dyn != null && dyn.mode != com.theexpanse.content.AiMode.ORBIT) (sim.ship.pos - dyn.pos).angle else sim.velocity(b).angle
+    }
+
+    private fun drawBody(d: Draw, b: Body, sim: Simulation, axis: Double, z: Float, t: Double, isTarget: Boolean) {
+        val rel = sim.relativePosition(b)
+        val dist = rel.length
+        val p = map(rel, axis, z)
+        val x = p[0]
+        val y = p[1]
         val color = b.faction.argb
-        val r = (330.0 * (b.size / dist)).toFloat().coerceIn(9f, 110f)
-        if (b.kind != BodyKind.SHIP) {
-            d.glow(x, y, r * 1.8f, color.alpha(0.18f))
-            if (r > 18f) {
-                d.circle(x, y, r, stroke = 0xFF8C949F.toInt(), strokeW = (r * 0.12f).coerceAtLeast(2f))
-                for (k in 0 until 4) {
-                    val a = k * PI.toFloat() / 2 + 0.4f
-                    d.line(x, y, x + cos(a) * r, y + sin(a) * r, 0xFF6E7682.toInt(), 2f)
-                }
-                d.circle(x, y, r * 0.28f, fill = 0xFFA9B0BA.toInt(), stroke = color, strokeW = 1.5f)
-                for (k in 0 until 6) {
-                    val a = k * PI.toFloat() / 3
-                    d.circle(x + cos(a) * r, y + sin(a) * r, 1.8f, fill = 0xFFF2D27A.toInt())
-                }
-            } else {
-                d.rect(x - r * 0.55f, y - r * 0.55f, r * 1.1f, r * 1.1f, fill = color)
+        var r: Float
+        when (b.kind) {
+            BodyKind.SHIP -> {
+                val len = (190.0 * sqrt(b.size / 90.0) * sqrt(3000.0 / (dist + 3000.0))).toFloat().coerceIn(14f, 260f) * z.coerceAtMost(1.6f)
+                val scale = len / 140f
+                val phi = headingOf(sim, b) - axis
+                val dyn = sim.dynamics[b.id]
+                val attacking = dyn != null && dyn.mode != com.theexpanse.content.AiMode.ORBIT
+                val launch = sim.blasts.any { it.kind == BlastKind.LAUNCH && (it.pos - sim.position(b)).length < 5.0 && sim.time - it.time < 0.6 }
+                Models.cruiser(d, b.faction.style, color, x, y, phi, scale, if (attacking) 0.6f else 0f, 0.0, t, launching = if (launch) 1f else 0f)
+                r = len * 0.5f
+                if (attacking && sim.dynamics[b.id]?.mode == com.theexpanse.content.AiMode.ATTACK) d.text(x, y - r - 16f, "HOSTIL", Palette.RED_SOFT, 9f, Align.CENTER, bold = true)
             }
-        } else {
-            val l = r.coerceIn(8f, 40f)
-            d.poly(placePoints(floatArrayOf(-l, -l * 0.35f, l * 0.7f, -l * 0.35f, l, 0f, l * 0.7f, l * 0.35f, -l, l * 0.35f), x, y, ang + PI), fill = color.alpha(0.85f), stroke = Palette.HULL_EDGE)
+            BodyKind.WRECK -> {
+                r = (190.0 * sqrt(b.size / 90.0) * sqrt(3000.0 / (dist + 3000.0))).toFloat().coerceIn(12f, 150f) * z.coerceAtMost(1.6f) * 0.5f
+                d.glow(x, y, r * 1.8f, color.alpha(0.12f))
+                Models.wreck(d, color, x, y, t * 0.15, r * 2f / 110f, t)
+            }
+            BodyKind.STATION -> {
+                r = (330.0 * (b.size / dist)).toFloat().coerceIn(9f, 110f) * z.coerceAtMost(1.6f)
+                d.glow(x, y, r * 1.8f, color.alpha(0.18f))
+                if (r > 18f) {
+                    d.circle(x, y, r, stroke = 0xFF8C949F.toInt(), strokeW = (r * 0.12f).coerceAtLeast(2f))
+                    for (k in 0 until 4) {
+                        val a = k * PI.toFloat() / 2 + 0.4f + (t * 0.25).toFloat()
+                        d.line(x, y, x + cos(a) * r, y + sin(a) * r, 0xFF6E7682.toInt(), 2f)
+                    }
+                    d.circle(x, y, r * 0.28f, fill = 0xFFA9B0BA.toInt(), stroke = color, strokeW = 1.5f)
+                    for (k in 0 until 6) {
+                        val a = k * PI.toFloat() / 3 + (t * 0.25).toFloat()
+                        d.circle(x + cos(a) * r, y + sin(a) * r, 1.8f, fill = 0xFFF2D27A.toInt())
+                    }
+                } else d.rect(x - r * 0.55f, y - r * 0.55f, r * 1.1f, r * 1.1f, fill = color)
+            }
         }
-        val labelY = if (isTarget) y + r + 12f else y - r - 22f
         if (isTarget) {
             val k = r + 6f
             val c = Palette.AMBER
@@ -129,43 +184,43 @@ object ExternalView {
             d.line(x - k, y + k, x - k + 8, y + k, c, 1.5f); d.line(x - k, y + k, x - k, y + k - 8, c, 1.5f)
             d.line(x + k, y + k, x + k - 8, y + k, c, 1.5f); d.line(x + k, y + k, x + k, y + k - 8, c, 1.5f)
         }
-        d.text(x, labelY.coerceAtMost(Layout.SCENE_H - 22f), (if (isTarget) "[ ${b.name} ]" else b.name), color, 10f, Align.CENTER, bold = isTarget)
-        d.text(x, labelY.coerceAtMost(Layout.SCENE_H - 22f) + 11f, Fmt.distance(dist), Palette.INK, 9f, Align.CENTER)
+        val labelY = (if (isTarget) y + r + 14f else y - r - 22f).coerceIn(12f, Layout.SCENE_H - 24f)
+        d.text(x, labelY, if (isTarget) "[ ${b.name} ]" else b.name, color, 10f, Align.CENTER, bold = isTarget)
+        d.text(x, labelY + 11f, Fmt.distance(dist), Palette.INK, 9f, Align.CENTER)
     }
 
-    private fun drawShip(d: Draw, sim: Simulation, t: Double, axis: Double) {
+    private fun drawPlayer(d: Draw, sim: Simulation, t: Double, axis: Double, z: Float) {
         val ship = sim.ship
         val phi = ship.angle - axis
-        val c = cos(phi).toFloat()
-        val s = sin(phi).toFloat()
-        // direção "para trás" do nariz, na tela
-        val backX = -c
-        val backY = s
-        val noz = placePoints(floatArrayOf(-64f, 0f), CX, CY, phi)
-
-        val intensity = ship.burnFraction.toFloat()
-        Fx.plume(d, noz[0], noz[1], backX, backY, 130f, 26f, intensity, t)
-
-        // asas/radiadores e carga
-        d.poly(placePoints(floatArrayOf(-30f, -34f, -2f, -34f, 4f, -13f, -34f, -13f), CX, CY, phi), fill = 0xFF2D4C7A.toInt(), stroke = Palette.HULL_EDGE)
-        d.poly(placePoints(floatArrayOf(-30f, 34f, -2f, 34f, 4f, 13f, -34f, 13f), CX, CY, phi), fill = 0xFF2D4C7A.toInt(), stroke = Palette.HULL_EDGE)
-        d.poly(placePoints(SHIP_NOZZLE, CX, CY, phi), fill = 0xFF4F5762.toInt(), stroke = Palette.HULL_EDGE)
-        d.poly(placePoints(SHIP_HULL, CX, CY, phi), fill = Palette.HULL, stroke = Palette.HULL_EDGE, strokeW = 1.2f)
-        d.poly(placePoints(floatArrayOf(-34f, -8f, -4f, -8f, -4f, 8f, -34f, 8f), CX, CY, phi), fill = Palette.AMBER.alpha(0.9f))
-        d.poly(placePoints(SHIP_CAB, CX, CY, phi), fill = 0xFF5CC8E8.toInt())
-        // brilho azul no bocal quando queima
-        if (intensity > 0.02f) d.glow(noz[0], noz[1], 14f, Palette.PLUME_HOT.alpha(0.9f * intensity))
-
-        // propulsores de manobra: alpha > 0 (anti-horário) dispara o nariz para -y e a popa para +y (locais)
-        val a = ship.turnAlpha
-        if (kotlin.math.abs(a) > 1e-6) {
-            val sg = if (a > 0) 1f else -1f
-            val nose = placePoints(floatArrayOf(44f, -sg * 12f), CX, CY, phi)
-            val tail = placePoints(floatArrayOf(-48f, sg * 14f), CX, CY, phi)
-            val dirNose = placePoints(floatArrayOf(0f, -sg), 0f, 0f, phi)
-            val dirTail = placePoints(floatArrayOf(0f, sg), 0f, 0f, phi)
-            Fx.rcsPuff(d, nose[0], nose[1], dirNose[0], dirNose[1], 18f, t, 1)
-            Fx.rcsPuff(d, tail[0], tail[1], dirTail[0], dirTail[1], 18f, t, 2)
+        val thrust = ship.burnFraction.toFloat()
+        val fac = sim.world.playerFaction
+        if (sim.world.isMilitary && fac != null) {
+            Models.cruiser(d, fac.style, fac.argb, CX, CY, phi, 0.92f * z, thrust, ship.turnAlpha, t,
+                launching = if (sim.blasts.any { it.kind == BlastKind.LAUNCH && (it.pos - ship.pos).length < 5.0 && sim.time - it.time < 0.6 }) 1f else 0f)
+        } else {
+            Models.freighter(d, CX, CY, phi, z, thrust, ship.turnAlpha, t)
         }
+    }
+}
+
+/** Efeitos de tela comuns às duas vistas. */
+object Effects {
+    private fun lastHit(sim: Simulation): Blast? = sim.blasts.lastOrNull { it.kind == BlastKind.SHIP_HIT && (sim.ship.pos - it.pos).length < 1e5 }
+
+    /** Amplitude da vibração logo após um impacto no jogador. */
+    fun hitShake(sim: Simulation): Float {
+        val b = lastHit(sim) ?: return 0f
+        val age = (sim.time - b.time).toFloat()
+        return if (age in 0f..0.9f) 7f * (1f - age / 0.9f) else 0f
+    }
+
+    /** Clarão vermelho e aviso quando um míssil acerta a nave. */
+    fun hitFlash(d: Draw, sim: Simulation, w: Float, h: Float) {
+        val b = lastHit(sim) ?: return
+        val age = (sim.time - b.time).toFloat()
+        if (age < 0f || age > 1.2f) return
+        val a = (1f - age / 1.2f)
+        d.rect(0f, 0f, w, h, fill = 0xFFFF3A2A.toInt().alpha(0.38f * a))
+        d.text(w / 2, h / 2 + 4f, "IMPACTO", Palette.PLUME_CORE.alpha(a), 26f, Align.CENTER, bold = true)
     }
 }

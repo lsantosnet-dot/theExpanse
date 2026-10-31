@@ -13,7 +13,7 @@ class ContentTest {
 
     @Test
     fun builtinPackagesDecodeAndValidate() {
-        for (name in listOf("calice", "albatroz")) {
+        for (name in listOf("calice", "albatroz", "patrulha", "emboscada")) {
             val r = Decoder.decode(text(name))
             assertTrue(r.errors.isEmpty(), "$name: ${r.errors}")
             val v = Validator.validate(r.pack!!)

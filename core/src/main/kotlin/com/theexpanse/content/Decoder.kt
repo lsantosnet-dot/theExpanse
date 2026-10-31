@@ -92,7 +92,7 @@ object Decoder {
 
     private class Reader(val errors: MutableList<String>) {
         fun pack(n: Node): ContentPackage? {
-            n.only(setOf("formato", "id", "titulo", "resumo", "autor", "planeta", "facoes", "corpos", "nave", "creditos", "reputacao",
+            n.only(setOf("formato", "id", "titulo", "resumo", "autor", "papel", "escalaTempo", "planeta", "facoes", "corpos", "nave", "creditos", "reputacao",
                 "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "finais", "noticias"))
             val format = n.int("formato")
             if (format != null && format != FORMAT) n.err("formato $format não suportado (este jogo lê o formato $FORMAT)")
@@ -101,17 +101,29 @@ object Decoder {
             val title = n.str("titulo") ?: ""
             val summary = n.str("resumo", false) ?: ""
             val author = n.str("autor", false) ?: ""
+            val role = n.child("papel", false)?.let { rn ->
+                rn.only(setOf("tipo", "faccao"))
+                val key = rn.str("tipo") ?: "mercador"
+                val kind = RoleKind.values().firstOrNull { it.key == key } ?: run { rn.err("'tipo' deve ser mercador ou militar"); RoleKind.MERCHANT }
+                val fac = rn.str("faccao", false)
+                if (kind == RoleKind.MILITARY && fac == null) rn.err("o papel militar precisa de 'faccao'")
+                RoleDef(kind, fac)
+            } ?: RoleDef(RoleKind.MERCHANT, null)
+            val timeScale = n.num("escalaTempo", false) ?: 1440.0
+            if (timeScale < 10.0 || timeScale > 100_000.0) n.err("'escalaTempo' deve ficar entre 10 e 100000 (1440 = um dia por minuto real)")
             val planet = n.child("planeta", false)?.let { pn ->
                 pn.only(setOf("nome", "gm", "raio"))
                 PlanetDef(pn.str("nome") ?: "Planeta", pn.num("gm") ?: 1e17, pn.num("raio") ?: 6e7)
             } ?: PlanetDef("Aurélia", 1.0e17, 6.0e7)
 
             val factions = n.nodes("facoes", true).map { fn ->
-                fn.only(setOf("id", "nome", "cor"))
-                FactionDef(fn.str("id") ?: "", fn.str("nome") ?: "", color(fn, fn.str("cor") ?: "#8A95A8"))
+                fn.only(setOf("id", "nome", "cor", "estilo"))
+                val styleKey = fn.str("estilo", false) ?: "generico"
+                val style = HullStyle.values().firstOrNull { it.key == styleKey } ?: run { fn.err("'estilo' deve ser terrano, marciano, cinturao ou generico"); HullStyle.GENERIC }
+                FactionDef(fn.str("id") ?: "", fn.str("nome") ?: "", color(fn, fn.str("cor") ?: "#8A95A8"), style)
             }
             val bodies = n.nodes("corpos", true).map { bn ->
-                bn.only(setOf("id", "nome", "curto", "tipo", "faccao", "raioOrbita", "fase", "tamanho", "atracavel"))
+                bn.only(setOf("id", "nome", "curto", "tipo", "faccao", "raioOrbita", "fase", "tamanho", "atracavel", "misseis", "despistadores", "chanceDespistar"))
                 val kindKey = bn.str("tipo") ?: "estacao"
                 val kind = BodyKind.values().firstOrNull { it.key == kindKey } ?: run {
                     bn.err("'tipo' deve ser estacao, nave ou destroco"); BodyKind.STATION
@@ -122,14 +134,18 @@ object Decoder {
                     kind, bn.num("raioOrbita") ?: 1e8, bn.num("fase", false) ?: 0.0,
                     bn.num("tamanho", false) ?: if (kind == BodyKind.STATION) 150.0 else 90.0,
                     bn.bool("atracavel", kind != BodyKind.SHIP),
+                    bn.int("misseis", false) ?: 4, bn.int("despistadores", false) ?: 2, bn.num("chanceDespistar", false) ?: 0.4,
                 )
             }
             val ship = n.child("nave")?.let { sn ->
-                sn.only(setOf("nome", "massaSeca", "carga", "combustivel", "nomeCarga", "perto", "altitude", "alvo"))
+                sn.only(setOf("nome", "massaSeca", "carga", "combustivel", "nomeCarga", "perto", "altitude", "alvo", "casco", "misseis", "despistadores", "chanceDespistar"))
+                val mil = role.kind == RoleKind.MILITARY
                 ShipDef(
                     sn.str("nome", false) ?: "Nave", sn.num("massaSeca", false) ?: 240_000.0, sn.num("carga", false) ?: 40_000.0,
                     sn.num("combustivel", false) ?: 32_000.0, sn.str("perto") ?: "", sn.num("altitude", false) ?: 40_000.0,
                     sn.str("alvo", false), sn.str("nomeCarga", false) ?: "a carga",
+                    sn.num("casco", false) ?: if (mil) 220.0 else 100.0, sn.int("misseis", false) ?: if (mil) 8 else 0,
+                    sn.int("despistadores", false) ?: if (mil) 2 else 4, sn.num("chanceDespistar", false) ?: if (mil) 0.4 else 0.5,
                 )
             } ?: ShipDef("Nave", 240_000.0, 40_000.0, 32_000.0, "", 40_000.0, null, "a carga")
             val credits = n.int("creditos", false) ?: 0
@@ -178,7 +194,7 @@ object Decoder {
             }
             val news = n.strings("noticias")
             if (errors.isNotEmpty()) return null
-            return ContentPackage(format ?: FORMAT, id, title, summary, author, planet, factions, bodies, ship, credits, reputation,
+            return ContentPackage(format ?: FORMAT, id, title, summary, author, role, timeScale, planet, factions, bodies, ship, credits, reputation,
                 objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news)
         }
 
@@ -211,6 +227,7 @@ object Decoder {
                 "fim_dialogo" -> Trigger.DialogueEnd(n.str("dialogo") ?: "")
                 "fato_revelado" -> Trigger.FactRevealed(n.str("fato") ?: "")
                 "aproximacao" -> Trigger.Approach(n.str("corpo") ?: "", n.num("distMenorQue") ?: 0.0, n.num("velMenorQue") ?: 0.0)
+                "corpo_destruido" -> Trigger.BodyDestroyed(n.str("corpo") ?: "")
                 else -> Trigger.Destroyed
             }
         }
@@ -230,6 +247,10 @@ object Decoder {
                 "creditos" -> Cond.Credits(n.int("min") ?: 0)
                 "deduziu" -> Cond.Deduced(n.str("id") ?: "")
                 "tem_carga" -> Cond.HasCargo
+                "papel" -> {
+                    val v = n.str("valor") ?: ""
+                    Cond.Role(RoleKind.values().firstOrNull { it.key == v } ?: run { n.err("'valor' deve ser mercador ou militar"); RoleKind.MERCHANT })
+                }
                 "missao" -> Cond.MissionIs(n.str("id") ?: "", state(n, n.str("estado") ?: ""))
                 "e" -> Cond.All(n.nodes("condicoes", true).mapNotNull { cond(it) })
                 "ou" -> Cond.Any(n.nodes("condicoes", true).mapNotNull { cond(it) })
@@ -257,7 +278,7 @@ object Decoder {
                 "final" -> Effect.End(n.str("id") ?: "")
                 "ia" -> {
                     val key = n.str("comportamento") ?: ""
-                    val mode = AiMode.values().firstOrNull { it.key == key } ?: run { n.err("'comportamento' deve ser perseguir ou orbitar"); AiMode.ORBIT }
+                    val mode = AiMode.values().firstOrNull { it.key == key } ?: run { n.err("'comportamento' deve ser perseguir, atacar ou orbitar"); AiMode.ORBIT }
                     Effect.Ai(n.str("corpo") ?: "", mode)
                 }
                 "alvo" -> Effect.SetTarget(n.str("corpo") ?: "")

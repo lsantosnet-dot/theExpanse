@@ -1,0 +1,61 @@
+{
+  "formato": 1,
+  "id": "emboscada",
+  "titulo": "Emboscada sobre Aurélia",
+  "resumo": "Você é um mercador com uma carga que a Coalizão não quer ver chegar a Marte. Uma fragata espera na órbita do Porto Kauã. Obedeça, ou fuja sob mísseis e jogue com os despistadores.",
+  "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "mercador"},
+  "escalaTempo": 1440,
+  "planeta": {"nome": "Aurélia", "gm": 1.0e17, "raio": 6.0e7},
+  "facoes": [
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"}
+  ],
+  "corpos": [
+    {"id": "porto_kaua", "nome": "Porto Kauã", "curto": "Porto", "tipo": "estacao", "faccao": "liga", "raioOrbita": 4.6e8, "fase": 1.4, "tamanho": 150},
+    {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Arsenal", "tipo": "estacao", "faccao": "federacao", "raioOrbita": 6.1e8, "fase": 2.3, "tamanho": 150},
+    {"id": "fragata_vigilia", "nome": "Fragata Vigília", "curto": "Vigília", "tipo": "nave", "faccao": "coalizao", "raioOrbita": 4.6e8, "fase": 1.40012, "tamanho": 90, "atracavel": false, "misseis": 3, "despistadores": 0}
+  ],
+  "nave": {"nome": "Garça", "massaSeca": 240000, "carga": 30000, "combustivel": 32000, "nomeCarga": "30 t de peças de reator", "perto": "porto_kaua", "altitude": 40000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5},
+  "creditos": 400,
+  "reputacao": {"coalizao": -5, "federacao": 10, "liga": 15},
+  "personagens": [
+    {"id": "cap_santos", "nome": "Capitão Santos", "papel": "comandante da Fragata Vigília", "faccao": "coalizao"}
+  ],
+  "dialogos": [
+    {
+      "id": "d_abordagem", "personagem": "cap_santos",
+      "texto": "“Cargueiro Garça, aqui é a Fragata Vigília, da Coalizão. Sua carga é proibida em rota para Marte. Desligue o motor e prepare-se para ser abordado.”",
+      "escolhas": [
+        {"texto": "Obedecer e entregar a carga", "detalhe": "Carga apreendida, missão perdida. Coalizão +5.",
+         "efeitos": [{"tipo": "perder_carga"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 5}, {"tipo": "missao", "id": "m_rota", "estado": "falhou"}, {"tipo": "final", "id": "apreendido"}]},
+        {"texto": "Cortar o rádio e acelerar", "detalhe": "A fragata ataca com mísseis. Você tem 4 despistadores, cada um com 50% de chance por míssil. Coalizão -10, Marte +5.",
+         "efeitos": [{"tipo": "reputacao", "faccao": "coalizao", "delta": -10}, {"tipo": "reputacao", "faccao": "federacao", "delta": 5},
+                     {"tipo": "ia", "corpo": "fragata_vigilia", "comportamento": "atacar"}, {"tipo": "flag", "nome": "fugiu"},
+                     {"tipo": "mensagem", "texto": "Rádio cortado. A Fragata Vigília armou os mísseis!"}]}
+      ]
+    }
+  ],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: levar as peças de reator ao Arsenal Ares."}]},
+    {"id": "r_abordagem", "quando": {"tipo": "distancia", "de": "jogador", "ate": "fragata_vigilia", "menorQue": 150000},
+     "entao": [{"tipo": "mensagem", "texto": "Rádio: a Fragata Vigília está chamando."}, {"tipo": "dialogo", "id": "d_abordagem"}]},
+    {"id": "r_entrega", "quando": {"tipo": "atracar", "local": "arsenal_ares"}, "se": {"tipo": "tem_carga"},
+     "entao": [{"tipo": "creditos", "delta": 1500}, {"tipo": "reputacao", "faccao": "federacao", "delta": 15}, {"tipo": "missao", "id": "m_rota", "estado": "concluida"}, {"tipo": "final", "id": "entregou"}]},
+    {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_rota", "estado": "falhou"}, {"tipo": "final", "id": "abatido"}]}
+  ],
+  "missoes": [
+    {"id": "m_rota", "titulo": "Peças para o Arsenal Ares", "texto": "Levar 30 t de peças de reator do Porto Kauã ao Arsenal Ares, driblando a fragata da Coalizão.", "inicial": true}
+  ],
+  "finais": [
+    {"id": "entregou", "titulo": "CARGA ENTREGUE", "tipo": "vitoria", "manchete": "Cargueiro escapa da Coalizão sob fogo de mísseis e chega ao Arsenal Ares; Marte agradece, Terra protesta."},
+    {"id": "apreendido", "titulo": "CARGA APREENDIDA", "tipo": "derrota", "manchete": "Coalizão aborda cargueiro na órbita do Porto Kauã e apreende peças de reator."},
+    {"id": "abatido", "titulo": "NAVE ABATIDA", "tipo": "derrota", "manchete": "Cargueiro independente é abatido por fragata da Coalizão sobre Aurélia; Liga fala em execução."}
+  ],
+  "noticias": [
+    "Coalizão reforça o bloqueio de peças de reator para Marte.",
+    "Fragata Vigília patrulha a órbita do Porto Kauã.",
+    "Federação Marciana oferece pagar o dobro por entregas sem registro."
+  ]
+}

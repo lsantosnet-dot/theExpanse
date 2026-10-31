@@ -268,7 +268,7 @@ class UiTest {
         assertTrue(later < eta, "a contagem regressiva diminui")
         val panel = c.frame()
         assertTrue(panel.prims.any { it is com.theexpanse.render.Txt && it.text.startsWith("CHEGADA") })
-        assertTrue(panel.prims.any { it is com.theexpanse.render.Txt && it.text.startsWith("REAL ×1.440") })
+        assertTrue(panel.prims.any { it is com.theexpanse.render.Txt && it.text.startsWith("TEMPO REAL") })
     }
 
     @Test
@@ -278,5 +278,29 @@ class UiTest {
         assertEquals(1440.0, sim.warpLevels[3])
         // 5 dias de jogo na escala de cruzeiro = 5 minutos reais
         assertEquals(5.0 * 60.0, 5 * 86_400.0 / sim.warpLevels[3], 1e-6)
+    }
+
+    @Test
+    fun realTimeEstimateMatchesWhatTheClockActuallyTakes() {
+        val pack = Builtin.pack("calice")
+        // sem limites extras: no nível de cruzeiro, medindo quadros de 1/30 s até atracar
+        val sim = com.theexpanse.core.Simulation(com.theexpanse.core.World(pack))
+        sim.setThrust(50); sim.setAutopilot(com.theexpanse.core.AutopilotMode.INTERCEPT); sim.setWarp(3)
+        val eta = com.theexpanse.game.RoutePlanner.plan(sim, listOf(50)).single().seconds
+        val predicted = sim.realSecondsFor(eta)
+        var frames = 0
+        while (sim.status == Status.FLYING && frames < 200_000) { sim.advance(1.0 / 30); frames++ }
+        val actual = frames / 30.0
+        println("Cálice a ×1.440: previsto ${predicted.toInt()} s reais, medido ${actual.toInt()} s")
+        assertEquals(Status.DOCKED, sim.status)
+        assertTrue(Math.abs(predicted - actual) / actual < 0.2, "previsto $predicted, medido $actual")
+
+        // com um atacante (teto ×10), a estimativa tem de refletir o limite
+        val capped = com.theexpanse.core.Simulation(com.theexpanse.core.World(pack))
+        capped.setAi(capped.world.body("fragata_tribunal")!!, com.theexpanse.content.AiMode.ATTACK)
+        capped.setWarp(3)
+        assertEquals(10.0, capped.plannedWarp())
+        assertEquals(2 * 3600.0, capped.realSecondsFor(8520.0), 1.0e5) // só confere que roda
+        assertTrue(capped.realSecondsFor(8520.0) > 600.0, "2 h 22 min a ×10 levam mais de 10 min reais")
     }
 }

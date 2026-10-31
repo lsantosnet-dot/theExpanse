@@ -146,16 +146,16 @@ object Hud {
 
         // chegada: tempo de jogo e tempo real na escala escolhida
         val rem = eta.remaining(sim)
-        val scale = maxOf(sim.warpLevels[sim.warpIndex], sim.world.timeScale)
+        val planned = sim.plannedWarp()
         val (lab1, lab2) = when (eta.kind) {
-            EtaEstimator.Kind.CLOSEST -> "MENOR DIST. EM" to "REAL ×${Fmt.int(scale)}"
-            else -> "CHEGADA EM" to "REAL ×${Fmt.int(scale)}"
+            EtaEstimator.Kind.CLOSEST -> "MENOR DIST. EM" to "TEMPO REAL (×${Fmt.int(planned)})"
+            else -> "CHEGADA EM" to "TEMPO REAL (×${Fmt.int(planned)})"
         }
         val v1: String
         val v2: String
         when {
             sim.status != Status.FLYING -> { v1 = "—"; v2 = "—" }
-            rem != null -> { v1 = Fmt.duration(rem); v2 = Fmt.duration(rem / scale) }
+            rem != null -> { v1 = Fmt.duration(rem); v2 = Fmt.duration(sim.realSecondsFor(rem)) }
             eta.kind == EtaEstimator.Kind.FAR -> { v1 = "> 25 h"; v2 = "—" }
             else -> { v1 = "calculando…"; v2 = "…" }
         }

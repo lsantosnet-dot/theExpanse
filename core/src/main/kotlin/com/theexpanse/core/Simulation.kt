@@ -379,6 +379,38 @@ class Simulation(val world: World, seed: Long = 1L) {
         return cap
     }
 
+    /** Teto do fator de tempo que não depende da aproximação: perseguidores, atacantes, mísseis e comando manual. */
+    fun staticWarpCap(): Double {
+        var cap = Double.MAX_VALUE
+        for ((id, dyn) in dynamics) {
+            if (dyn.mode == AiMode.ORBIT || id in destroyed) continue
+            cap = min(cap, if (dyn.mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP)
+        }
+        if (missiles.isNotEmpty()) cap = 1.0
+        if (manualTurn != 0 || manualEngine) cap = min(cap, 10.0)
+        return cap
+    }
+
+    /** O fator de tempo que o jogo consegue sustentar agora: o nível escolhido, limitado pelos tetos fixos e pelo que o aparelho aguenta. */
+    fun plannedWarp(level: Double = warpLevels[warpIndex], fps: Double = 30.0): Double =
+        min(level, min(staticWarpCap(), Config.MAX_SUBSTEPS_PER_FRAME * Config.SUBSTEP * fps)).coerceAtLeast(1.0)
+
+    /**
+     * Quantos segundos de relógio real levam [simSeconds] de jogo, contando os tetos de verdade: o fator fixo
+     * ([plannedWarp]) e o limite de aproximação (tempo até chegar ÷ 15), que vai freando o relógio no fim. Na frenagem
+     * o tempo que resta é cerca de 1,5 vez o "tempo até chegar", daí a constante de 22 s (medida em voos completos).
+     */
+    fun realSecondsFor(simSeconds: Double, level: Double = warpLevels[warpIndex], fps: Double = 30.0): Double {
+        if (simSeconds <= 0.0) return 0.0
+        val w = plannedWarp(level, fps)
+        var r = simSeconds
+        var t = 0.0
+        val k = 22.0
+        if (r > k * w) { t += (r - k * w) / w; r = k * w }
+        if (r > k) { t += k * kotlin.math.ln(r / k); r = k }
+        return t + r
+    }
+
     /** Avança [realDt] segundos de relógio, aplicando o fator de tempo (limitado por segurança). */
     fun advance(realDt: Double) {
         if (status != Status.FLYING) {

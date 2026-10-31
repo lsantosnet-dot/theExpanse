@@ -282,7 +282,7 @@ object RouteScreen {
                 RouteOutcome.DOCKS -> {
                     d.text(x + 14f, y, "viagem: " + Fmt.duration(o.seconds), Palette.INK, 12f, bold = true); y += 20f
                     d.text(x + 14f, y, "combustível: ${Fmt.int(o.fuelPct)}% (${Fmt.int(o.fuelUsed)} kg)", Palette.INK, 11f); y += 20f
-                    d.text(x + 14f, y, "real ×${Fmt.int(g.world.timeScale)}: " + Fmt.duration(o.seconds / g.world.timeScale), Palette.AMBER_SOFT, 11f); y += 20f
+                    d.text(x + 14f, y, "tempo real: ~" + Fmt.duration(g.sim.realSecondsFor(o.seconds, g.world.timeScale)), Palette.AMBER_SOFT, 11f); y += 20f
                     d.text(x + 14f, y, "chegada: atraca", Palette.GREEN, 11f)
                     val note = when {
                         o.fuelPct > 85 -> "Quase todo o combustível."

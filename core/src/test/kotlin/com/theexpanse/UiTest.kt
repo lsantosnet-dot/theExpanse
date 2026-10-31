@@ -62,6 +62,10 @@ class UiTest {
         c.release("turn_l"); c.release("engine")
         assertEquals(0, sim.manualTurn); assertTrue(!sim.manualEngine)
         c.tap("ap_intercept")
+        // a rota é verificada em segundo plano antes de engajar
+        assertNotNull(c.preflight)
+        var frames = 0
+        while (c.preflight != null && frames++ < 5000) c.update(1.0 / 60)
         assertEquals("INTERCEPTAR", sim.autopilot.label)
         c.tap("warp_3")
         assertEquals(3, sim.warpIndex)

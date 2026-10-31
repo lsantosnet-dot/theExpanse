@@ -57,6 +57,11 @@ object Hud {
             val msg = if (sec <= 0.5) "INVERTER AGORA" else "INVERTER EM " + Fmt.clock(sec)
             d.rect(Layout.W / 2 - 110f, 26f, 220f, 24f, fill = Palette.RED.alpha(0.18f), stroke = Palette.RED, radius = 3f)
             d.text(Layout.W / 2, 43f, msg, Palette.RED_SOFT, 12f, Align.CENTER, bold = true)
+        } else sim.collisionWarning()?.let { (name, eta) ->
+            val auto = sim.autopilot == AutopilotMode.INTERCEPT
+            val pulse = 0.55f + 0.45f * sin(t * 6).toFloat()
+            d.rect(Layout.W / 2 - 185f, 26f, 370f, 26f, fill = Palette.RED.alpha(0.12f + 0.12f * pulse), stroke = Palette.RED, radius = 3f)
+            d.text(Layout.W / 2, 43f, Ui.clip("ROTA COLIDE COM ${name.uppercase()} · EM ${Fmt.duration(eta)}" + if (auto) " · DESVIANDO" else "", 11f, 360f), Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
         }
         if (s.fuel <= 0.0) d.text(Layout.W / 2, 66f, "SEM COMBUSTÍVEL", Palette.RED_SOFT, 11f, Align.CENTER, bold = true)
 
@@ -191,6 +196,34 @@ object Hud {
     }
 
     /** Aviso quando a nave cai ou é destruída e nenhuma regra do pacote encerra a partida. */
+    /** Verificação da rota antes de engajar: barra de progresso enquanto roda e, se a rota não presta, o aviso com as opções. */
+    fun drawPreflight(d: Draw, pre: Preflight?, verdict: Verdict?, t: Double): List<Button> {
+        if (pre == null && verdict == null) return emptyList()
+        val ui = Buttons(d)
+        Ui.panel(d, 160f, 48f, 524f, 150f, Palette.PANEL.alpha(0.97f), if (verdict != null) Palette.RED else Palette.AMBER)
+        if (pre != null) {
+            d.text(422f, 80f, "VERIFICANDO A ROTA…", Palette.AMBER, 15f, Align.CENTER, bold = true)
+            d.text(422f, 100f, "Simulando o piloto automático até ${pre.targetName}", Palette.MUTED, 10f, Align.CENTER)
+            d.rect(220f, 118f, 404f, 10f, fill = Palette.BUTTON, stroke = Palette.BUTTON_EDGE, radius = 3f)
+            d.rect(220f, 118f, 404f * pre.progress.coerceIn(0.02f, 1f), 10f, fill = Palette.AMBER, radius = 3f)
+            ui.add("pf_cancel", 352f, 146f, 140f, 36f, "CANCELAR")
+        } else if (verdict != null) {
+            d.text(422f, 76f, Ui.clip("ROTA INVIÁVEL", 16f, 480f), Palette.RED_SOFT, 16f, Align.CENTER, bold = true)
+            d.text(422f, 96f, Ui.clip(verdict.reason, 11f, 500f), Palette.INK, 11f, Align.CENTER, bold = true)
+            Ui.paragraph(d, 190f, 114f, verdict.detail, 10f, Palette.MUTED, 470f, 2, 12f)
+            val alt = verdict.alternative
+            if (alt != null) {
+                ui.add("pf_alt", 176f, 148f, 168f, 40f, "USAR ${alt.thrustPct}%\nchega em ${Fmt.duration(alt.seconds)}", active = true)
+                ui.add("pf_cancel", 352f, 148f, 140f, 40f, "CANCELAR", active = true)
+                ui.add("pf_force", 500f, 148f, 168f, 40f, "ENGAJAR\nMESMO ASSIM")
+            } else {
+                ui.add("pf_cancel", 232f, 148f, 190f, 40f, "CANCELAR", active = true)
+                ui.add("pf_force", 430f, 148f, 190f, 40f, "ENGAJAR\nMESMO ASSIM")
+            }
+        }
+        return ui.list
+    }
+
     /** Sem combustível e à deriva: oferece o resgate, para o jogo não ficar travado. */
     fun drawStranded(d: Draw, game: GameSession): List<Button> {
         if (!game.stranded) return emptyList()

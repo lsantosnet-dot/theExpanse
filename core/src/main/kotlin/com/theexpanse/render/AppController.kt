@@ -67,6 +67,12 @@ class AppController(
     val routeOptions: List<RouteOption> get() = routeJob?.options?.filterNotNull().orEmpty()
     var routeSelected = 1
 
+    /** Verificação da rota em andamento (antes de engajar o INTERCEPTAR) e o veredito de rota inviável, se houver. */
+    var preflight: Preflight? = null
+        private set
+    var verdict: Verdict? = null
+        private set
+
     val selectedFacts = LinkedHashSet<String>()
     var factPage = 0
     var selectedSuspect: String? = null
@@ -258,9 +264,11 @@ class AppController(
             if (animTime - c.start >= c.kind.duration) finishCinematic()
         }
         if (sc == Screen.ROUTE) routeJob?.advance(60_000)
+        if (sc == Screen.FLIGHT) stepPreflight(s) else if (preflight != null) preflight = null
+        val checking = preflight != null || verdict != null
         val burning = sc == Screen.FLIGHT && s.sim.status == Status.FLYING && s.sim.ship.burnAccel > 0.0
         if (burning != engineOn) { engineOn = burning; host.engine(burning) }
-        if (sc == Screen.FLIGHT || sc == Screen.MAP) {
+        if ((sc == Screen.FLIGHT && !checking) || sc == Screen.MAP) {
             s.update(realDt)
             eta.update(s.sim, animTime)
         } else s.update(0.0)
@@ -313,9 +321,32 @@ class AppController(
         }
     }
 
+    /** Confere a rota antes de engajar: em cópias da simulação, para o empuxo atual e as alternativas. */
+    private fun startPreflight() {
+        val s = session ?: return
+        val sim = s.sim
+        val pcts = (listOf(20, 50, 100) + sim.thrustPct).distinct().sorted()
+        verdict = null
+        preflight = Preflight(RoutePlanJob(sim, pcts, simulateUndockable = true), sim.thrustPct, sim.target.name)
+    }
+
+    /** Avança a verificação e decide: rota boa engaja o piloto, rota ruim abre o aviso. */
+    private fun stepPreflight(s: GameSession) {
+        val p = preflight ?: return
+        if (!p.job.advance(60_000)) return
+        preflight = null
+        val v = PreflightText.verdict(p)
+        if (v == null) {
+            s.sim.setAutopilot(AutopilotMode.INTERCEPT)
+            p.mine?.let { say("Rota verificada: chegada em ${Fmt.duration(it.seconds)} · combustível ${Fmt.int(it.fuelPct)}%") }
+        } else verdict = v
+    }
+
     fun press(id: String) {
         val s = session
         val sim = s?.sim
+        // qualquer outro toque dispensa o aviso de rota inviável (o tempo volta a correr)
+        if (verdict != null && !id.startsWith("pf_")) verdict = null
         if (id != "engine" && !id.startsWith("turn_") && !id.startsWith("cam_")) host.play(Sfx.CLICK)
         when {
             id == "back" -> screen = when (screen) { Screen.ERRORS -> Screen.HOME; Screen.SAVES -> savesFrom; else -> Screen.FLIGHT }
@@ -334,7 +365,10 @@ class AppController(
             id == "engine" -> { held.add(id); sim.manualEngine = true }
             id == "thr_down" -> sim.adjustThrust(-1)
             id == "thr_up" -> sim.adjustThrust(1)
-            id == "ap_intercept" -> sim.toggleAutopilot(AutopilotMode.INTERCEPT)
+            id == "ap_intercept" -> if (sim.autopilot == AutopilotMode.INTERCEPT) sim.setAutopilot(AutopilotMode.OFF) else startPreflight()
+            id == "pf_cancel" -> { preflight = null; verdict = null }
+            id == "pf_force" -> { verdict = null; sim.setAutopilot(AutopilotMode.INTERCEPT) }
+            id == "pf_alt" -> verdict?.alternative?.let { verdict = null; sim.setThrust(it.thrustPct); sim.setAutopilot(AutopilotMode.INTERCEPT); say("Empuxo ${it.thrustPct}%: rota verificada.") }
             id == "ap_pro" -> sim.toggleAutopilot(AutopilotMode.PROGRADE)
             id == "ap_retro" -> sim.toggleAutopilot(AutopilotMode.RETROGRADE)
             id == "ap_stop" -> sim.setAutopilot(AutopilotMode.STOP_SPIN)
@@ -433,6 +467,7 @@ class AppController(
                         Hud.drawTop(d, g, view, animTime)
                         val l = ArrayList<Button>(Hud.drawPanel(d, g.sim, view, held, eta))
                         l.addAll(Hud.drawSceneButtons(d, g, cam, held, animTime, view))
+                        l.addAll(Hud.drawPreflight(d, preflight, verdict, animTime))
                         l.addAll(Hud.drawStranded(d, g))
                         l.addAll(Hud.drawCrash(d, g.sim))
                         l

@@ -210,6 +210,10 @@ class Simulation(val world: World, seed: Long = 1L) {
 
     fun selectTarget(b: Body) = selectTarget(bodies.indexOf(b))
 
+    /** Aviso: se nada mudar, a nave bate neste corpo, em tantos segundos de jogo. */
+    fun collisionWarning(): Pair<String, Double>? =
+        if (status != Status.FLYING) null else Autopilot.collisionCourse(world, time, ship.pos, ship.vel)?.let { (o, eta) -> o.name to eta }
+
     fun adjustThrust(deltaSteps: Int) { thrustPct = (thrustPct + 10 * deltaSteps).coerceIn(10, 100) }
 
     fun setThrust(pct: Int) { thrustPct = (pct / 10 * 10).coerceIn(10, 100) }
@@ -391,6 +395,8 @@ class Simulation(val world: World, seed: Long = 1L) {
             if (closing > 0 && dist > 1) cap = min(cap, max(1.0, dist / closing / 15.0))
             cap = min(cap, if (dyn.mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP)
         }
+        // rota de colisão com um corpo: o tempo desacelera cedo, para dar pelo menos ~1 min reais de reação
+        Autopilot.collisionCourse(world, time, ship.pos, ship.vel)?.let { (_, eta) -> cap = min(cap, max(1.0, eta / Config.COLLISION_REACTION)) }
         if (missiles.isNotEmpty()) cap = 1.0
         if (manualTurn != 0 || manualEngine) cap = min(cap, 10.0)
         return cap

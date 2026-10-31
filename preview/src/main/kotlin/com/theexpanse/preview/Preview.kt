@@ -421,9 +421,37 @@ private fun boarding() {
     c.view = ViewMode.EXTERNAL; shot(c, "54_abordagem_resultado")
 }
 
+/** Verificação da rota antes de engajar o INTERCEPTAR: a barra de progresso e o aviso de rota inviável. */
+private fun preflight() {
+    val c = newController()
+    c.press("home_play:albatroz")
+    val sim = c.session!!.sim
+    val helena = sim.world.body("lab_helena")!!
+    sim.selectTarget(sim.bodies.indexOf(helena))
+    val dir = -helena.position(sim.time).unit()
+    sim.ship.pos = dir * 250_000_000.0
+    sim.ship.vel = -dir * 57_000.0
+    sim.ship.angle = (helena.position(sim.time) - sim.ship.pos).angle
+    c.view = ViewMode.EXTERNAL
+    c.press("ap_intercept")
+    var n = 0
+    while (c.preflight != null && n++ < 20000) c.update(1.0 / 60)
+    shot(c, "56_rota_inviavel")
+
+    // viagem longa (Sistema Solar): a verificação leva vários quadros e mostra o progresso
+    val s2 = newController()
+    s2.press("home_play:rota_do_gelo")
+    s2.session!!.choose(1)
+    s2.view = ViewMode.EXTERNAL
+    s2.press("ap_intercept")
+    repeat(6) { s2.update(1.0 / 60) }
+    shot(s2, "55_rota_verificando")
+}
+
 fun main(args: Array<String>) {
     outDir = File(args.firstOrNull() ?: "docs/preview")
     outDir.mkdirs()
+    if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); return }
     if (System.getenv("ONLY_TEMPLATE") != null) {
         File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
         println("gravado the_expanse_template.md")
@@ -438,6 +466,7 @@ fun main(args: Array<String>) {
     panelAndCamera()
     solar()
     boarding()
+    preflight()
     File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
     println("gravado the_expanse_template.md")
 }

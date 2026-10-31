@@ -393,7 +393,7 @@ class Simulation(val world: World, seed: Long = 1L) {
             val dist = rel.length
             val closing = (ship.vel - velocity(b)) dot rel.unit()
             if (closing > 0 && dist > 1) cap = min(cap, max(1.0, dist / closing / 15.0))
-            cap = min(cap, if (dyn.mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP)
+            cap = min(cap, hostileCap(dyn.mode, dist))
         }
         // rota de colisão com um corpo: o tempo desacelera cedo, para dar pelo menos ~1 min reais de reação
         Autopilot.collisionCourse(world, time, ship.pos, ship.vel)?.let { (_, eta) -> cap = min(cap, max(1.0, eta / Config.COLLISION_REACTION)) }
@@ -402,12 +402,22 @@ class Simulation(val world: World, seed: Long = 1L) {
         return cap
     }
 
-    /** Teto do fator de tempo que não depende da aproximação: perseguidores, atacantes, mísseis e comando manual. */
+    /**
+     * Teto imposto por uma nave hostil a [dist] metros: o teto fixo (×60 atacando, ×120 perseguindo) vale até
+     * [Config.HOSTILE_CAP_RANGE]; mais longe cresce na proporção da distância, e o relógio só freia quando ela chega perto.
+     */
+    private fun hostileCap(mode: AiMode, dist: Double): Double {
+        val base = if (mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP
+        return base * max(1.0, dist / Config.HOSTILE_CAP_RANGE)
+    }
+
+    /** Teto do fator de tempo que não depende da aproximação: perseguidores e atacantes (pela distância), mísseis e comando manual. */
     fun staticWarpCap(): Double {
         var cap = Double.MAX_VALUE
         for ((id, dyn) in dynamics) {
             if (!limitsWarp(dyn) || id in destroyed) continue
-            cap = min(cap, if (dyn.mode == AiMode.ATTACK) Config.ATTACK_WARP_CAP else Config.PURSUIT_WARP_CAP)
+            val b = world.body(id) ?: continue
+            cap = min(cap, hostileCap(dyn.mode, (position(b) - ship.pos).length))
         }
         if (missiles.isNotEmpty()) cap = 1.0
         if (manualTurn != 0 || manualEngine) cap = min(cap, 10.0)

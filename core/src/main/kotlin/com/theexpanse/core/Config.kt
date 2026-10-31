@@ -53,4 +53,10 @@ object Config {
     const val BOARD_SPEED = 12.0
     const val MISSILE_DAMAGE_MIN = 45.0
     const val MISSILE_DAMAGE_MAX = 80.0
+
+    /** Radar tático: distância de uma nave hostil armada a partir da qual o botão RADAR começa a piscar (m). */
+    const val RADAR_ALERT_RANGE = 200_000.0
+    /** Piloto de velocidade: constante de tempo (s) da aproximação e aceleração (m/s²) abaixo da qual o motor fica desligado. */
+    const val VELOCITY_TAU = 2.0
+    const val VELOCITY_DEADBAND = 0.005
 }

@@ -52,6 +52,12 @@ class Simulation(val world: World, seed: Long = 1L) {
     var thrustPct = Config.DEFAULT_THRUST_PCT
         private set
 
+    /** Piloto de velocidade: velocidade relativa desejada (nave menos [velocityRef]), ou null quando não há comando. */
+    var desiredRelVel: Vec2? = null
+        private set
+    var velocityRef: Body? = null
+        private set
+
     /** Comandos manuais (mantidos pelo controle de entrada). */
     var manualTurn = 0
     var manualEngine = false
@@ -103,6 +109,8 @@ class Simulation(val world: World, seed: Long = 1L) {
         dockedAt = null
         dockBlock = null
         autopilot = AutopilotMode.OFF
+        desiredRelVel = null
+        velocityRef = null
         warpIndex = 0
         thrustPct = Config.DEFAULT_THRUST_PCT
         manualTurn = 0
@@ -192,6 +200,42 @@ class Simulation(val world: World, seed: Long = 1L) {
     // ---- comandos ----
 
     fun setAutopilot(mode: AutopilotMode) { autopilot = mode }
+
+    /** Engaja o piloto de velocidade: mantém a velocidade relativa a [ref] igual a [desired] (a nave gira e queima sozinha). */
+    fun commandVelocity(desired: Vec2, ref: Body = target) {
+        desiredRelVel = desired
+        velocityRef = ref
+        autopilot = AutopilotMode.VELOCITY
+    }
+
+    /** Solta o piloto de velocidade (a nave segue em deriva com a velocidade que tiver). */
+    fun releaseVelocity() {
+        if (autopilot == AutopilotMode.VELOCITY) autopilot = AutopilotMode.OFF
+    }
+
+    /** Há combate à vista: um míssil em voo (de qualquer lado) ou uma nave hostil armada por perto. */
+    fun battleAlert(): Boolean {
+        if (status != Status.FLYING) return false
+        if (missiles.isNotEmpty()) return true
+        return dynamics.any { (id, d) -> id !in destroyed && threatens(d) && (d.pos - ship.pos).length < Config.RADAR_ALERT_RANGE }
+    }
+
+    /** Posição e velocidade do alvo de um míssil (a nave, um despistador ou um corpo), ou null se já não existe. */
+    fun missileTarget(m: Missile): Pair<Vec2, Vec2>? = when {
+        m.targetId == "jogador" -> ship.pos to ship.vel
+        m.targetId.length > 1 && m.targetId[0] == 'd' && m.targetId.drop(1).all { it.isDigit() } -> flares.firstOrNull { it.id == m.targetId }?.let { it.pos to it.vel }
+        else -> world.body(m.targetId)?.takeIf { alive(it) }?.let { position(it) to velocity(it) }
+    }
+
+    /** Segundos até o míssil [m] chegar ao alvo (considera que ele ainda acelera ao longo da linha de visada), ou null. */
+    fun missileEta(m: Missile): Double? {
+        val (tp, tv) = missileTarget(m) ?: return null
+        val rel = tp - m.pos
+        val d = rel.length
+        val closing = max((m.vel - tv) dot (rel / max(d, 1.0)), 0.0)
+        val a = Config.MISSILE_ACCEL * 0.6
+        return (-closing + sqrt(closing * closing + 2 * a * d)) / a
+    }
     fun toggleAutopilot(mode: AutopilotMode) { autopilot = if (autopilot == mode) AutopilotMode.OFF else mode }
     fun setWarp(index: Int) { warpIndex = index.coerceIn(0, warpLevels.size - 1) }
 
@@ -469,6 +513,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         val tgtVel = velocity(tgt)
 
         if (manualTurn != 0 || manualEngine) autopilot = AutopilotMode.OFF
+        if (autopilot == AutopilotMode.VELOCITY && (desiredRelVel == null || velocityRef?.let { alive(it) } != true)) autopilot = AutopilotMode.OFF
 
         var alpha = 0.0
         var burn = 0.0
@@ -490,6 +535,14 @@ class Simulation(val world: World, seed: Long = 1L) {
                 if (vRel.length > 0.01) desired = vRel.angle + if (autopilot == AutopilotMode.RETROGRADE) PI else 0.0
             }
             AutopilotMode.STOP_SPIN -> alpha = Autopilot.spinDownAlpha(s.omega)
+            AutopilotMode.VELOCITY -> {
+                val ref = velocityRef!!
+                val gDiff = world.gravity(s.pos, time) - world.gravity(position(ref), time)
+                val cmd = Autopilot.velocity(s, s.vel - velocity(ref), desiredRelVel!!, accelLimit, gDiff)
+                desired = cmd.desiredAngle
+                burn = cmd.burn
+                hold = desired == null
+            }
         }
         if (autopilot != AutopilotMode.OFF && autopilot != AutopilotMode.STOP_SPIN) {
             if (desired != null) alpha = Autopilot.attitudeAlpha(s.angle, s.omega, desired)

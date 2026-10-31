@@ -88,6 +88,8 @@ class AppController(
     private var engineOn = false
 
     val cam = Camera()
+    val radar = RadarState()
+    private var radarFrom = ViewMode.COCKPIT
     val eta = EtaEstimator()
     var cinematic: Cinematic? = null
         private set
@@ -159,6 +161,7 @@ class AppController(
         session = s
         screen = Screen.FLIGHT
         view = ViewMode.COCKPIT
+        radar.dragging = false; radar.zoom = 2
         selectedFacts.clear(); selectedSuspect = null; deduceText = null; factPage = 0
         held.clear()
         cam.reset()
@@ -223,7 +226,7 @@ class AppController(
         return when (effective()) {
             Screen.HOME -> false
             Screen.ERRORS -> { screen = Screen.HOME; true }
-            Screen.FLIGHT -> { screen = Screen.MENU; true }
+            Screen.FLIGHT -> { if (view == ViewMode.RADAR) view = radarFrom else screen = Screen.MENU; true }
             Screen.DIALOGUE, Screen.END -> true
             Screen.STATION -> { screen = Screen.MENU; true }
             else -> { screen = Screen.FLIGHT; true }
@@ -299,6 +302,17 @@ class AppController(
 
     /** Pinça na cena aproxima ou afasta a câmera. */
     fun pinch(factor: Float) = cam.zoomBy(factor.toDouble())
+
+    private val radarOn: Boolean get() = session != null && effective() == Screen.FLIGHT && view == ViewMode.RADAR
+
+    /** Toque livre (fora dos botões). Devolve true quando o radar tático o usa: arrastar a nave ou escolher um alvo. */
+    fun touchDown(x: Float, y: Float): Boolean = radarOn && RadarView.touchDown(radar, session!!.sim, x, y)
+
+    fun touchMove(x: Float, y: Float) {
+        if (radarOn) RadarView.touchMove(radar, session!!.sim, x, y)
+    }
+
+    fun touchUp() = RadarView.touchUp(radar)
 
     /** A cena aceita arrastar? Só no voo, fora dos botões. */
     val canDrag: Boolean get() = session != null && effective() == Screen.FLIGHT
@@ -392,6 +406,12 @@ class AppController(
             id == "ap_retro" -> sim.toggleAutopilot(AutopilotMode.RETROGRADE)
             id == "ap_stop" -> sim.setAutopilot(AutopilotMode.STOP_SPIN)
             id == "view" -> view = view.next()
+            id == "radar" -> if (sim.world.isMilitary) { if (view != ViewMode.RADAR) radarFrom = view; view = ViewMode.RADAR }
+            id == "radar_exit" -> view = radarFrom
+            id == "radar_zoom_in" -> radar.zoom = (radar.zoom - 1).coerceAtLeast(0)
+            id == "radar_zoom_out" -> radar.zoom = (radar.zoom + 1).coerceAtMost(RadarView.ZOOMS_KM.size - 1)
+            id == "radar_zero" -> sim.commandVelocity(com.theexpanse.core.Vec2.ZERO, sim.target)
+            id == "radar_free" -> sim.releaseVelocity()
             id == "target" -> sim.cycleTarget()
             id.startsWith("warp_") -> sim.setWarp(id.removePrefix("warp_").toInt())
             id == "menu" -> screen = Screen.MENU
@@ -477,11 +497,12 @@ class AppController(
             else -> {
                 val g = session!!
                 when (sc) {
-                    Screen.FLIGHT -> {
+                    Screen.FLIGHT -> if (view == ViewMode.RADAR) RadarView.draw(d, g, radar, animTime, held) else {
                         when (view) {
                             ViewMode.COCKPIT -> CockpitView.draw(d, g.sim, animTime, cam)
                             ViewMode.EXTERNAL -> ExternalView.draw(d, g.sim, animTime, cam)
                             ViewMode.SPACE3D -> Space3DView.draw(d, g.sim, animTime, cam)
+                            ViewMode.RADAR -> {}
                         }
                         Hud.drawTop(d, g, view, animTime)
                         val l = ArrayList<Button>(Hud.drawPanel(d, g.sim, view, held, eta))

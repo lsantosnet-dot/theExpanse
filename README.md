@@ -15,6 +15,12 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
   **despistadores com chance aleatória** de desviar cada míssil (sorteio por míssil, `chanceDespistar`); o militar
   dispara nos hostis e é impedido de atirar em aliados. Casco, munição, explosões e o tempo cai para ×1 enquanto
   há míssil no ar. Veja a [sequência do míssil](docs/preview/sequencia_missil_externa.png).
+- **Radar tático** (só no militar): botão **RADAR** na cena, que **pisca** quando há míssil em voo (seu ou do inimigo) ou
+  nave hostil armada por perto. Vista de cima com os alcances (o seu e o deles), cada míssil com rastro e tempo até o
+  impacto, despistadores e explosões. **Pilota pelo vetor de velocidade**: arraste a nave e a seta mostra onde você
+  estará em 100 s em relação ao alvo; o piloto automático gira e queima até chegar lá (**IGUALAR** zera a velocidade
+  relativa, **SOLTAR** devolve o controle). Contra um míssil já lançado o motor não adianta (80 m/s² contra 6): use o
+  despistador. Veja o [radar](docs/preview/61_radar_misseis.png).
 - **Cena de atracação e de saída**: aproximação final, alinhamento com propulsores de manobra, travas e a estação
   girando ([sequência](docs/preview/sequencia_atracacao.png)). Toque para pular.
 - **Chegada no painel**: tempo de jogo até chegar e o **tempo real** na escala escolhida, com contagem regressiva.
@@ -71,6 +77,10 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 | Míssil em voo | Despistador lançado |
 |---|---|
 | ![](docs/preview/23_missil_em_voo.png) | ![](docs/preview/25_despistador.png) |
+
+| Radar tático: alvo travado | Radar: mísseis e seta de velocidade |
+|---|---|
+| ![](docs/preview/60_radar_alvo.png) | ![](docs/preview/61_radar_misseis.png) |
 
 | Impacto (cabine) | Cruzador da Coalizão atira |
 |---|---|

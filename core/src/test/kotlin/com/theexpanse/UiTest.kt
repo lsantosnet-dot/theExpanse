@@ -402,3 +402,27 @@ class TouchSlopTest {
         assertEquals(null, c.hit(b.x + b.w / 2, b.y + b.h + 4f))
     }
 }
+
+class ClosedCaseNotebookTest {
+    @Test
+    fun afterTheCaseEndsTheNotebookSaysSoAndDisablesAccusing() {
+        val c = com.theexpanse.render.AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:albatroz")
+        val g = c.session!!
+        g.runEffects(listOf(com.theexpanse.content.Effect.Reveal("f_homem_terno"), com.theexpanse.content.Effect.Reveal("f_apolice")))
+        g.deduce(setOf("f_homem_terno", "f_apolice"))
+        c.screen = Screen.NOTEBOOK
+        c.frame()
+        c.press("suspect:s_terno"); c.press("accuse")
+        assertEquals("parcial", g.ending?.id)
+        c.press("continue")
+        c.screen = Screen.NOTEBOOK
+        val f = c.frame()
+        val accuse = f.buttons.first { it.id == "accuse" }
+        assertTrue(!accuse.enabled, "ACUSAR desabilitado com o caso encerrado")
+        assertTrue(f.buttons.filter { it.id.startsWith("suspect:") }.none { it.enabled }, "suspeitos desabilitados")
+        val texts = f.prims.filterIsInstance<com.theexpanse.render.Txt>().map { it.text }
+        assertTrue(texts.any { it.contains("CASO ENCERRADO") }, "textos: $texts")
+        assertTrue(texts.any { it.contains("VERDADE PELA METADE") }, "mostra o final")
+    }
+}

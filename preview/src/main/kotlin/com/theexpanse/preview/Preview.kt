@@ -284,6 +284,35 @@ private fun patrol() {
     }
 }
 
+/** Radar tático: alvo travado, mísseis nos dois sentidos com tempo de impacto, despistador e a seta de velocidade. */
+private fun radar() {
+    val c = AppController(MemoryStorage(), seed = { 5L })
+    c.press("home_play:patrulha")
+    val g = c.session!!
+    val corvo = g.world.body("corvo")!!
+    val p = g.sim.position(corvo)
+    g.sim.ship.pos = p + Vec2.fromAngle(2.0) * 70_000.0
+    g.sim.ship.vel = g.sim.velocity(corvo)
+    g.sim.ship.angle = (p - g.sim.ship.pos).angle
+    g.stepFixed(0.05)
+    g.choose(1)
+    g.sim.selectTarget(corvo)
+    c.press("radar")
+    shot(c, "60_radar_alvo")
+    g.fire()
+    c.frame()
+    c.touchDown(com.theexpanse.render.RadarView.CX, com.theexpanse.render.RadarView.CY)
+    c.touchMove(com.theexpanse.render.RadarView.CX - 70f, com.theexpanse.render.RadarView.CY + 55f)
+    c.touchUp()
+    var guard = 0
+    while (guard++ < 4000 && g.sim.incoming().isEmpty()) g.stepFixed(0.05)
+    repeat(160) { g.stepFixed(0.05) }
+    shot(c, "61_radar_misseis")
+    g.decoy()
+    repeat(24) { g.stepFixed(0.05) }
+    shot(c, "62_radar_despistador")
+}
+
 /** A cena de atracação (e a de saída) em seis instantes cada. */
 private fun docking() {
     val c = AppController(MemoryStorage(), seed = { 7L })
@@ -475,6 +504,7 @@ fun main(args: Array<String>) {
     outDir = File(args.firstOrNull() ?: "docs/preview")
     outDir.mkdirs()
     if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); accusations(); return }
+    if (System.getenv("ONLY_RADAR") != null) { radar(); return }
     if (System.getenv("ONLY_TEMPLATE") != null) {
         File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
         println("gravado the_expanse_template.md")
@@ -485,6 +515,7 @@ fun main(args: Array<String>) {
     gallery()
     ambush()
     patrol()
+    radar()
     docking()
     panelAndCamera()
     solar()

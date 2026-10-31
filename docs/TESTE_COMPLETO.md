@@ -33,6 +33,12 @@ arquivos). Gere o APK no Android Studio (`app` → Run).
 - [ ] Cruzador da Coalizão (desenho próprio). Chamado do Corvo perto dele: ordenar rendição, abrir fogo ou deixar passar.
 - [ ] **MÍSSIL ×8** acende quando o Corvo é alvo e está a menos de 150 km. **ABORDAR** acende a menos de 1 km e menos de 12 m/s.
 - [ ] Atracar na Doca Meridiano repara o casco e recarrega os mísseis.
+- [ ] Botão **RADAR** ao lado de MÍSSIL: **pisca** com míssil em voo (inclusive o seu) ou hostil armado a menos de 200 km.
+- [ ] No radar: alvo travado (**TRAVADO**), anéis de alcance verde (seu) e vermelho (deles), mísseis com tempo até o impacto,
+      **SAIR** volta à vista anterior (o botão voltar do Android também sai do radar).
+- [ ] **Arrastar a nave**: aparece a seta âmbar da meta; o piloto passa a **VELOCIDADE**, gira e queima até a velocidade
+      relativa chegar na meta. **IGUALAR** leva a velocidade relativa a zero e **SOLTAR** devolve o controle manual.
+      Tocar num inimigo o seleciona; **+ −** mudam o zoom; **DESPIST.** pisca quando há míssil vindo.
 
 ## 6. Rota do Gelo (Sistema Solar real)
 - [ ] Início: Capitã Ruiz oferece a **escolta** (300 créditos). O Cruzador Aurora passa a acompanhar você.

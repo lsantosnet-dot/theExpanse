@@ -12,6 +12,7 @@ enum class AutopilotMode(val label: String) {
     PROGRADE("PRÓ"),
     RETROGRADE("RETRO"),
     STOP_SPIN("PARAR GIRO"),
+    VELOCITY("VELOCIDADE"),
 }
 
 /** Comando do piloto automático: rumo desejado (null = manter) e aceleração do motor. */
@@ -107,6 +108,20 @@ object Autopilot {
             if (best == null || eta < best.second) best = Pair(o, eta)
         }
         return best
+    }
+
+    /**
+     * Piloto de velocidade: leva a velocidade relativa [vRel] (nave menos referência) até [desired]. Pede a aceleração
+     * que fecha a diferença em [Config.VELOCITY_TAU] segundos e cancela a gravidade diferencial [gravDiff] (a da nave
+     * menos a da referência), gira para ela e só queima quando já está apontando para lá.
+     */
+    fun velocity(ship: Ship, vRel: Vec2, desired: Vec2, aLim: Double, gravDiff: Vec2): AutopilotCommand {
+        val a = (desired - vRel) / Config.VELOCITY_TAU - gravDiff
+        val mag = a.length
+        if (mag < Config.VELOCITY_DEADBAND) return AutopilotCommand(null, 0.0)
+        val err = abs(wrapAngle(a.angle - ship.angle))
+        val f = ((0.45 - err) / 0.35).coerceIn(0.0, 1.0)
+        return AutopilotCommand(a.angle, min(aLim, mag) * f)
     }
 
     /** Interceptação da nave do jogador, limitada pelo Δv que sobra para não gastar mais combustível do que existe. */

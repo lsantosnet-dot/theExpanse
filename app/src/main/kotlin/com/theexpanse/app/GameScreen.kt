@@ -75,6 +75,7 @@ fun GameScreen(game: AppController) {
                 awaitPointerEventScope {
                     val held = HashMap<PointerId, String>()
                     val free = HashMap<PointerId, Offset>()
+                    var radarPtr: PointerId? = null // dedo que arrasta a nave no radar tático
                     while (true) {
                         val event = awaitPointerEvent()
                         val f = fit(size.width.toFloat(), size.height.toFloat())
@@ -84,11 +85,13 @@ fun GameScreen(game: AppController) {
                             if (c.pressed && !c.previousPressed) {
                                 val b = game.hit(x, y)
                                 if (b != null) { held[c.id] = b.id; game.press(b.id) }
+                                else if (radarPtr == null && game.touchDown(x, y)) radarPtr = c.id
                                 else if (game.canDrag && y < Layout.SCENE_H) free[c.id] = c.position
                             } else if (!c.pressed && c.previousPressed) {
                                 held.remove(c.id)?.let { game.release(it) }
                                 free.remove(c.id)
-                            }
+                                if (c.id == radarPtr) { game.touchUp(); radarPtr = null }
+                            } else if (c.pressed && c.id == radarPtr) game.touchMove(x, y)
                             c.consume()
                         }
                         val ids = free.keys.toList()

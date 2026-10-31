@@ -14,7 +14,9 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 - **Combate com mísseis guiados** (navegação proporcional): naves hostis disparam em você; o mercador lança
   **despistadores com chance aleatória** de desviar cada míssil (sorteio por míssil, `chanceDespistar`); o militar
   dispara nos hostis e é impedido de atirar em aliados. O despistador é **ejetado de lado** (150 m/s, perpendicular à
-  linha de visada do míssil) e segue em linha reta: se enganar o míssil, ele vai atrás do despistador e se afasta da nave. Casco, munição, explosões e o tempo cai para ×1 enquanto
+  linha de visada do míssil) e segue em linha reta: se enganar o míssil, ele vai atrás do despistador e se afasta da nave.
+  A **chance depende do momento**: de 20 a 45 s antes do impacto vale 1,6× a chance base da nave; cedo demais ou em cima da
+  hora vale menos (até 0,3×). O botão mostra a chance atual ("DESPISTADOR ×10 · 64%") e o aviso informa a chance usada. Casco, munição, explosões e o tempo cai para ×1 enquanto
   há míssil no ar. Veja a [sequência do míssil](docs/preview/sequencia_missil_externa.png).
 - **Radar tático** (só no militar): botão **RADAR** na cena, que **pisca** quando há míssil em voo (seu ou do inimigo) ou
   nave hostil armada por perto. Vista de cima com os alcances (o seu e o deles), cada míssil com rastro e tempo até o

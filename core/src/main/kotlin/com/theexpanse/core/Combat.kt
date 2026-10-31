@@ -28,7 +28,8 @@ sealed interface SimEvent {
     class BodyDestroyed(val id: String) : SimEvent
     class Hit(val damage: Double) : SimEvent
     class Launched(val owner: Owner, val launcher: String) : SimEvent
-    class DecoyResult(val diverted: Int, val total: Int) : SimEvent
+    /** [chance] é a média das chances de cada míssil no instante do lançamento. */
+    class DecoyResult(val diverted: Int, val total: Int, val chance: Double = 0.0) : SimEvent
     /** Uma nave hostil em modo abordar chegou ao jogador. */
     class Boarded(val by: String) : SimEvent
     /** O jogador tentou abordar [id] (só no papel militar). */
@@ -42,6 +43,21 @@ enum class BoardCheck { OK, NOT_MILITARY, NO_TARGET, TOO_FAR, TOO_FAST, FRIENDLY
 
 /** Estado de armas de uma nave controlada pelo computador. */
 class NpcArms(var missiles: Int, var decoys: Int, var cooldown: Double)
+
+/**
+ * Quanto o momento do lançamento multiplica a chance base do despistador, conforme os segundos que faltam para o
+ * míssil chegar. Cedo demais (míssil longe, o buscador ainda reencontra a nave): vale menos. Na janela de 20 a 45 s
+ * o despistador e a nave ainda cabem juntos no campo do buscador e ele segue o mais quente: melhor chance. Em cima
+ * da hora o míssil já não vê o despistador a tempo.
+ */
+fun decoyTiming(eta: Double): Double = when {
+    eta <= 5.0 -> 0.3
+    eta <= 15.0 -> 0.3 + (eta - 5.0) / 10.0 * 0.9
+    eta <= 20.0 -> 1.2 + (eta - 15.0) / 5.0 * 0.4
+    eta <= 45.0 -> 1.6
+    eta <= 70.0 -> 1.6 - (eta - 45.0) / 25.0 * 0.7
+    else -> 0.9
+}
 
 /** Aceleração de um míssil por navegação proporcional, com compensação da gravidade. */
 fun missileGuidance(world: World, t: Double, pos: Vec2, vel: Vec2, tPos: Vec2, tVel: Vec2): Vec2 {

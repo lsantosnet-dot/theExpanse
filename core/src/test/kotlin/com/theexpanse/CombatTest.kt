@@ -12,6 +12,7 @@ import com.theexpanse.core.Simulation
 import com.theexpanse.core.Status
 import com.theexpanse.core.Vec2
 import com.theexpanse.core.World
+import com.theexpanse.core.decoyTiming
 import com.theexpanse.game.GameSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,7 +38,8 @@ class CombatTest {
         assertEquals("coalizao", patrulha.role.factionId)
         assertEquals("mercador", emboscada.role.kind.key)
         val m = Simulation(World(patrulha))
-        assertEquals(8, m.ship.missiles)
+        assertEquals(10, m.ship.missiles)
+        assertEquals(10, m.ship.decoys)
         assertEquals(220.0, m.ship.hullMax)
         val c = Simulation(World(calice))
         assertEquals(0, c.ship.missiles)
@@ -50,7 +52,7 @@ class CombatTest {
         placeNear(sim, "corvo", 60_000.0)
         assertEquals("corvo", sim.target.id)
         assertEquals(FireResult.FIRED, sim.fireMissile())
-        assertEquals(7, sim.ship.missiles)
+        assertEquals(9, sim.ship.missiles)
         var killed = false
         var steps = 0
         val seen = ArrayList<SimEvent>()
@@ -124,21 +126,55 @@ class CombatTest {
     }
 
     @Test
-    fun decoySuccessIsRandomAroundTheConfiguredChance() {
+    fun decoySuccessIsRandomAroundTheChanceShownForThatMoment() {
         var diverted = 0
+        var expected = 0.0
         val n = 400
         for (seed in 1L..n) {
             val sim = Simulation(World(emboscada), seed)
             val m = enemyMissileAt(sim, 30_000.0)
+            expected = sim.decoyChance(m)
             assertTrue(sim.deployDecoy())
             val ev = sim.drainEvents().filterIsInstance<SimEvent.DecoyResult>().single()
             assertEquals(1, ev.total)
+            assertEquals(expected, ev.chance, 1e-9, "o evento informa a chance usada")
             if (m.targetId != "jogador") diverted++
             assertEquals(3, sim.ship.decoys)
         }
         val rate = diverted.toDouble() / n
-        println("despistadores: $diverted de $n ($rate)")
-        assertTrue(rate in 0.40..0.60, "taxa $rate")
+        println("despistadores: $diverted de $n ($rate), esperado $expected")
+        assertTrue(Math.abs(rate - expected) < 0.07, "taxa $rate, esperada $expected")
+    }
+
+    @Test
+    fun launchingEarlyBeatsLaunchingLateAndTooEarlyIsWorseThanTheWindow() {
+        assertTrue(decoyTiming(3.0) < decoyTiming(10.0) && decoyTiming(10.0) < decoyTiming(18.0) && decoyTiming(18.0) < decoyTiming(30.0))
+        assertEquals(decoyTiming(20.0), decoyTiming(45.0), 1e-9, "a janela é plana de 20 a 45 s")
+        assertTrue(decoyTiming(60.0) < decoyTiming(30.0), "cedo demais vale menos que a janela")
+        assertTrue(decoyTiming(60.0) > decoyTiming(8.0), "mas ainda vale mais que em cima da hora")
+        var prev = decoyTiming(0.0)
+        for (e in 1..80) { val v = decoyTiming(e.toDouble()); assertTrue(Math.abs(v - prev) < 0.2, "sem saltos em $e s"); prev = v }
+
+        val sim = Simulation(World(patrulha))
+        val early = Missile(950, Owner.ENEMY, sim.ship.pos + Vec2(0.0, 40_000.0), sim.ship.vel, "jogador", "corvo")
+        val late = Missile(951, Owner.ENEMY, sim.ship.pos + Vec2(0.0, 5_000.0), sim.ship.vel, "jogador", "corvo")
+        assertTrue(sim.decoyChance(early) > sim.decoyChance(late))
+        for (m in listOf(early, late)) assertTrue(sim.decoyChance(m) in Config.DECOY_CHANCE_MIN..Config.DECOY_CHANCE_MAX)
+    }
+
+    @Test
+    fun theButtonOddsFollowTheMissileThatArrivesFirstAndTheMessageTellsTheChance() {
+        val g = GameSession(emboscada, 4)
+        val sim = g.sim
+        assertEquals(null, sim.decoyOdds())
+        val far = enemyMissileAt(sim, 60_000.0)
+        val near = enemyMissileAt(sim, 12_000.0)
+        assertEquals(sim.decoyChance(near), sim.decoyOdds()!!, 1e-12)
+        assertTrue(com.theexpanse.render.Hud.oddsText(sim).endsWith("%"))
+        g.decoy()
+        val msg = g.messages.last().text
+        assertTrue("chance de" in msg, msg)
+        sim.missiles.remove(far)
     }
 
     @Test
@@ -267,8 +303,8 @@ class CombatTest {
         sim.step(0.14)
         assertEquals(Status.DOCKED, sim.status)
         assertEquals(220.0, sim.ship.hull)
-        assertEquals(8, sim.ship.missiles)
-        assertEquals(2, sim.ship.decoys)
+        assertEquals(10, sim.ship.missiles)
+        assertEquals(10, sim.ship.decoys)
     }
 
     @Test

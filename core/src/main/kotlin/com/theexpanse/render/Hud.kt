@@ -34,6 +34,9 @@ object Hud {
         }
     }
 
+    /** " · 72%": a chance do despistador agora, só quando há míssil vindo. */
+    fun oddsText(sim: Simulation): String = sim.decoyOdds()?.let { " · " + Math.round(it * 100) + "%" } ?: ""
+
     fun drawTop(d: Draw, game: GameSession, mode: ViewMode, t: Double) {
         val sim = game.sim
         val s = sim.ship
@@ -116,12 +119,12 @@ object Hud {
             val incoming = sim.incoming().isNotEmpty()
             val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING
             val pulse = incoming && sin(t * 12) > 0
-            ui.add("decoy", 440f, y - 40f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}", enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
+            ui.add("decoy", 440f, y - 40f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}" + oddsText(sim), enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
         } else {
             val incoming = sim.incoming().isNotEmpty()
             val ok = incoming && sim.ship.decoys > 0 && sim.status == Status.FLYING
             val pulse = incoming && sin(t * 12) > 0
-            ui.add("decoy", 440f, y - 2f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}", enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
+            ui.add("decoy", 440f, y - 2f, 186f, 34f, "DESPISTADOR ×${sim.ship.decoys}" + oddsText(sim), enabled = ok, active = pulse, accent = if (ok) Palette.AMBER else 0)
         }
         return ui.list
     }

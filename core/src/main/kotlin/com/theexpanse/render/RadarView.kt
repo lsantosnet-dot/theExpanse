@@ -341,9 +341,9 @@ object RadarView {
         val ready = sim.canFire() == FireResult.FIRED && sim.status == Status.FLYING
         val incoming = sim.incoming().isNotEmpty()
         val decoyOk = incoming && ship.decoys > 0 && sim.status == Status.FLYING
-        ui.add("target", PX, 314f, 58f, 38f, "ALVO")
-        ui.add("fire", PX + 62f, 314f, 66f, 38f, "MÍSSIL\n×${ship.missiles}", enabled = ready, accent = if (ready) Palette.RED else 0)
-        ui.add("decoy", PX + 132f, 314f, 64f, 38f, "DESPIST.\n×${ship.decoys}", enabled = decoyOk, active = decoyOk && sin(t * 12) > 0, accent = if (decoyOk) Palette.AMBER else 0)
+        ui.add("target", PX, 314f, 54f, 38f, "ALVO")
+        ui.add("fire", PX + 57f, 314f, 62f, 38f, "MÍSSIL\n×${ship.missiles}", enabled = ready, accent = if (ready) Palette.RED else 0)
+        ui.add("decoy", PX + 122f, 314f, 74f, 38f, "DESPIST.\n×${ship.decoys}" + Hud.oddsText(sim), enabled = decoyOk, active = decoyOk && sin(t * 12) > 0, accent = if (decoyOk) Palette.AMBER else 0)
 
         for (i in 0..2) {
             val f = sim.warpLevels[i]

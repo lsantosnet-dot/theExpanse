@@ -403,6 +403,15 @@ class Simulation(val world: World, seed: Long = 1L) {
         return Flare("d${nextId++}", pos, vel + sideways * Config.DECOY_EJECT_SPEED, time)
     }
 
+    /** Chance de um despistador lançado agora enganar o míssil [m]: a base da nave vezes o efeito do momento ([decoyTiming]). */
+    fun decoyChance(m: Missile): Double {
+        val eta = missileEta(m) ?: return 0.0
+        return (world.ship.decoyChance * decoyTiming(eta)).coerceIn(Config.DECOY_CHANCE_MIN, Config.DECOY_CHANCE_MAX)
+    }
+
+    /** Chance mostrada no botão: a do míssil que chega primeiro, ou null se nenhum míssil vem na sua direção. */
+    fun decoyOdds(): Double? = incoming().minByOrNull { missileEta(it) ?: Double.MAX_VALUE }?.let { decoyChance(it) }
+
     /** Lança um despistador contra os mísseis que perseguem a nave. Cada míssil é sorteado à parte. */
     fun deployDecoy(): Boolean {
         if (status != Status.FLYING || ship.decoys <= 0) return false
@@ -412,11 +421,15 @@ class Simulation(val world: World, seed: Long = 1L) {
         val threat = tracking.minByOrNull { (it.pos - ship.pos).length }!!
         val flare = ejectFlare(ship.pos, ship.vel, threat.pos, if (ship.decoys % 2 == 0) 1 else -1)
         flares.add(flare)
-        val p = world.ship.decoyChance
         var ok = 0
-        for (m in tracking) if (rand() < p) { m.targetId = flare.id; ok++ }
+        var sum = 0.0
+        for (m in tracking) {
+            val p = decoyChance(m)
+            sum += p
+            if (rand() < p) { m.targetId = flare.id; ok++ }
+        }
         blasts.add(Blast(ship.pos, time, BlastKind.FLARE))
-        events.add(SimEvent.DecoyResult(ok, tracking.size))
+        events.add(SimEvent.DecoyResult(ok, tracking.size, sum / tracking.size))
         return true
     }
 

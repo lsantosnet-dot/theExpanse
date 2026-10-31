@@ -55,6 +55,9 @@ object Config {
     const val MISSILE_DAMAGE_MAX = 80.0
     /** Velocidade (m/s) com que um despistador é ejetado de lado, em relação a quem o lançou. */
     const val DECOY_EJECT_SPEED = 150.0
+    /** Limites da chance de um despistador enganar um míssil: nunca é certo e nunca é impossível. */
+    const val DECOY_CHANCE_MIN = 0.05
+    const val DECOY_CHANCE_MAX = 0.90
 
     /** Radar tático: distância de uma nave hostil armada a partir da qual o botão RADAR começa a piscar (m). */
     const val RADAR_ALERT_RANGE = 200_000.0

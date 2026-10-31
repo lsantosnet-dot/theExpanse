@@ -4,7 +4,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 
 ## Papel do jogador (vale a campanha inteira e não muda durante o jogo)
 - `{"tipo": "mercador"}`: o jogador pilota um cargueiro independente, sem armas. Se uma nave hostil o atacar, só pode **lançar despistadores** (cada um tem uma chance aleatória, `chanceDespistar`, de desviar cada míssil).
-- `{"tipo": "militar", "faccao": "id"}`: o jogador comanda o **cruzador** dessa facção, com mísseis (`nave.misseis`) e casco mais forte. Pode abater naves hostis; não dispara em naves da própria facção.
+- `{"tipo": "militar", "faccao": "id"}`: o jogador comanda o **cruzador** dessa facção, com mísseis (`nave.misseis`) e casco mais forte. Se `misseis` e `despistadores` não forem informados, a nave começa com **10 mísseis e 10 despistadores** (e casco 220). Pode abater naves hostis; não dispara em naves da própria facção.
 - `escalaTempo` é quantos segundos de jogo passam por segundo real no nível "cruzeiro" do relógio (1440 = um dia de jogo por minuto real; uma viagem de 5 dias dura 5 minutos).
 - Naves de facções aparecem como **cruzadores estelares**; `estilo` escolhe o desenho (terrano, marciano, cinturao ou generico).
 - **Corpos reais**: um corpo pode orbitar outro (`pai`), com órbita elíptica (`excentricidade`, `argPeriapse`), e ter massa (`gm`) e raio (`raio`): planetas e luas puxam a nave e a destroem se ela encostar. `tipo: "planeta"` desenha uma esfera (`cor` opcional). O corpo central pode ser uma estrela (`planeta.tipo: "estrela"`; o Sol tem gm 1.32712e20 e raio 6.957e8). Em escala solar, ajuste a nave: `aceleracaoMax` (m/s²) e `velocidadeExaustao` (m/s), por exemplo 6 e 5e6.
@@ -39,6 +39,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "missoes": [{"id": "...", "titulo": "...", "texto": "...", "inicial": true}],
   "suspeitos": [{"id": "...", "nome": "...", "texto": "..."}],
   "acusacoes": [{"id": "...", "suspeito": "id", "se": condição, "efeitos": [efeitos, normalmente um final]}],
+  "tentativasAcusacao": 3,
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
   "noticias": ["manchetes iniciais"],
   "blocos": [{"id": "...", "efeitos": [efeitos]}]
@@ -102,7 +103,7 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 - `dialogo`: Abre um diálogo (a simulação pausa). Campos: `id` (id de diálogo): qual
 - `noticia`: Publica uma manchete. Campos: `texto` (texto): a manchete
 - `final`: Encerra a partida com um final. Campos: `id` (id de final): qual
-- `ia`: Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis) ou orbitar. Campos: `corpo` (id de corpo): qual nave; `comportamento` (perseguir|atacar|abordar|escoltar|orbitar): o que fazer
+- `ia`: Muda o comportamento de uma nave: perseguir (só segue), atacar (segue e dispara mísseis no jogador), abordar (chega perto para abordar o jogador), escoltar (acompanha o jogador, intercepta mísseis e ataca hostis), patrulhar (percorre em ciclo a lista `rota` de corpos, com ao menos 2), fugir (afasta-se do jogador com toda a aceleração) ou orbitar. Campos: `corpo` (id de corpo): qual nave; `comportamento` (perseguir|atacar|abordar|escoltar|patrulhar|fugir|orbitar): o que fazer; `rota` (lista de ids de corpos, opcional): só para patrulhar: os pontos da ronda, em ordem
 - `alvo`: Seleciona um corpo como alvo. Campos: `corpo` (id de corpo): qual
 - `perder_carga`: A carga do contrato é apreendida (a massa some). Campos: (sem campos)
 - `missao`: Muda o estado de uma missão. Campos: `id` (id de missão): qual; `estado` (ativa|concluida|falhou): novo estado
@@ -123,7 +124,7 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 1. Liste as pistas (`fatos`) e onde cada uma é descoberta (um diálogo, ou uma regra `atracar`).
 2. Faça a ordem importar: uma pista só aparece se o jogador já tem outra (`se: {"tipo": "sabe", ...}`) ou um objeto (`tem_objeto`).
 3. `deducoes` combinam pistas no caderno e liberam consequências.
-4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega.
+4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
 
 ## Exemplo completo (um mistério válido)

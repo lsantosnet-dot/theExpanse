@@ -13,6 +13,10 @@ class DecodeResult(val pack: ContentPackage?, val errors: List<String>)
 
 /** Lê o JSON de um pacote. Todo erro cita o caminho do trecho, para a pessoa (ou a IA) corrigir. */
 object Decoder {
+    /** Munição da nave do jogador quando o pacote militar não diz quanto: dez mísseis e dez despistadores. */
+    const val MIL_MISSILES = 10
+    const val MIL_DECOYS = 10
+
     const val FORMAT = 1
 
     fun decode(text: String): DecodeResult {
@@ -151,8 +155,8 @@ object Decoder {
                     sn.str("nome", false) ?: "Nave", sn.num("massaSeca", false) ?: 240_000.0, sn.num("carga", false) ?: 40_000.0,
                     sn.num("combustivel", false) ?: 32_000.0, sn.str("perto") ?: "", sn.num("altitude", false) ?: 40_000.0,
                     sn.str("alvo", false), sn.str("nomeCarga", false) ?: "a carga",
-                    sn.num("casco", false) ?: if (mil) 220.0 else 100.0, sn.int("misseis", false) ?: if (mil) 8 else 0,
-                    sn.int("despistadores", false) ?: if (mil) 2 else 4, sn.num("chanceDespistar", false) ?: if (mil) 0.4 else 0.5,
+                    sn.num("casco", false) ?: if (mil) 220.0 else 100.0, sn.int("misseis", false) ?: if (mil) MIL_MISSILES else 0,
+                    sn.int("despistadores", false) ?: if (mil) MIL_DECOYS else 4, sn.num("chanceDespistar", false) ?: if (mil) 0.4 else 0.5,
                     sn.num("aceleracaoMax", false) ?: 6.0, sn.num("velocidadeExaustao", false) ?: 8.0e5,
                 )
             } ?: ShipDef("Nave", 240_000.0, 40_000.0, 32_000.0, "", 40_000.0, null, "a carga")

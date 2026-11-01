@@ -118,3 +118,29 @@ class LunarMissionTest {
         assertEquals(300 + 2400 + 300, g.story.credits)
     }
 }
+
+class UiResponsivenessTest {
+    @Test
+    fun openingTheRoutePlanForAresDoesNotBlockTheUiThread() {
+        val c = AppController(MemoryStorage(), seed = { 1L })
+        c.press("home_play:rota_do_gelo")
+        c.session!!.choose(1) // dispensa o diálogo da escolta
+        val sim = c.session!!.sim
+        sim.selectTarget(sim.world.body("arsenal_ares")!!)
+        val t0 = System.nanoTime()
+        c.press("open_route")
+        val pressMs = (System.nanoTime() - t0) / 1e6
+        assertTrue(pressMs < 250, "abrir o plano de rota levou $pressMs ms")
+        var worst = 0.0
+        var frames = 0
+        while (c.routeJob?.done != true && frames++ < 200_000) {
+            val s = System.nanoTime()
+            c.update(1.0 / 60)
+            worst = maxOf(worst, (System.nanoTime() - s) / 1e6)
+        }
+        println("ROTA ARES: ${frames} quadros, pior quadro $worst ms, opções=${c.routeOptions.map { it.outcome }}")
+        assertTrue(c.routeJob?.done == true, "o plano terminou")
+        assertTrue(worst < 120, "pior quadro: $worst ms")
+        assertTrue(c.routeOptions.any { it.outcome == com.theexpanse.game.RouteOutcome.DOCKS }, "alguma opção atraca em Ares")
+    }
+}

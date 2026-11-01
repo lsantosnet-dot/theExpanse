@@ -52,6 +52,13 @@ class Simulation(val world: World, seed: Long = 1L) {
     var thrustPct = Config.DEFAULT_THRUST_PCT
         private set
 
+    /**
+     * Modo de estimativa (cópias da simulação que só planejam rotas): longe do alvo (mais de 20 mil km) a nave assume
+     * na hora a orientação que o piloto pede, em vez de girar com aceleração angular. Isso deixa o passo crescer sem
+     * instabilidade do controle de atitude, e o giro (segundos) não pesa numa viagem de horas ou dias.
+     */
+    var planning = false
+
     /** Piloto de velocidade: velocidade relativa desejada (nave menos [velocityRef]), ou null quando não há comando. */
     var desiredRelVel: Vec2? = null
         private set
@@ -592,6 +599,11 @@ class Simulation(val world: World, seed: Long = 1L) {
             }
         }
 
+        if (planning && desired != null && autopilot != AutopilotMode.OFF && distanceTo() > 2e7) {
+            s.angle = desired
+            s.omega = 0.0
+            alpha = 0.0
+        }
         s.omega = (s.omega + alpha * h).coerceIn(-Config.OMEGA_MAX, Config.OMEGA_MAX)
         s.angle = wrapAngle(s.angle + s.omega * h)
         if (desired != null && abs(wrapAngle(desired - s.angle)) < 0.003 && abs(s.omega) < 0.003) {
@@ -937,6 +949,7 @@ class Simulation(val world: World, seed: Long = 1L) {
     // ---- cópia e salvamento ----
 
     fun copyState(from: Simulation) {
+        planning = from.planning
         time = from.time
         status = from.status
         dockedAt = from.dockedAt

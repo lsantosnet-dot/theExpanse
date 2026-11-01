@@ -270,7 +270,7 @@ class AppController(
         cinematic?.let { c ->
             if (animTime - c.start >= c.kind.duration) finishCinematic()
         }
-        if (sc == Screen.ROUTE) routeJob?.advance(60_000)
+        if (sc == Screen.ROUTE) routeJob?.advanceFor(12)
         if (sc == Screen.FLIGHT) stepPreflight(s) else if (preflight != null) preflight = null
         val checking = preflight != null || verdict != null
         val burning = sc == Screen.FLIGHT && s.sim.status == Status.FLYING && s.sim.ship.burnAccel > 0.0
@@ -385,7 +385,7 @@ class AppController(
     /** Avança a verificação e decide: rota boa engaja o piloto, rota ruim abre o aviso. */
     private fun stepPreflight(s: GameSession) {
         val p = preflight ?: return
-        if (!p.job.advance(8_000)) return
+        if (!p.job.advanceFor(12)) return
         preflight = null
         val v = PreflightText.verdict(p, { name -> s.sim.bodies.firstOrNull { it.name == name } }, ::stationOf)
         if (v == null) {
@@ -454,7 +454,7 @@ class AppController(
             id == "decoy" -> s.decoy()
             id == "open_map" -> screen = Screen.MAP
             id == "open_route" -> {
-                routeJob = RoutePlanJob(sim).also { it.advance(1_500_000) }
+                routeJob = RoutePlanJob(sim)
                 routeSelected = (routeJob!!.pcts.indexOf(sim.thrustPct)).coerceAtLeast(0)
                 screen = Screen.ROUTE
             }

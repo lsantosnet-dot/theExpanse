@@ -125,6 +125,8 @@ class UiTest {
         c.screen = Screen.MENU
         c.tap("open_route")
         assertEquals(Screen.ROUTE, c.screen)
+        var frames = 0
+        while (c.routeJob?.done != true && frames++ < 100_000) c.update(1.0 / 60) // o plano calcula ao longo dos quadros, sem travar a tela
         assertEquals(3, c.routeOptions.size)
         assertTrue(c.routeOptions.all { it.outcome == com.theexpanse.game.RouteOutcome.DOCKS })
         val t = c.routeOptions.map { it.seconds }

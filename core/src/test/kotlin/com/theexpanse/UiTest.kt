@@ -190,6 +190,8 @@ class UiTest {
         c.press("back")
         c.homePage = 99
         c.frame()
+        c.tap("home_del:albatroz_b") // o primeiro toque pede confirmação
+        assertEquals(7, c.entries.size)
         c.tap("home_del:albatroz_b")
         assertEquals(6, c.entries.size)
     }

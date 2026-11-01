@@ -46,7 +46,7 @@
     }
   ],
   "regras": [
-    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: interceptar o corsário Corvo."}]},
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: interceptar o corsário Corvo. Marque ALVO Corsário Corvo e toque em INTERC."}]},
     {"id": "r_chamada", "quando": {"tipo": "distancia", "de": "jogador", "ate": "corvo", "menorQue": 6e7},
      "entao": [{"tipo": "mensagem", "texto": "Contato com o Corvo. Ele responde no rádio."}, {"tipo": "dialogo", "id": "d_corvo"}]},
     {"id": "r_abatido", "quando": {"tipo": "corpo_destruido", "corpo": "corvo"},

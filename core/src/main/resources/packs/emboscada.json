@@ -38,7 +38,7 @@
     }
   ],
   "regras": [
-    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: levar as peças de reator ao Arsenal Ares."}]},
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: levar as peças de reator ao Arsenal Ares. Marque ALVO Arsenal Ares e toque em INTERC."}]},
     {"id": "r_abordagem", "quando": {"tipo": "distancia", "de": "jogador", "ate": "fragata_vigilia", "menorQue": 150000},
      "entao": [{"tipo": "mensagem", "texto": "Rádio: a Fragata Vigília está chamando."}, {"tipo": "dialogo", "id": "d_abordagem"}]},
     {"id": "r_entrega", "quando": {"tipo": "atracar", "local": "arsenal_ares"}, "se": {"tipo": "tem_carga"},
@@ -46,7 +46,7 @@
     {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_rota", "estado": "falhou"}, {"tipo": "final", "id": "abatido"}]}
   ],
   "missoes": [
-    {"id": "m_rota", "titulo": "Peças para o Arsenal Ares", "texto": "Levar 30 t de peças de reator do Porto Kauã ao Arsenal Ares, driblando a fragata da Coalizão.", "inicial": true}
+    {"id": "m_rota", "titulo": "Peças para o Arsenal Ares", "texto": "Levar 30 t de peças de reator do Porto Kauã ao Arsenal Ares, driblando a fragata da Coalizão. Destino: a estação Arsenal Ares (ALVO Arsenal Ares).", "inicial": true}
   ],
   "finais": [
     {"id": "entregou", "titulo": "CARGA ENTREGUE", "tipo": "vitoria", "manchete": "Cargueiro escapa da Coalizão sob fogo de mísseis e chega ao Arsenal Ares; Marte agradece, Terra protesta."},

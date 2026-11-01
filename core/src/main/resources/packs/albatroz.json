@@ -82,7 +82,7 @@
     }
   ],
   "regras": [
-    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: descobrir quem desligou o reator do Albatroz."}]},
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Missão: descobrir quem desligou o reator do Albatroz. Comece pelos Destroços do Albatroz: ALVO Destroços do Albatroz, depois INTERC."}]},
     {"id": "r_destrocos", "quando": {"tipo": "atracar", "local": "destrocos_albatroz"},
      "entao": [{"tipo": "dar_objeto", "objeto": "caixa_preta"}, {"tipo": "revelar_fato", "fato": "f_sem_registro"}, {"tipo": "mensagem", "texto": "Você recuperou a caixa-preta do Albatroz."}]},
     {"id": "r_dia3", "quando": {"tipo": "tempo", "depoisDe": 259200}, "entao": [{"tipo": "noticia", "texto": "Famílias da tripulação do Albatroz exigem uma investigação independente."}]}

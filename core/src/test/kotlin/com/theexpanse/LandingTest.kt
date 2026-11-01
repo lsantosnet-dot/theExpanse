@@ -103,6 +103,7 @@ class LunarMissionTest {
     fun deliverOnTheMoonInTimeThenTakeOffAndReturn() {
         val g = com.theexpanse.game.GameSession(com.theexpanse.content.Builtin.pack("base_lunar"), 11)
         g.choose(0) // aceita o prazo de 12 h
+        g.story.fired.add("e_vesper") // desliga a emboscada aleatória: o teste verifica a entrega, não a sorte
         fly(g, "lua")
         assertEquals("lua", g.sim.landedOn?.id)
         assertEquals(300 + 2400, g.story.credits, "bônus do prazo")

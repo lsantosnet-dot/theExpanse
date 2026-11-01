@@ -83,9 +83,6 @@
   ],
   "regras": [
     {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_escolta"}, {"tipo": "mensagem", "texto": "Missão: levar 30 t de gelo de Ceres ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares e toque em INTERC."}]},
-    {"id": "r_emboscada", "quando": {"tipo": "tempo", "depoisDe": 5400},
-     "entao": [{"tipo": "emboscar", "corpo": "gralha", "distancia": 25000}, {"tipo": "ia", "corpo": "gralha", "comportamento": "abordar"},
-               {"tipo": "mensagem", "texto": "CONTATO HOSTIL: o Corsário Gralha surgiu a 25 km!"}, {"tipo": "noticia", "texto": "Corsários atacam comboio de gelo perto de Ceres."}]},
     {"id": "r_abordado", "quando": {"tipo": "abordado", "corpo": "gralha"}, "entao": [{"tipo": "dialogo", "id": "d_pirata"}]},
     {"id": "r_escolta_ajudou", "quando": {"tipo": "escolta_interceptou"}, "repetir": true, "entao": [{"tipo": "reputacao", "faccao": "federacao", "delta": 1}]},
     {"id": "r_dias", "quando": {"tipo": "a_cada", "segundos": 172800}, "entao": [{"tipo": "contador", "nome": "dias", "delta": 2}, {"tipo": "mensagem", "texto": "A viagem segue. Dias de missão: 2 a mais."}]},
@@ -99,6 +96,7 @@
      "entao": [{"tipo": "creditos", "delta": 2200}, {"tipo": "reputacao", "faccao": "federacao", "delta": 10}, {"tipo": "missao", "id": "m_gelo", "estado": "concluida"}, {"tipo": "final", "id": "entregou"}]},
     {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_gelo", "estado": "falhou"}, {"tipo": "final", "id": "destruido"}]}
   ],
+  "emboscadas": [{"id": "e_gralha", "nave": "gralha", "faccao": "corsarios", "chance": 0.25, "perto": "ceres", "raio": 2e9, "intervalo": 10800, "comportamento": "abordar", "distancia": 25000, "mensagem": "CONTATO HOSTIL: o Corsário Gralha surgiu a 25 km!", "efeitos": [{"tipo": "noticia", "texto": "Corsários atacam comboio de gelo perto de Ceres."}]}],
   "missoes": [
     {"id": "m_gelo", "titulo": "Gelo para o Arsenal Ares", "texto": "Levar 30 t de gelo d'água de Ceres ao Arsenal Ares, estação em órbita de Marte: é nela que você atraca, não no planeta. No painel, ALVO deve mostrar Arsenal Ares (toque em ALVO até aparecer); depois INTERC. Corsários rondam a rota.", "inicial": true}
   ],

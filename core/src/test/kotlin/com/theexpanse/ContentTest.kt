@@ -139,6 +139,12 @@ class ExportedTemplateTest {
     }
 
     @Test
+    fun templateExplainsDynamicAmbushes() {
+        for (k in listOf("emboscadas", "Emboscadas dinâmicas", "reputação do jogador com ela muda a chance", "intervalo", "perto", "alvo", "se: aleatorio"))
+            assertTrue(t.contains(k), "o template não menciona: $k")
+    }
+
+    @Test
     fun templateTellsAuthorsToNameTheTarget() {
         assertTrue(t.contains("Diga ao jogador qual alvo marcar"))
         assertTrue(t.contains("Marque ALVO"))

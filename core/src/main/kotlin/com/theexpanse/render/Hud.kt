@@ -227,7 +227,16 @@ object Hud {
             d.text(422f, 96f, Ui.clip(verdict.reason, 11f, 500f), Palette.INK, 11f, Align.CENTER, bold = true)
             Ui.paragraph(d, 190f, 114f, verdict.detail, 10f, Palette.MUTED, 470f, 2, 12f)
             val alt = verdict.alternative
-            if (alt != null) {
+            val st = verdict.station
+            if (st != null) {
+                // quatro botões: ALVO na estação, empuxo alternativo (se houver), cancelar e engajar
+                var x = 172f
+                val bw = 120f
+                ui.add("pf_station", x, 148f, bw, 40f, "ALVO:\n${Ui.clip(st.shortName, 10f, bw - 8f)}", active = true); x += bw + 4f
+                if (alt != null) { ui.add("pf_alt", x, 148f, bw, 40f, "USAR ${alt.thrustPct}%\n${Fmt.duration(alt.seconds)}"); x += bw + 4f }
+                ui.add("pf_cancel", x, 148f, bw, 40f, "CANCELAR"); x += bw + 4f
+                ui.add("pf_force", x, 148f, bw, 40f, "ENGAJAR\nMESMO ASSIM")
+            } else if (alt != null) {
                 ui.add("pf_alt", 176f, 148f, 168f, 40f, "USAR ${alt.thrustPct}%\nchega em ${Fmt.duration(alt.seconds)}", active = true)
                 ui.add("pf_cancel", 352f, 148f, 140f, 40f, "CANCELAR", active = true)
                 ui.add("pf_force", 500f, 148f, 168f, 40f, "ENGAJAR\nMESMO ASSIM")

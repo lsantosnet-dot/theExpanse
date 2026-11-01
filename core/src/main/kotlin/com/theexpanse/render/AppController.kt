@@ -6,6 +6,7 @@ import com.theexpanse.content.Decoder
 import com.theexpanse.content.Template
 import com.theexpanse.content.Validator
 import com.theexpanse.core.AutopilotMode
+import com.theexpanse.core.Body
 import com.theexpanse.core.Status
 import com.theexpanse.game.EtaEstimator
 import com.theexpanse.game.GameSession
@@ -74,7 +75,7 @@ class AppController(
     var preflight: Preflight? = null
         private set
     var verdict: Verdict? = null
-        private set
+        internal set
 
     val selectedFacts = LinkedHashSet<String>()
     var factPage = 0
@@ -354,10 +355,28 @@ class AppController(
         }
     }
 
+    /** Estação atracável em órbita de [b]: a da missão, se for ela, senão a mais próxima. */
+    private fun stationOf(b: Body): Body? {
+        val sim = session?.sim ?: return null
+        val all = sim.bodies.filter { it.parent === b && it.dockable && sim.alive(it) }
+        return all.firstOrNull { it.id == sim.world.ship.targetId } ?: all.minByOrNull { sim.distanceTo(it) }
+    }
+
+    /** Planeta não tem onde atracar: se ele tem uma estação em órbita, o alvo passa a ser a estação. */
+    private fun retargetToStation() {
+        val sim = session?.sim ?: return
+        val t = sim.target
+        if (t.dockable) return
+        val st = stationOf(t) ?: return
+        sim.selectTarget(st)
+        say("Alvo: ${st.name}, em órbita de ${t.name}. Não dá para atracar no planeta.")
+    }
+
     /** Confere a rota antes de engajar: em cópias da simulação, para o empuxo atual e as alternativas. */
     private fun startPreflight() {
         val s = session ?: return
         val sim = s.sim
+        retargetToStation()
         val pcts = (listOf(20, 50, 100) + sim.thrustPct).distinct().sorted()
         verdict = null
         preflight = Preflight(RoutePlanJob(sim, pcts, simulateUndockable = true), sim.thrustPct, sim.target.name)
@@ -368,7 +387,7 @@ class AppController(
         val p = preflight ?: return
         if (!p.job.advance(8_000)) return
         preflight = null
-        val v = PreflightText.verdict(p)
+        val v = PreflightText.verdict(p) { name -> s.sim.bodies.firstOrNull { it.name == name }?.let(::stationOf) }
         if (v == null) {
             s.sim.setAutopilot(AutopilotMode.INTERCEPT)
             p.mine?.let { say("Rota verificada: chegada em ${Fmt.duration(it.seconds)} · combustível ${Fmt.int(it.fuelPct)}%") }
@@ -400,6 +419,7 @@ class AppController(
             id == "thr_up" -> sim.adjustThrust(1)
             id == "ap_intercept" -> if (sim.autopilot == AutopilotMode.INTERCEPT) sim.setAutopilot(AutopilotMode.OFF) else startPreflight()
             id == "pf_cancel" -> { preflight = null; verdict = null }
+            id == "pf_station" -> verdict?.station?.let { verdict = null; sim.selectTarget(it); startPreflight() }
             id == "pf_force" -> { verdict = null; sim.setAutopilot(AutopilotMode.INTERCEPT) }
             id == "pf_alt" -> verdict?.alternative?.let { verdict = null; sim.setThrust(it.thrustPct); sim.setAutopilot(AutopilotMode.INTERCEPT); say("Empuxo ${it.thrustPct}%: rota verificada.") }
             id == "ap_pro" -> sim.toggleAutopilot(AutopilotMode.PROGRADE)

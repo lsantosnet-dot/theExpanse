@@ -1,5 +1,6 @@
 package com.theexpanse.render
 
+import com.theexpanse.core.Body
 import com.theexpanse.game.RouteOption
 import com.theexpanse.game.RouteOutcome
 import com.theexpanse.game.RoutePlanJob
@@ -11,12 +12,13 @@ class Preflight(val job: RoutePlanJob, val thrustPct: Int, val targetName: Strin
 }
 
 /** Resultado de uma rota inviável: o motivo e, se existir, um empuxo que daria certo. */
-class Verdict(val reason: String, val detail: String, val alternative: RouteOption?)
+class Verdict(val reason: String, val detail: String, val alternative: RouteOption?, val station: Body? = null)
 
 object PreflightText {
     fun ok(o: RouteOption): Boolean = o.outcome == RouteOutcome.DOCKS || o.outcome == RouteOutcome.NOT_DOCKABLE
 
-    fun verdict(p: Preflight): Verdict? {
+    /** [stationOf] acha a estação atracável que orbita o corpo onde a rota termina (se houver). */
+    fun verdict(p: Preflight, stationOf: (String) -> Body? = { null }): Verdict? {
         val o = p.mine ?: return null
         if (ok(o)) return null
         val reason = when {
@@ -31,6 +33,8 @@ object PreflightText {
             else -> "Mesmo com ${p.thrustPct}% de empuxo a viagem não termina. Tente outro empuxo ou outro alvo."
         }
         val alt = p.job.options.filterNotNull().filter { it.thrustPct != p.thrustPct && ok(it) }.minByOrNull { it.seconds }
-        return Verdict(reason, detail, alt)
+        val station = if (o.outcome == RouteOutcome.CRASHES) o.crashedInto?.let(stationOf) else null
+        val hint = if (station != null) " ${station.name} orbita ${o.crashedInto}: mire nela e atraque." else ""
+        return Verdict(reason, detail + hint, alt, station)
     }
 }

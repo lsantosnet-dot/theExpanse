@@ -208,3 +208,34 @@ class PreflightTest {
         assertEquals(AutopilotMode.OFF, c.session!!.sim.autopilot)
     }
 }
+
+class StationRetargetTest {
+    private fun iceRun(): com.theexpanse.render.AppController {
+        val c = com.theexpanse.render.AppController(com.theexpanse.game.MemoryStorage(), seed = { 1L })
+        c.press("home_play:rota_do_gelo")
+        val sim = c.session!!.sim
+        sim.selectTarget(sim.bodies.indexOf(sim.world.body("marte")!!))
+        return c
+    }
+
+    @Test
+    fun interceptOnAPlanetAimsAtItsStation() {
+        val c = iceRun()
+        val sim = c.session!!.sim
+        c.press("ap_intercept")
+        assertEquals("arsenal_ares", sim.target.id)
+        assertNotNull(c.preflight)
+    }
+
+    @Test
+    fun crashVerdictOffersTheStationAndRetargets() {
+        val c = iceRun()
+        val sim = c.session!!.sim
+        val st = sim.world.body("arsenal_ares")!!
+        c.verdict = com.theexpanse.render.Verdict("A ROTA TERMINA EM COLISÃO COM MARTE", "x", null, st)
+        c.press("pf_station")
+        assertEquals("arsenal_ares", sim.target.id)
+        assertNull(c.verdict)
+        assertNotNull(c.preflight)
+    }
+}

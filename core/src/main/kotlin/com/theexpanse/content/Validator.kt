@@ -105,6 +105,18 @@ object Validator {
                     c.next?.let { need("diálogo", it, p.dialogue(it) != null, "$w.escolhas[$i].proximo") }
                 }
             }
+            unique("emboscada", p.ambushes.map { it.id })
+            for (a in p.ambushes) {
+                val w = "emboscada '${a.id}'"
+                need("corpo", a.ship, p.body(a.ship) != null, "$w.nave")
+                p.body(a.ship)?.let { if (it.kind != BodyKind.SHIP) err("$w: '${a.ship}' precisa ser uma nave (tipo nave).") }
+                need("facção", a.factionId, p.faction(a.factionId) != null, "$w.faccao")
+                a.near?.let { need("corpo", it, p.body(it) != null, "$w.perto") }
+                a.targetId?.let { need("corpo", it, p.body(it) != null, "$w.alvo") }
+                if (a.chance < 0.0 || a.chance > 1.0) err("$w: 'chance' deve ficar entre 0 e 1.")
+                if (a.interval < 600.0) err("$w: 'intervalo' deve ser de pelo menos 600 s.")
+                if (a.radius <= 0.0 || a.distance <= 0.0) err("$w: 'raio' e 'distancia' devem ser positivos.")
+            }
             for (r in p.rules) {
                 val w = "regra '${r.id}'"
                 when (val t = r.trigger) {

@@ -128,6 +128,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - **Todo mistério precisa ter solução alcançável**: toda pista usada numa dedução ou condição precisa ser revelada por alguma regra ou diálogo; todo objeto exigido precisa ser entregue por algum efeito. O jogo simula o pacote ao importar e recusa se encontrar um final inalcançável.
 - Cada final deve ter `manchete` (uma frase de jornal).
 - **Diga ao jogador qual alvo marcar.** No painel, `ALVO` mostra o corpo selecionado e o jogador troca de alvo tocando em `ALVO`; o piloto automático (INTERCEPTAR) vai ao alvo selecionado. A nave já começa com `nave.alvo` selecionado, mas a mensagem inicial (`r_inicio`) e o `texto` da missão devem citar o **nome do corpo de destino** e deixar claro se é uma estação (atraca) ou um planeta/lua (pousa). Exemplo certo: "levar o gelo ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares." Nunca escreva só "leve a Marte" quando o destino é uma estação.
+- **Em campanhas com viagem, inclua `emboscadas`** (veja a seção "Emboscadas dinâmicas"): o jogador não deve conhecer o risco de antemão, e o jogo sorteia sozinho conforme facção, reputação, região, rota e carga.
 - **Δv e empuxo andam juntos.** O jogo simula o piloto automático ao importar e recusa o pacote se o Δv da nave (`velocidadeExaustao` × ln da razão de massas) não chega ao destino. Se você subir `aceleracaoMax` (por exemplo para 14, para decolar da Terra), a viagem exige mais Δv: suba também `velocidadeExaustao` (1,6e7 funciona na escala solar) ou o combustível.
 
 ## Estrutura do arquivo
@@ -153,7 +154,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "tentativasAcusacao": 3,
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
   "noticias": ["manchetes iniciais"],
-  "blocos": [{"id": "...", "efeitos": [efeitos]}]
+  "blocos": [{"id": "...", "efeitos": [efeitos]}],
+  "emboscadas": [{"id": "...", "nave": "id de corpo tipo nave", "faccao": "id", "chance": 0.3, "perto": "id de corpo", "raio": 1e9, "alvo": "id de corpo", "comportamento": "abordar|atacar|perseguir", "distancia": 25000, "intervalo": 21600, "repetir": false, "mensagem": "texto", "efeitos": [efeitos]}]
 }
 ```
 Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}` em `detalhe` mostra a chance do primeiro sorteio da escolha. Uma acusação escolhe o suspeito: vale a primeira cujo `se` seja verdadeiro (ponha a mais exigente primeiro e uma sem `se` por último).
@@ -173,6 +175,17 @@ ${describe(effects)}
 3. `deducoes` combinam pistas no caderno e liberam consequências.
 4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
+
+## Emboscadas dinâmicas (o jogo sorteia sozinho; o autor não escreve a sorte)
+Para campanhas com viagem, **declare de 1 a 3 `emboscadas`**: cada uma diz quem pode atacar, de qual facção, onde e com que chance base. O motor faz o resto, a cada `intervalo` segundos de voo (padrão 6 h): sorteia, e se der "sim" a nave surge a `distancia` metros do jogador e age (`abordar`, `atacar` ou `perseguir`). O jogador nunca sabe de antemão se haverá emboscada.
+- `nave`: um corpo de `tipo: "nave"` da lista `corpos` (pode ser `"oculto": true`). Uma nave por emboscada; ela só ataca uma vez (a menos de `repetir: true`) e nunca duas ao mesmo tempo. Há 12 h de folga entre emboscadas.
+- `faccao`: a facção da nave. **A reputação do jogador com ela muda a chance**: reputação −100 → ×2; 0 → ×1; +100 → ×0,2. Ou seja, facções que o jogador irritou aparecem mais, e as aliadas quase nunca atacam.
+- `chance`: probabilidade base de **cada sorteio** (0 a 1). Use 0,15 a 0,35: com vários sorteios na viagem o risco total fica entre 30% e 70%. Sem carga a bordo, a chance cai pela metade; com uma nave de escolta por perto, cai pela metade de novo. O teto é 95%.
+- `perto` e `raio` (m): só sorteia enquanto o jogador está a esse raio do corpo, a **região** da emboscada (por exemplo, perto de Ceres para corsários do Cinturão). `alvo`: só sorteia quando o jogador seleciona esse corpo como destino, a **rota**. Combine os dois para "quem vai de Ceres a Marte corre risco perto de Ceres".
+- Varie: use facções e regiões diferentes (corsários perto do cinturão, uma fragata da Coalizão perto da Terra, uma patrulha da Federação perto de Marte), cada uma com sua `chance`. Dê reputações iniciais que tornem algumas mais prováveis que outras.
+- `mensagem` (opcional) e `efeitos` (opcional: `noticia`, `flag`, `dialogo`...) rodam quando ela acontece. O motor também liga a flag `emboscada_<id>`; use-a em regras e condições.
+- As consequências vêm das **regras normais**: para `abordar`, escreva uma regra `abordado` com o diálogo (pagar pedágio, resistir) e `sorteio`; para `atacar`, regras de `casco_abaixo`, `nave_destruida` e `missil_lancado`. Veja a Rota do Gelo.
+- **Não** simule a sorte com `se: aleatorio` no gatilho `tempo`: a regra seria testada a cada instante e acabaria acontecendo quase com certeza. Use `emboscadas`.
 
 ## Como montar uma missão de pouso (entrega na superfície)
 1. Use planetas e luas reais no `planeta`/`corpos` (Sistema Solar: Terra, Lua, Marte, Ceres, Titã...). Todo `tipo: "planeta"` é pousável por padrão; marque `"pousavel": false` nos gigantes gasosos (Júpiter, Saturno), que não têm superfície. Atmosfera é opcional (`escalaAtmosfera`, `velTerminalAtmosfera`): Terra 8500 e 9, Marte 11100 e 45.

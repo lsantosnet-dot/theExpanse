@@ -97,7 +97,7 @@ object Decoder {
     private class Reader(val errors: MutableList<String>) {
         fun pack(n: Node): ContentPackage? {
             n.only(setOf("formato", "id", "titulo", "resumo", "autor", "papel", "escalaTempo", "planeta", "facoes", "corpos", "nave", "creditos", "reputacao",
-                "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "tentativasAcusacao", "finais", "noticias", "blocos"))
+                "objetos", "fatos", "personagens", "dialogos", "regras", "deducoes", "missoes", "suspeitos", "acusacoes", "tentativasAcusacao", "finais", "noticias", "blocos", "emboscadas"))
             val format = n.int("formato")
             if (format != null && format != FORMAT) n.err("formato $format não suportado (este jogo lê o formato $FORMAT)")
             val id = n.str("id") ?: ""
@@ -210,9 +210,20 @@ object Decoder {
             if (attempts < 1 || attempts > 9) n.err("'tentativasAcusacao' deve ficar entre 1 e 9 (1 = uma acusação encerra o caso)")
             val news = n.strings("noticias")
             val blocks = n.nodes("blocos").map { b -> b.only(setOf("id", "efeitos")); BlockDef(b.str("id") ?: "", b.nodes("efeitos").mapNotNull { effect(it) }) }
+            val ambushes = n.nodes("emboscadas").map { a ->
+                a.only(setOf("id", "nave", "faccao", "chance", "perto", "raio", "alvo", "comportamento", "distancia", "intervalo", "repetir", "mensagem", "efeitos"))
+                val key = a.str("comportamento", false) ?: "abordar"
+                val mode = listOf(AiMode.BOARD, AiMode.ATTACK, AiMode.PURSUE).firstOrNull { it.key == key } ?: run { a.err("'comportamento' da emboscada deve ser abordar, atacar ou perseguir"); AiMode.BOARD }
+                AmbushDef(
+                    a.str("id") ?: "", a.str("nave") ?: "", a.str("faccao") ?: "", a.num("chance", false) ?: 0.3,
+                    a.str("perto", false), a.num("raio", false) ?: 1e9, a.str("alvo", false),
+                    mode, a.num("distancia", false) ?: 25_000.0, a.num("intervalo", false) ?: 21_600.0, a.bool("repetir", false),
+                    a.str("mensagem", false), a.nodes("efeitos", false).mapNotNull { effect(it) },
+                )
+            }
             if (errors.isNotEmpty()) return null
             return ContentPackage(format ?: FORMAT, id, title, summary, author, role, timeScale, planet, factions, bodies, ship, credits, reputation,
-                objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news, blocks, attempts.coerceIn(1, 9))
+                objects, facts, characters, dialogues, rules, deductions, missions, suspects, accusations, endings, news, blocks, attempts.coerceIn(1, 9), ambushes)
         }
 
         private fun color(n: Node, hex: String): Int {

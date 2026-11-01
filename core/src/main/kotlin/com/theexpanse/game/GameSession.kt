@@ -1,5 +1,7 @@
 package com.theexpanse.game
 
+import com.theexpanse.content.AiMode
+import com.theexpanse.content.AmbushDef
 import com.theexpanse.content.ChoiceDef
 import com.theexpanse.content.Chance
 import com.theexpanse.content.Cond
@@ -237,6 +239,7 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
 
     private fun pump() {
         runScheduled()
+        pollAmbushes()
         var guard = 0
         while (guard++ < 1000) {
             val ev = queue.removeFirstOrNull()
@@ -250,6 +253,54 @@ class GameSession(val pack: ContentPackage, private val seed: Long = System.nano
             if (!fired) break
         }
         runAutoDeductions()
+    }
+
+    // ---- emboscadas dinâmicas ----
+
+    /** Há uma nave hostil já em ação contra o jogador? (Evita acumular emboscadas.) */
+    private fun hostileActive(): Boolean = sim.dynamics.any { (id, d) ->
+        id !in sim.destroyed && (d.mode == AiMode.ATTACK || d.mode == AiMode.BOARD || d.mode == AiMode.PURSUE)
+    }
+
+    /**
+     * Chance de uma emboscada acontecer agora, ou null se não pode (fora da região, outro destino). Fatores:
+     * reputação com a facção da nave (−100 → ×2; 0 → ×1; +100 → ×0,2), carga a bordo (sem carga, ×0,5) e escolta por perto (×0,5).
+     */
+    fun ambushChance(a: AmbushDef): Double? {
+        if (a.near != null) {
+            val body = world.body(a.near) ?: return null
+            if ((sim.ship.pos - sim.position(body)).length > a.radius) return null
+        }
+        if (a.targetId != null && sim.target.id != a.targetId) return null
+        val rep = story.reputation[a.factionId] ?: 0
+        var p = a.chance * (1.0 - rep / 100.0).coerceIn(0.2, 2.0)
+        if (sim.ship.cargo <= 0.0) p *= 0.5
+        if (sim.dynamics.any { (id, d) -> d.mode == AiMode.ESCORT && id !in sim.destroyed && (d.pos - sim.ship.pos).length < 100_000.0 }) p *= 0.5
+        return p.coerceIn(0.0, 0.95)
+    }
+
+    /** A cada [AmbushDef.interval] s de missão em voo, sorteia cada emboscada (uma por vez, com 12 h de folga entre elas). */
+    private fun pollAmbushes() {
+        if (pack.ambushes.isEmpty() || sim.status != Status.FLYING || ended) return
+        for (a in pack.ambushes) {
+            val k = (sim.time / a.interval).toInt()
+            val key = "emb:${a.id}"
+            if (k <= (story.counters[key] ?: 0)) continue
+            story.counters[key] = k
+            if (!a.repeat && a.id in story.fired) continue
+            val body = world.body(a.ship) ?: continue
+            if (body.id in sim.destroyed || hostileActive()) continue
+            if (sim.time - (story.counters["emb_cd"] ?: -1_000_000) < 43_200.0) continue
+            val p = ambushChance(a) ?: continue
+            if (story.nextDouble() >= p) continue
+            story.fired.add(a.id)
+            story.counters["emb_cd"] = sim.time.toInt()
+            story.flags["emboscada_${a.id}"] = true
+            runEffects(listOf(Effect.Ambush(a.ship, a.distance), Effect.Ai(a.ship, a.mode)))
+            addMessage(a.message ?: "CONTATO HOSTIL: ${body.name} surgiu a ${(a.distance / 1000).toInt()} km!")
+            runEffects(a.effects)
+            return
+        }
     }
 
     private fun runScheduled(): Boolean {

@@ -20,6 +20,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - **Todo mistério precisa ter solução alcançável**: toda pista usada numa dedução ou condição precisa ser revelada por alguma regra ou diálogo; todo objeto exigido precisa ser entregue por algum efeito. O jogo simula o pacote ao importar e recusa se encontrar um final inalcançável.
 - Cada final deve ter `manchete` (uma frase de jornal).
 - **Diga ao jogador qual alvo marcar.** No painel, `ALVO` mostra o corpo selecionado e o jogador troca de alvo tocando em `ALVO`; o piloto automático (INTERCEPTAR) vai ao alvo selecionado. A nave já começa com `nave.alvo` selecionado, mas a mensagem inicial (`r_inicio`) e o `texto` da missão devem citar o **nome do corpo de destino** e deixar claro se é uma estação (atraca) ou um planeta/lua (pousa). Exemplo certo: "levar o gelo ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares." Nunca escreva só "leve a Marte" quando o destino é uma estação.
+- **Em campanhas com viagem, inclua `emboscadas`** (veja a seção "Emboscadas dinâmicas"): o jogador não deve conhecer o risco de antemão, e o jogo sorteia sozinho conforme facção, reputação, região, rota e carga.
 - **Δv e empuxo andam juntos.** O jogo simula o piloto automático ao importar e recusa o pacote se o Δv da nave (`velocidadeExaustao` × ln da razão de massas) não chega ao destino. Se você subir `aceleracaoMax` (por exemplo para 14, para decolar da Terra), a viagem exige mais Δv: suba também `velocidadeExaustao` (1,6e7 funciona na escala solar) ou o combustível.
 
 ## Estrutura do arquivo
@@ -45,7 +46,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "tentativasAcusacao": 3,
   "finais": [{"id": "...", "titulo": "...", "manchete": "...", "tipo": "vitoria|derrota|neutro"}],
   "noticias": ["manchetes iniciais"],
-  "blocos": [{"id": "...", "efeitos": [efeitos]}]
+  "blocos": [{"id": "...", "efeitos": [efeitos]}],
+  "emboscadas": [{"id": "...", "nave": "id de corpo tipo nave", "faccao": "id", "chance": 0.3, "perto": "id de corpo", "raio": 1e9, "alvo": "id de corpo", "comportamento": "abordar|atacar|perseguir", "distancia": 25000, "intervalo": 21600, "repetir": false, "mensagem": "texto", "efeitos": [efeitos]}]
 }
 ```
 Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}` em `detalhe` mostra a chance do primeiro sorteio da escolha. Uma acusação escolhe o suspeito: vale a primeira cujo `se` seja verdadeiro (ponha a mais exigente primeiro e uma sem `se` por último).
@@ -129,6 +131,17 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 3. `deducoes` combinam pistas no caderno e liberam consequências.
 4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
+
+## Emboscadas dinâmicas (o jogo sorteia sozinho; o autor não escreve a sorte)
+Para campanhas com viagem, **declare de 1 a 3 `emboscadas`**: cada uma diz quem pode atacar, de qual facção, onde e com que chance base. O motor faz o resto, a cada `intervalo` segundos de voo (padrão 6 h): sorteia, e se der "sim" a nave surge a `distancia` metros do jogador e age (`abordar`, `atacar` ou `perseguir`). O jogador nunca sabe de antemão se haverá emboscada.
+- `nave`: um corpo de `tipo: "nave"` da lista `corpos` (pode ser `"oculto": true`). Uma nave por emboscada; ela só ataca uma vez (a menos de `repetir: true`) e nunca duas ao mesmo tempo. Há 12 h de folga entre emboscadas.
+- `faccao`: a facção da nave. **A reputação do jogador com ela muda a chance**: reputação −100 → ×2; 0 → ×1; +100 → ×0,2. Ou seja, facções que o jogador irritou aparecem mais, e as aliadas quase nunca atacam.
+- `chance`: probabilidade base de **cada sorteio** (0 a 1). Use 0,15 a 0,35: com vários sorteios na viagem o risco total fica entre 30% e 70%. Sem carga a bordo, a chance cai pela metade; com uma nave de escolta por perto, cai pela metade de novo. O teto é 95%.
+- `perto` e `raio` (m): só sorteia enquanto o jogador está a esse raio do corpo, a **região** da emboscada (por exemplo, perto de Ceres para corsários do Cinturão). `alvo`: só sorteia quando o jogador seleciona esse corpo como destino, a **rota**. Combine os dois para "quem vai de Ceres a Marte corre risco perto de Ceres".
+- Varie: use facções e regiões diferentes (corsários perto do cinturão, uma fragata da Coalizão perto da Terra, uma patrulha da Federação perto de Marte), cada uma com sua `chance`. Dê reputações iniciais que tornem algumas mais prováveis que outras.
+- `mensagem` (opcional) e `efeitos` (opcional: `noticia`, `flag`, `dialogo`...) rodam quando ela acontece. O motor também liga a flag `emboscada_<id>`; use-a em regras e condições.
+- As consequências vêm das **regras normais**: para `abordar`, escreva uma regra `abordado` com o diálogo (pagar pedágio, resistir) e `sorteio`; para `atacar`, regras de `casco_abaixo`, `nave_destruida` e `missil_lancado`. Veja a Rota do Gelo.
+- **Não** simule a sorte com `se: aleatorio` no gatilho `tempo`: a regra seria testada a cada instante e acabaria acontecendo quase com certeza. Use `emboscadas`.
 
 ## Como montar uma missão de pouso (entrega na superfície)
 1. Use planetas e luas reais no `planeta`/`corpos` (Sistema Solar: Terra, Lua, Marte, Ceres, Titã...). Todo `tipo: "planeta"` é pousável por padrão; marque `"pousavel": false` nos gigantes gasosos (Júpiter, Saturno), que não têm superfície. Atmosfera é opcional (`escalaAtmosfera`, `velTerminalAtmosfera`): Terra 8500 e 9, Marte 11100 e 45.
@@ -285,7 +298,8 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
     {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
     {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
     {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
-    {"id": "natural", "nome": "Corpos naturais", "cor": "#8A95A8", "estilo": "generico"}
+    {"id": "natural", "nome": "Corpos naturais", "cor": "#8A95A8", "estilo": "generico"},
+    {"id": "corsarios", "nome": "Corsários da Gralha", "cor": "#C9A06A", "estilo": "generico"}
   ],
   "corpos": [
     {"id": "mercurio", "nome": "Mercúrio", "curto": "Mercúrio", "tipo": "planeta", "faccao": "natural", "raioOrbita": 57909050000.0, "excentricidade": 0.2056, "argPeriapse": 1.3519, "fase": 3.05, "gm": 22031868000000.0, "raio": 2439700.0, "cor": "#A8A29A"},
@@ -305,20 +319,24 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
     {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Ares", "tipo": "estacao", "faccao": "federacao", "pai": "marte", "raioOrbita": 9400000.0, "fase": 2.2, "tamanho": 150},
     {"id": "porto_ceres", "nome": "Porto Ceres", "curto": "P. Ceres", "tipo": "estacao", "faccao": "liga", "pai": "ceres", "raioOrbita": 1500000.0, "fase": 0.2, "tamanho": 150},
     {"id": "entreposto_ganimedes", "nome": "Entreposto Ganimedes", "curto": "Entreposto", "tipo": "estacao", "faccao": "liga", "pai": "ganimedes", "raioOrbita": 6500000.0, "fase": 0.8, "tamanho": 130},
-    {"id": "posto_tita", "nome": "Posto Titã", "curto": "P. Titã", "tipo": "estacao", "faccao": "liga", "pai": "titan", "raioOrbita": 4200000.0, "fase": 1.7, "tamanho": 130}
+    {"id": "posto_tita", "nome": "Posto Titã", "curto": "P. Titã", "tipo": "estacao", "faccao": "liga", "pai": "titan", "raioOrbita": 4200000.0, "fase": 1.7, "tamanho": 130},
+    {"id": "corsario_vesper", "nome": "Corsário Vésper", "curto": "Vésper", "tipo": "nave", "faccao": "corsarios", "pai": "terra", "raioOrbita": 200000000.0, "fase": 1.0, "tamanho": 70, "atracavel": false, "oculto": true, "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "defesa": 0.35, "aceleracaoMax": 8.0}
   ],
   "nave": {"nome": "Cargueiro Selene", "massaSeca": 240000, "carga": 25000, "combustivel": 90000, "nomeCarga": "25 t de equipamento médico e água", "perto": "estacao_meridiano", "altitude": 30000, "alvo": "lua", "casco": 100, "despistadores": 0, "chanceDespistar": 0.5, "aceleracaoMax": 14.0, "velocidadeExaustao": 16000000.0},
   "creditos": 300,
-  "reputacao": {"coalizao": 0, "federacao": 0, "liga": 0, "natural": 0},
+  "reputacao": {"coalizao": 0, "federacao": 0, "liga": 0, "natural": 0, "corsarios": -20},
   "personagens": [
-    {"id": "dra_vega", "nome": "Dra. Vega", "papel": "médica-chefe da Base Selene", "faccao": "coalizao"}
+    {"id": "dra_vega", "nome": "Dra. Vega", "papel": "médica-chefe da Base Selene", "faccao": "coalizao"},
+    {"id": "capitao_vesper", "nome": "Capitão Vésper", "papel": "capitão do Vésper", "faccao": "corsarios"}
   ],
   "dialogos": [
-    {"id": "d_contrato", "personagem": "dra_vega", "texto": "“Cargueiro Selene, aqui é a Dra. Vega, da Base Selene. Nossa enfermaria está sem equipamento e a cisterna está quase seca. A base fica na superfície, na plataforma A-1: o piloto automático faz a descida assistida, mas você precisa de empuxo para frear. Posso pagar mais se chegar em 12 horas.”", "escolhas": [{"texto": "Aceitar o prazo de 12 horas", "detalhe": "Bônus: 2400 créditos se pousar a tempo, 1400 se atrasar. Coalizão +2.", "efeitos": [{"tipo": "flag", "nome": "urgente"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 2}, {"tipo": "mensagem", "texto": "Prazo de 12 h aceito. Pouse na Lua, na plataforma A-1 da Base Selene."}]}, {"texto": "Entregar sem pressa", "detalhe": "Paga 1400 créditos, sem prazo.", "efeitos": [{"tipo": "mensagem", "texto": "Sem prazo. Pouse na Lua, na plataforma A-1 da Base Selene."}]}]}
+    {"id": "d_contrato", "personagem": "dra_vega", "texto": "“Cargueiro Selene, aqui é a Dra. Vega, da Base Selene. Nossa enfermaria está sem equipamento e a cisterna está quase seca. A base fica na superfície, na plataforma A-1: o piloto automático faz a descida assistida, mas você precisa de empuxo para frear. Posso pagar mais se chegar em 12 horas.”", "escolhas": [{"texto": "Aceitar o prazo de 12 horas", "detalhe": "Bônus: 2400 créditos se pousar a tempo, 1400 se atrasar. Coalizão +2.", "efeitos": [{"tipo": "flag", "nome": "urgente"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 2}, {"tipo": "mensagem", "texto": "Prazo de 12 h aceito. Pouse na Lua, na plataforma A-1 da Base Selene."}]}, {"texto": "Entregar sem pressa", "detalhe": "Paga 1400 créditos, sem prazo.", "efeitos": [{"tipo": "mensagem", "texto": "Sem prazo. Pouse na Lua, na plataforma A-1 da Base Selene."}]}]},
+    {"id": "d_vesper", "personagem": "capitao_vesper", "texto": "“Cargueiro Selene, aqui é o Vésper. Estamos a um passo de abordar. A carga da Base Selene vale muito para quem tem sede. Pague o pedágio ou levamos tudo.”", "escolhas": [{"texto": "Pagar o pedágio", "detalhe": "300 créditos. O Vésper vai embora.", "se": {"tipo": "creditos", "min": 300}, "bloqueio": "Você não tem 300 créditos.", "efeitos": [{"tipo": "creditos", "delta": -300}, {"tipo": "flag", "nome": "pagou_vesper"}, {"tipo": "destruir_corpo", "corpo": "corsario_vesper", "explosao": false}, {"tipo": "mensagem", "texto": "Pedágio pago. O Vésper se afasta."}]}, {"texto": "Resistir", "detalhe": "35% de chance de repelir. Se falhar, a carga é apreendida.", "efeitos": [{"tipo": "sorteio", "chance": {"base": 0.35}, "sucesso": [{"tipo": "destruir_corpo", "corpo": "corsario_vesper"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 3}, {"tipo": "mensagem", "texto": "Você repeliu o Vésper!"}], "falha": [{"tipo": "perder_carga"}, {"tipo": "missao", "id": "m_entrega", "estado": "falhou"}, {"tipo": "final", "id": "apreendido"}]}]}]}
   ],
   "blocos": [],
   "regras": [
     {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_contrato"}, {"tipo": "mensagem", "texto": "Missão: pousar na Lua com 25 t de suprimentos. Selecione ALVO Lua e toque em INTERC.: o piloto automático faz a descida."}]},
+    {"id": "r_abordado", "quando": {"tipo": "abordado", "corpo": "corsario_vesper"}, "entao": [{"tipo": "dialogo", "id": "d_vesper"}]},
     {"id": "r_prazo", "quando": {"tipo": "tempo", "depoisDe": 43200}, "se": {"tipo": "e", "condicoes": [{"tipo": "flag", "nome": "urgente"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "entregou"}}]}, "entao": [{"tipo": "flag", "nome": "atrasou"}, {"tipo": "mensagem", "texto": "O prazo de 12 horas estourou: o bônus foi perdido, mas a base ainda espera a entrega."}]},
     {"id": "r_pouso_rapido", "quando": {"tipo": "atracar", "local": "lua"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "flag", "nome": "urgente"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "atrasou"}}]}, "entao": [{"tipo": "perder_carga"}, {"tipo": "creditos", "delta": 2400}, {"tipo": "flag", "nome": "entregou"}, {"tipo": "flag", "nome": "rapido"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 5}, {"tipo": "missao", "id": "m_entrega", "estado": "concluida"}, {"tipo": "missao", "id": "m_volta", "estado": "ativa"}, {"tipo": "noticia", "texto": "Base Selene recebe suprimentos dentro do prazo; enfermaria reabre."}, {"tipo": "mensagem", "texto": "Carga entregue a tempo: +2400 créditos. Agora decole e volte à Estação Meridiano."}]},
     {"id": "r_pouso", "quando": {"tipo": "atracar", "local": "lua"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "entregou"}}]}, "entao": [{"tipo": "perder_carga"}, {"tipo": "creditos", "delta": 1400}, {"tipo": "flag", "nome": "entregou"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 3}, {"tipo": "missao", "id": "m_entrega", "estado": "concluida"}, {"tipo": "missao", "id": "m_volta", "estado": "ativa"}, {"tipo": "noticia", "texto": "Base Selene recebe equipamento médico e água; a cisterna volta a encher."}, {"tipo": "mensagem", "texto": "Carga entregue: +1400 créditos. Agora decole (precisa de empuxo acima de 1,62 m/s²) e volte à Estação Meridiano."}]},
@@ -334,11 +352,16 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
   "finais": [
     {"id": "rapido", "titulo": "ENTREGA RELÂMPAGO", "tipo": "vitoria", "manchete": "Cargueiro pousa na Lua dentro do prazo e volta à órbita; Base Selene reabre a enfermaria."},
     {"id": "entregue", "titulo": "SUPRIMENTOS ENTREGUES", "tipo": "vitoria", "manchete": "Cargueiro entrega suprimentos na Base Selene e decola de volta; a base agradece."},
-    {"id": "destruido", "titulo": "NAVE DESTRUÍDA", "tipo": "derrota", "manchete": "Cargueiro Selene se perde na rota para a Lua; Coalizão abre inquérito."}
+    {"id": "destruido", "titulo": "NAVE DESTRUÍDA", "tipo": "derrota", "manchete": "Cargueiro Selene se perde na rota para a Lua; Coalizão abre inquérito."},
+    {"id": "apreendido", "titulo": "CARGA APREENDIDA", "tipo": "derrota", "manchete": "Corsários abordam cargueiro entre a Terra e a Lua e levam os suprimentos da Base Selene."}
   ],
   "noticias": [
     "Base Selene pede suprimentos: enfermaria sem equipamento e cisterna quase seca.",
-    "Coalizão reforça a ponte de carga Terra–Lua."
+    "Coalizão reforça a ponte de carga Terra–Lua.",
+    "Corsários do Vésper são vistos entre a Terra e a Lua."
+  ],
+  "emboscadas": [
+    {"id": "e_vesper", "nave": "corsario_vesper", "faccao": "corsarios", "chance": 0.2, "perto": "terra", "raio": 600000000.0, "alvo": "lua", "comportamento": "abordar", "distancia": 25000, "intervalo": 7200, "mensagem": "CONTATO HOSTIL: o Corsário Vésper surgiu a 25 km!", "efeitos": [{"tipo": "noticia", "texto": "Corsários rondam a ponte de carga Terra–Lua."}]}
   ]
 }
 

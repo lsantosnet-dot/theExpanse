@@ -62,6 +62,18 @@ class DeductionDef(val id: String, val requires: List<String>, val text: String,
 class MissionDef(val id: String, val title: String, val text: String, val initial: Boolean)
 /** Sequência de efeitos nomeada: pode ser executada ou agendada por id (e por isso sobrevive ao salvamento). */
 class BlockDef(val id: String, val effects: List<Effect>)
+
+/**
+ * Emboscada dinâmica: durante o voo o motor sorteia, de tempos em tempos, se a nave [ship] ataca o jogador.
+ * A chance de cada sorteio é [chance] × a reputação com [factionId] × se há carga × se há escolta (ver GameSession).
+ * [near] e [radius] limitam a emboscada à região de um corpo; [targetId] à rota para um destino.
+ */
+class AmbushDef(
+    val id: String, val ship: String, val factionId: String, val chance: Double,
+    val near: String?, val radius: Double, val targetId: String?,
+    val mode: AiMode, val distance: Double, val interval: Double, val repeat: Boolean,
+    val message: String?, val effects: List<Effect>,
+)
 class SuspectDef(val id: String, val name: String, val text: String)
 class AccusationDef(val id: String, val suspectId: String, val condition: Cond?, val effects: List<Effect>)
 
@@ -81,6 +93,7 @@ class ContentPackage(
     val endings: List<EndingDef>, val news: List<String>, val blocks: List<BlockDef> = emptyList(),
     /** Quantas acusações o jogador pode fazer: errar (final de derrota) gasta uma e descarta o suspeito, até a última encerrar o caso. */
     val accusationAttempts: Int = DEFAULT_ACCUSATIONS,
+    val ambushes: List<AmbushDef> = emptyList(),
 ) {
     fun block(id: String) = blocks.firstOrNull { it.id == id }
     fun faction(id: String) = factions.firstOrNull { it.id == id }

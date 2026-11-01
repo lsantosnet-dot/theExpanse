@@ -367,6 +367,17 @@ private fun landing() {
     }
 }
 
+/** Tela inicial: ordem da lista e exclusão de campanhas importadas (com a confirmação pendente). */
+private fun home() {
+    val c = AppController(MemoryStorage(), seed = { 7L })
+    val base = com.theexpanse.content.Builtin.text("albatroz")!!
+    c.importText("a.json", base.replace("\"id\": \"albatroz\"", "\"id\": \"zeta_x\"").replace("O silêncio do Albatroz", "Zeta importada"))
+    c.importText("b.json", base.replace("\"id\": \"albatroz\"", "\"id\": \"alfa_x\"").replace("O silêncio do Albatroz", "Alfa importada"))
+    c.press("home_sort:data_desc")
+    c.press("home_del:alfa_x")
+    shot(c, "70_inicio_ordem_exclusao")
+}
+
 /** Painel com chegada em tempo de jogo e tempo real; câmera girada na cabine e na externa. */
 private fun panelAndCamera() {
     val c = AppController(MemoryStorage(), seed = { 9L })
@@ -536,6 +547,7 @@ fun main(args: Array<String>) {
     outDir.mkdirs()
     if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); accusations(); return }
     if (System.getenv("ONLY_RADAR") != null) { radar(); return }
+    if (System.getenv("ONLY_HOME") != null) { home(); return }
     if (System.getenv("ONLY_LANDING") != null) { landing(); return }
     if (System.getenv("ONLY_TEMPLATE") != null) {
         File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())

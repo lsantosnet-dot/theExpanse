@@ -27,6 +27,10 @@ object HomeScreen {
         d.text(16f, 34f, "THE EXPANSE", Palette.AMBER, 22f, bold = true)
         d.text(16f, 52f, "Física real, política e mistério. Escolha uma campanha.", Palette.MUTED, 10f)
 
+        // ordem da lista: nome (A–Z, Z–A) ou data de inclusão (▲ mais antigas primeiro, ▼ mais recentes primeiro)
+        d.text(256f, 28f, "ORDEM", Palette.MUTED, 9f)
+        for ((i, m) in HomeSort.values().withIndex()) ui.add("home_sort:${m.key}", 300f + i * 66f, 12f, 62f, 24f, m.label, active = c.homeSort == m)
+
         val perPage = 3
         val pages = ((c.entries.size + perPage - 1) / perPage).coerceAtLeast(1)
         c.homePage = c.homePage.coerceIn(0, pages - 1)
@@ -36,7 +40,8 @@ object HomeScreen {
             d.text(28f, y + 22f, e.pack.title, Palette.INK, 14f, bold = true)
             Ui.paragraph(d, 28f, y + 38f, e.pack.summary, 10f, Palette.MUTED, 330f, 3, 12f)
             var px = 28f
-            px += Ui.pill(d, px, y + 66f, if (e.builtin) "incluída" else "importada", if (e.builtin) Palette.AMBER else Palette.GREEN)
+            val added = if (!e.builtin && e.addedAt > 1_000_000_000_000L) java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale("pt", "BR")).format(java.util.Date(e.addedAt)) else null
+            px += Ui.pill(d, px, y + 66f, if (e.builtin) "incluída" else "importada" + (added?.let { " $it" } ?: ""), if (e.builtin) Palette.AMBER else Palette.GREEN)
             val role = if (e.pack.role.kind == com.theexpanse.content.RoleKind.MILITARY) "militar · " + (e.pack.faction(e.pack.role.factionId ?: "")?.name ?: "") else "mercador"
             px += Ui.pill(d, px, y + 66f, role, if (e.pack.role.kind == com.theexpanse.content.RoleKind.MILITARY) Palette.RED_SOFT else Palette.GREEN)
             px += Ui.pill(d, px, y + 66f, "${e.pack.endings.size} finais", Palette.MUTED)
@@ -46,7 +51,10 @@ object HomeScreen {
                 ui.add("home_resume:${e.pack.id}", 476f, y + 10f, 80f, 34f, "CONTINUAR", active = true)
                 ui.add("home_saves:${e.pack.id}", 380f, y + 50f, 90f, 28f, "SAVES · ${e.saveCount}")
             }
-            if (!e.builtin) ui.add("home_del:${e.pack.id}", 520f, y + 50f, 36f, 28f, "✕")
+            if (!e.builtin) {
+                val confirm = c.pendingDeletePack == e.pack.id
+                ui.add("home_del:${e.pack.id}", 476f, y + 50f, 80f, 28f, if (confirm) "CONFIRMAR?" else "EXCLUIR", accent = if (confirm) Palette.RED_SOFT else 0, active = confirm)
+            }
         }
         if (pages > 1) {
             ui.add("home_prev", 16f, 352f, 44f, 30f, "◀", enabled = c.homePage > 0)

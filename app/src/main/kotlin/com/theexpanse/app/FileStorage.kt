@@ -19,10 +19,27 @@ class FileStorage(private val root: File) : Storage {
         return out
     }
 
-    override fun putPackage(id: String, text: String) = File(pkgDir, safe(id) + ".json").writeText(text, Charsets.UTF_8)
+    private val prefDir = File(root, "settings").apply { mkdirs() }
+
+    override fun putPackage(id: String, text: String) {
+        val file = File(pkgDir, safe(id) + ".json")
+        val meta = File(pkgDir, safe(id) + ".added")
+        // a data de inclusão é a da primeira vez; reimportar o mesmo id não a muda
+        if (!meta.exists()) meta.writeText((if (file.exists()) file.lastModified() else System.currentTimeMillis()).toString())
+        file.writeText(text, Charsets.UTF_8)
+    }
+
+    override fun packageAddedAt(id: String): Long =
+        File(pkgDir, safe(id) + ".added").takeIf { it.exists() }?.readText()?.trim()?.toLongOrNull()
+            ?: File(pkgDir, safe(id) + ".json").takeIf { it.exists() }?.lastModified() ?: 0L
+
+    override fun setting(key: String): String? = File(prefDir, safe(key) + ".txt").takeIf { it.exists() }?.readText(Charsets.UTF_8)
+
+    override fun putSetting(key: String, value: String) = File(prefDir, safe(key) + ".txt").writeText(value, Charsets.UTF_8)
 
     override fun removePackage(id: String) {
         File(pkgDir, safe(id) + ".json").delete()
+        File(pkgDir, safe(id) + ".added").delete()
         File(saveDir, safe(id)).deleteRecursively()
         File(saveDir, safe(id) + ".json").delete()
     }

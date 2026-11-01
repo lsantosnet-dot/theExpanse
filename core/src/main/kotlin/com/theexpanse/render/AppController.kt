@@ -24,8 +24,17 @@ import kotlinx.serialization.json.jsonObject
 
 enum class Screen { HOME, FLIGHT, MAP, ROUTE, DIALOGUE, STATION, NOTEBOOK, HOLD, NEWS, MENU, END, ERRORS, CINEMATIC, SAVES }
 
-class Entry(val pack: ContentPackage, val builtin: Boolean, val saveCount: Int) {
+class Entry(val pack: ContentPackage, val builtin: Boolean, val saveCount: Int, val addedAt: Long = 0L) {
     val hasSave: Boolean get() = saveCount > 0
+}
+
+/** Ordem da lista de campanhas. Data: as incluídas no jogo vêm como as mais antigas, na ordem fixa em que foram feitas. */
+enum class HomeSort(val key: String, val label: String) {
+    NAME_ASC("az", "A–Z"), NAME_DESC("za", "Z–A"), DATE_ASC("data_asc", "DATA ▲"), DATE_DESC("data_desc", "DATA ▼");
+
+    companion object {
+        fun of(key: String?) = values().firstOrNull { it.key == key } ?: DATE_ASC
+    }
 }
 
 /** Uma cena animada em andamento (atracar ou desatracar). */
@@ -55,6 +64,14 @@ class AppController(
         private set
 
     var entries: List<Entry> = emptyList()
+        private set
+
+    /** Como a lista de campanhas é ordenada (guardada entre aberturas do app). */
+    var homeSort: HomeSort = HomeSort.of(storage.setting("homeSort"))
+        private set
+
+    /** Campanha importada com a exclusão esperando a segunda confirmação. */
+    var pendingDeletePack: String? = null
         private set
     var homePage = 0
     var banner: String? = null
@@ -108,9 +125,15 @@ class AppController(
 
     fun refreshCatalog() {
         val list = ArrayList<Entry>()
-        for ((_, text) in Builtin.all()) Decoder.decode(text).pack?.let { list.add(Entry(it, true, saveList(it.id).size)) }
-        for ((_, text) in storage.packages()) Decoder.decode(text).pack?.let { p -> if (list.none { it.pack.id == p.id }) list.add(Entry(p, false, saveList(p.id).size)) }
-        entries = list
+        for ((i, pair) in Builtin.all().withIndex()) Decoder.decode(pair.second).pack?.let { list.add(Entry(it, true, saveList(it.id).size, Long.MIN_VALUE / 2 + i)) }
+        for ((_, text) in storage.packages()) Decoder.decode(text).pack?.let { p -> if (list.none { it.pack.id == p.id }) list.add(Entry(p, false, saveList(p.id).size, storage.packageAddedAt(p.id))) }
+        val collator = java.text.Collator.getInstance(java.util.Locale("pt", "BR"))
+        entries = when (homeSort) {
+            HomeSort.NAME_ASC -> list.sortedWith { a, b -> collator.compare(a.pack.title, b.pack.title) }
+            HomeSort.NAME_DESC -> list.sortedWith { a, b -> collator.compare(b.pack.title, a.pack.title) }
+            HomeSort.DATE_ASC -> list.sortedBy { it.addedAt }
+            HomeSort.DATE_DESC -> list.sortedByDescending { it.addedAt }
+        }
     }
 
     fun say(text: String) {
@@ -399,6 +422,8 @@ class AppController(
         val sim = s?.sim
         // qualquer outro toque dispensa o aviso de rota inviável (o tempo volta a correr)
         if (verdict != null && !id.startsWith("pf_")) verdict = null
+        // qualquer outro toque cancela a exclusão de campanha que esperava confirmação
+        if (!id.startsWith("home_del:")) pendingDeletePack = null
         if (id != "engine" && !id.startsWith("turn_") && !id.startsWith("cam_")) host.play(Sfx.CLICK)
         when {
             id == "back" -> screen = when (screen) { Screen.ERRORS -> Screen.HOME; Screen.SAVES -> savesFrom; else -> Screen.FLIGHT }
@@ -506,7 +531,23 @@ class AppController(
             id.startsWith("home_play:") -> entries.firstOrNull { it.pack.id == id.removePrefix("home_play:") }?.let { start(it, false) }
             id.startsWith("home_resume:") -> entries.firstOrNull { it.pack.id == id.removePrefix("home_resume:") }?.let { start(it, true) }
             id.startsWith("home_saves:") -> openSaves(id.removePrefix("home_saves:"))
-            id.startsWith("home_del:") -> id.removePrefix("home_del:").let { storage.removePackage(it); refreshCatalog(); say("Campanha removida.") }
+            id.startsWith("home_del:") -> id.removePrefix("home_del:").let { pid ->
+                if (pendingDeletePack == pid) {
+                    storage.removePackage(pid)
+                    pendingDeletePack = null
+                    refreshCatalog()
+                    say("Campanha removida, com os seus salvamentos.")
+                } else {
+                    pendingDeletePack = pid
+                    say("Toque de novo para excluir (apaga os saves).")
+                }
+            }
+            id.startsWith("home_sort:") -> {
+                homeSort = HomeSort.of(id.removePrefix("home_sort:"))
+                storage.putSetting("homeSort", homeSort.key)
+                homePage = 0
+                refreshCatalog()
+            }
         }
     }
 

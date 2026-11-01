@@ -24,6 +24,11 @@ object LandingScene {
         val base = body.argb
         val atmo = body.def.atmoScale > 0.0
         val grav = g.sim.surfaceGravity(body)
+        // corpos azulados (a cor do corpo é a dos oceanos, como a Terra): o céu usa o azul, o chão é terra e vegetação
+        val red = (base shr 16) and 0xFF
+        val green = (base shr 8) and 0xFF
+        val blue = base and 0xFF
+        val terrain = if (blue > red + 20 && blue > green) 0xFF7A8648.toInt() else base
 
         // céu
         val top = if (atmo) mix(0xFF05080F.toInt(), base, 0.25f) else 0xFF03060C.toInt()
@@ -37,11 +42,11 @@ object LandingScene {
         if (parent != null && parent.def.radius > 0.0) Planet.drawGeneric(d, 640f, 84f, 42f, parent.argb) else d.glow(780f, 80f, 70f, 0xFFFFE9B0.toInt().alpha(0.5f))
 
         // relevo distante e chão
-        val far = mix(low, base, 0.45f).let { mix(it, 0xFF000000.toInt(), 0.35f) }
+        val far = mix(low, terrain, 0.45f).let { mix(it, 0xFF000000.toInt(), 0.35f) }
         d.poly(floatArrayOf(0f, GROUND, 0f, GROUND - 34f, 120f, GROUND - 52f, 260f, GROUND - 30f, 410f, GROUND - 62f, 590f, GROUND - 28f, 740f, GROUND - 48f, Layout.W, GROUND - 26f, Layout.W, GROUND), fill = far)
-        val ground = mix(base, 0xFF000000.toInt(), 0.45f)
+        val ground = mix(terrain, 0xFF000000.toInt(), 0.45f)
         d.rect(0f, GROUND, Layout.W, Layout.H - GROUND, fill = ground)
-        d.rect(0f, GROUND, Layout.W, 3f, fill = mix(base, 0xFFFFFFFF.toInt(), 0.25f).alpha(0.7f))
+        d.rect(0f, GROUND, Layout.W, 3f, fill = mix(terrain, 0xFFFFFFFF.toInt(), 0.25f).alpha(0.7f))
         for (i in 0 until 16) d.rect(Fx.hash(i * 7) * Layout.W, GROUND + 14f + Fx.hash(i * 7 + 1) * 70f, 30f + Fx.hash(i * 7 + 2) * 60f, 3f, fill = mix(ground, 0xFF000000.toInt(), 0.35f))
 
         // base: cúpula, torre e plataforma de pouso
@@ -91,7 +96,7 @@ object LandingScene {
                 val side = if (i % 2 == 0) -1f else 1f
                 val dist = (20f + Fx.hash(i * 5) * 190f * near) * (0.6f + 0.4f * sin((anim * 3 + i).toFloat()))
                 val dy = -Fx.hash(i * 5 + 1) * 14f * near
-                d.circle(PAD_X + side * dist, GROUND + dy, 6f + Fx.hash(i * 5 + 2) * 12f * near, fill = mix(base, 0xFFFFFFFF.toInt(), 0.35f).alpha(0.22f * near * (if (atmo) 1f else 0.7f)))
+                d.circle(PAD_X + side * dist, GROUND + dy, 6f + Fx.hash(i * 5 + 2) * 12f * near, fill = mix(terrain, 0xFFFFFFFF.toInt(), 0.35f).alpha(0.22f * near * (if (atmo) 1f else 0.7f)))
             }
         }
 

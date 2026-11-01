@@ -62,7 +62,7 @@
     }
   ],
   "regras": [
-    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Contrato: levar 40 t de filtros de água ao Porto Kauã."}]},
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "mensagem", "texto": "Contrato: levar 40 t de filtros de água ao Porto Kauã. Marque ALVO Porto Kauã e toque em INTERC."}]},
     {"id": "r_radio", "quando": {"tipo": "distancia", "de": "jogador", "ate": "fragata_tribunal", "menorQue": 8e7},
      "entao": [{"tipo": "mensagem", "texto": "Rádio: a Fragata Tribunal está chamando."}, {"tipo": "dialogo", "id": "d_radio"}]},
     {"id": "r_entrega_mentiu", "quando": {"tipo": "atracar", "local": "porto_kaua"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "flag", "nome": "mentiu"}]},
@@ -86,7 +86,7 @@
     {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_entrega", "estado": "falhou"}, {"tipo": "final", "id": "destruido"}]}
   ],
   "missoes": [
-    {"id": "m_entrega", "titulo": "Filtros para o Porto Kauã", "texto": "Levar 40 t de filtros de água da Doca Meridiano ao Porto Kauã, que está sob quarentena.", "inicial": true}
+    {"id": "m_entrega", "titulo": "Filtros para o Porto Kauã", "texto": "Levar 40 t de filtros de água da Doca Meridiano ao Porto Kauã, que está sob quarentena. Destino: a estação Porto Kauã (ALVO Porto Kauã).", "inicial": true}
   ],
   "finais": [
     {"id": "entregou", "titulo": "CONTRATO CUMPRIDO", "tipo": "vitoria", "manchete": "Filtros chegam ao Porto Kauã sem incidentes; a Liga agradece em silêncio."},

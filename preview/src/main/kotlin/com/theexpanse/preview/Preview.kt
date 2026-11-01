@@ -338,7 +338,7 @@ private fun docking() {
 
 /** Pouso e decolagem em Marte (com atmosfera) e na Lua (sem), em seis instantes cada. */
 private fun landing() {
-    for ((id, tag) in listOf("marte" to "marte", "lua" to "lua")) {
+    for ((id, tag) in listOf("marte" to "marte", "lua" to "lua", "terra" to "terra", "ceres" to "ceres")) {
         val c = AppController(MemoryStorage(), seed = { 7L })
         c.press("home_play:rota_do_gelo")
         val g = c.session!!

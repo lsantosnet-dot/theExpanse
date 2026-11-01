@@ -643,8 +643,11 @@ class Simulation(val world: World, seed: Long = 1L) {
     /** Gravidade na superfície de um corpo (m/s²). */
     fun surfaceGravity(b: Body): Double = if (b.def.radius > 0.0) b.def.gm / (b.def.radius * b.def.radius) else 0.0
 
-    /** A nave consegue sair do chão deste corpo? (Empuxo atual maior que a gravidade de superfície.) */
-    fun canTakeOff(b: Body): Boolean = accelLimit > surfaceGravity(b) * 1.02
+    /** A nave consegue sair do chão deste corpo? (Algum empuxo, até o máximo da nave, vence a gravidade de superfície.) */
+    fun canTakeOff(b: Body): Boolean = takeoffThrust(b) != null
+
+    /** Menor empuxo (em passos de 10%) que vence a gravidade de superfície de [b], ou null se nem o máximo vence. */
+    fun takeoffThrust(b: Body): Int? = (10..100 step 10).firstOrNull { ship.maxAccel * it / 100.0 > surfaceGravity(b) * 1.02 }
 
     /** O corpo onde a nave está pousada (não atracada numa estação), ou null. */
     val landedOn: Body? get() = dockedAt?.takeIf { it.kind == com.theexpanse.content.BodyKind.PLANET }

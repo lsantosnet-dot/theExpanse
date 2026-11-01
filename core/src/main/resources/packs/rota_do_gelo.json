@@ -2,7 +2,7 @@
   "formato": 1,
   "id": "rota_do_gelo",
   "titulo": "Rota do Gelo (Sistema Solar)",
-  "resumo": "O Sistema Solar de verdade: órbitas elípticas, luas e gravidade de vários corpos. Leve gelo de Ceres a Marte, com escolta ou sem ela, e encare corsários, mísseis e abordagens.",
+  "resumo": "O Sistema Solar de verdade: órbitas elípticas, luas e gravidade de vários corpos. Leve gelo de Ceres ao Arsenal Ares, a estação em órbita de Marte, com escolta ou sem ela, e encare corsários, mísseis e abordagens.",
   "autor": "The Expanse (campanha incluída)",
   "papel": {"tipo": "mercador"},
   "escalaTempo": 1440,
@@ -38,7 +38,7 @@
     {"id": "cruzador_aurora", "nome": "Cruzador Aurora", "curto": "Aurora", "tipo": "nave", "faccao": "federacao", "pai": "ceres", "raioOrbita": 2.2e6, "fase": 1.0, "tamanho": 180, "atracavel": false, "misseis": 4, "despistadores": 2, "chanceInterceptar": 0.6, "aceleracaoMax": 6.0},
     {"id": "gralha", "nome": "Corsário Gralha", "curto": "Gralha", "tipo": "nave", "faccao": "corsarios", "pai": "ceres", "raioOrbita": 3.0e6, "fase": 2.0, "tamanho": 70, "atracavel": false, "oculto": true, "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "defesa": 0.35, "aceleracaoMax": 8.0}
   ],
-  "nave": {"nome": "Garça de Gelo", "massaSeca": 240000, "carga": 30000, "combustivel": 90000, "nomeCarga": "30 t de gelo d'água", "perto": "porto_ceres", "altitude": 30000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 9.8, "velocidadeExaustao": 1.2e7},
+  "nave": {"nome": "Garça de Gelo", "massaSeca": 240000, "carga": 30000, "combustivel": 90000, "nomeCarga": "30 t de gelo d'água", "perto": "porto_ceres", "altitude": 30000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 14.0, "velocidadeExaustao": 1.6e7},
   "creditos": 600,
   "reputacao": {"coalizao": 0, "federacao": 5, "liga": 15, "corsarios": -50, "natural": 0},
   "personagens": [
@@ -82,7 +82,7 @@
     {"id": "b_apreendido", "efeitos": [{"tipo": "perder_carga"}, {"tipo": "missao", "id": "m_gelo", "estado": "falhou"}, {"tipo": "final", "id": "apreendido"}]}
   ],
   "regras": [
-    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_escolta"}, {"tipo": "mensagem", "texto": "Missão: levar 30 t de gelo de Ceres ao Arsenal Ares, em Marte."}]},
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_escolta"}, {"tipo": "mensagem", "texto": "Missão: levar 30 t de gelo de Ceres ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares e toque em INTERC."}]},
     {"id": "r_emboscada", "quando": {"tipo": "tempo", "depoisDe": 5400},
      "entao": [{"tipo": "emboscar", "corpo": "gralha", "distancia": 25000}, {"tipo": "ia", "corpo": "gralha", "comportamento": "abordar"},
                {"tipo": "mensagem", "texto": "CONTATO HOSTIL: o Corsário Gralha surgiu a 25 km!"}, {"tipo": "noticia", "texto": "Corsários atacam comboio de gelo perto de Ceres."}]},
@@ -100,12 +100,12 @@
     {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_gelo", "estado": "falhou"}, {"tipo": "final", "id": "destruido"}]}
   ],
   "missoes": [
-    {"id": "m_gelo", "titulo": "Gelo para Marte", "texto": "Levar 30 t de gelo d'água de Ceres ao Arsenal Ares, em órbita de Marte. Corsários rondam a rota.", "inicial": true}
+    {"id": "m_gelo", "titulo": "Gelo para o Arsenal Ares", "texto": "Levar 30 t de gelo d'água de Ceres ao Arsenal Ares, estação em órbita de Marte: é nela que você atraca, não no planeta. No painel, ALVO deve mostrar Arsenal Ares (toque em ALVO até aparecer); depois INTERC. Corsários rondam a rota.", "inicial": true}
   ],
   "finais": [
-    {"id": "entregou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Comboio de gelo chega a Marte sem incidentes; Arsenal Ares paga em dia."},
-    {"id": "entregou_pagou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador paga pedágio a corsários e entrega o gelo em Marte; Federação pede escoltas permanentes."},
-    {"id": "entregou_repeliu", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador repele corsários da Gralha perto de Ceres e entrega o gelo em Marte."},
+    {"id": "entregou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Comboio de gelo chega ao Arsenal Ares sem incidentes; Arsenal Ares paga em dia."},
+    {"id": "entregou_pagou", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador paga pedágio a corsários e entrega o gelo no Arsenal Ares; Federação pede escoltas permanentes."},
+    {"id": "entregou_repeliu", "titulo": "GELO ENTREGUE", "tipo": "vitoria", "manchete": "Mercador repele corsários da Gralha perto de Ceres e entrega o gelo no Arsenal Ares."},
     {"id": "apreendido", "titulo": "CARGA PERDIDA", "tipo": "derrota", "manchete": "Corsários da Gralha abordam cargueiro perto de Ceres e levam o gelo; Liga exige patrulhas."},
     {"id": "destruido", "titulo": "NAVE DESTRUÍDA", "tipo": "derrota", "manchete": "Cargueiro de gelo é destruído entre Ceres e Marte; origem do ataque ainda é incerta."}
   ],

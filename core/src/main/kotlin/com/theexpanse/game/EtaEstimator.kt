@@ -47,6 +47,7 @@ class EtaEstimator {
                 return
             }
             val c = sim.copy()
+            c.planning = true
             c.missiles.clear()
             for (d in c.dynamics.values) if (d.mode == AiMode.ATTACK) d.mode = AiMode.PURSUE
             c.setThrust(sim.thrustPct)
@@ -62,7 +63,7 @@ class EtaEstimator {
         val end = System.nanoTime() + 6_000_000L // no máximo 6 ms por quadro: o estimador nunca trava a interface
         while (n++ < budgetSteps && c.status == Status.FLYING && c.time - workT0 < limit) {
             if ((n and 127) == 0 && System.nanoTime() >= end) break
-            c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
+            c.step(PlanSteps.forDistance(c.distanceTo()))
         }
         if (c.status == Status.DOCKED) {
             kind = Kind.ARRIVAL; seconds = c.time - workT0; startedAt = workT0; work = null

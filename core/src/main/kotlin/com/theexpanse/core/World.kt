@@ -34,12 +34,26 @@ class Body(val def: BodyDef, val faction: FactionDef, val parent: Body?, parentG
     val meanMotion: Double = sqrt(parentGm / (orbitRadius * orbitRadius * orbitRadius))
     val period: Double = 2 * PI / meanMotion
 
+    private val gmParent = parentGm
+
+    /** Resultado do último instante pedido (vários trechos do passo pedem o mesmo t). */
     private var cacheT = Double.NaN
     private var cachePos = Vec2.ZERO
     private var cacheVel = Vec2.ZERO
 
-    private fun solve(t: Double) {
-        if (t == cacheT) return
+    /**
+     * Órbita relativa ao pai, resolvida de forma exata (equação de Kepler) só de vez em quando: entre duas resoluções
+     * o corpo é extrapolado por Taylor de 2ª ordem com a aceleração central conhecida (-GM·r/|r|³). O intervalo é uma
+     * fração do período (menor em órbitas excêntricas), então o erro fica em milímetros ou metros, e a simulação
+     * deixa de resolver Kepler ~20 vezes por passo.
+     */
+    private var relT = Double.NaN
+    private var relPos = Vec2.ZERO
+    private var relVel = Vec2.ZERO
+    private var relAcc = Vec2.ZERO
+    private val interval: Double = (period / 4000.0 * Math.pow(1 - e, 1.5)).coerceAtLeast(0.5)
+
+    private fun solveRelative(t: Double) {
         val m = def.phase + meanMotion * t
         var ea = m % (2 * PI)
         if (e > 0.0) repeat(8) { ea -= (ea - e * sin(ea) - (m % (2 * PI))) / (1 - e * cos(ea)) }
@@ -53,8 +67,19 @@ class Body(val def: BodyDef, val faction: FactionDef, val parent: Body?, parentG
         val vy = k * b * ce
         val cw = cos(w)
         val sw = sin(w)
-        var pos = Vec2(px * cw - py * sw, px * sw + py * cw)
-        var vel = Vec2(vx * cw - vy * sw, vx * sw + vy * cw)
+        relPos = Vec2(px * cw - py * sw, px * sw + py * cw)
+        relVel = Vec2(vx * cw - vy * sw, vx * sw + vy * cw)
+        val r = relPos.length
+        relAcc = relPos * (-gmParent / (r * r * r))
+        relT = t
+    }
+
+    private fun solve(t: Double) {
+        if (t == cacheT) return
+        var d = t - relT
+        if (!(kotlin.math.abs(d) <= interval)) { solveRelative(t); d = 0.0 }
+        var pos = relPos + relVel * d + relAcc * (0.5 * d * d)
+        var vel = relVel + relAcc * d
         if (parent != null) {
             pos += parent.position(t)
             vel += parent.velocity(t)

@@ -140,13 +140,47 @@ object Autopilot {
             val a = min(aLim, max(0.3 * aLim, 1.5 * danger.accelNeeded))
             return AutopilotCommand(danger.direction.angle, a * f)
         }
-        val aCmd = rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, stopDist, vCap) ?: return AutopilotCommand(null, 0.0)
+        // se um corpo sólido bloqueia a reta até o destino, a nave mira num ponto de passagem ao lado dele, mas a velocidade
+        // continua seguindo o perfil de frenagem do destino (sem frear no ponto de passagem)
+        val via = detourAround(world, t, ship.pos, targetPos)
+        val aCmd = (if (via != null) {
+            val rel = targetPos - ship.pos
+            val d = rel.length
+            val vDes = min(sqrt(2 * 0.85 * aLim * max(0.0, d - stopDist)) * 0.9, vCap)
+            val aim = (via - ship.pos).unit()
+            (aim * vDes - (ship.vel - targetVel)) * 0.6 - (world.gravity(ship.pos, t) - world.gravity(targetPos, t))
+        } else rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, stopDist, vCap)) ?: return AutopilotCommand(null, 0.0)
         val mag = aCmd.length
         if (mag <= 0.03) return AutopilotCommand(null, 0.0)
         val desired = aCmd.angle
         val err = abs(wrapAngle(desired - ship.angle))
         val f = ((0.45 - err) / 0.35).coerceIn(0.0, 1.0)
         return AutopilotCommand(desired, min(mag, aLim) * f)
+    }
+
+    /**
+     * Ponto de passagem ao lado de um corpo sólido que bloqueia a reta da nave até o [targetPos]: a reta passa a menos
+     * de 1,6 raio do centro, o corpo está entre os dois, a nave ainda está longe dele (mais de 2 raios) e o destino
+     * não está dentro do corpo (pouso). Null se a reta está livre.
+     */
+    fun detourAround(world: World, t: Double, shipPos: Vec2, targetPos: Vec2): Vec2? {
+        // só planetas e luas; o corpo central de um pacote tem o seu desvio próprio (threat), que já funciona
+        for (b in world.solid) {
+            val o = Obstacle(b.name, b.position(t), b.velocity(t), b.def.radius, b.def.gm)
+            if (o.radius <= 0.0) continue
+            if ((targetPos - o.pos).length <= o.radius) continue
+            val ray = targetPos - shipPos
+            val len2 = ray dot ray
+            if (len2 < 1.0) continue
+            if ((shipPos - o.pos).length < o.radius * 2.0) continue
+            val u = (((o.pos - shipPos) dot ray) / len2).coerceIn(0.0, 1.0)
+            val off = shipPos + ray * u - o.pos
+            if (off.length >= o.radius * 1.6) continue
+            val perp = Vec2(-ray.y, ray.x).unit()
+            val side = if ((off dot perp) >= 0.0) 1.0 else -1.0
+            return o.pos + perp * (side * o.radius * 2.4)
+        }
+        return null
     }
 
     /** Altitude (acima da superfície) a partir da qual a nave já está fora da zona do corpo e pode tomar a rota. */

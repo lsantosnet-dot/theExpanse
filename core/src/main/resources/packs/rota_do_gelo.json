@@ -38,7 +38,7 @@
     {"id": "cruzador_aurora", "nome": "Cruzador Aurora", "curto": "Aurora", "tipo": "nave", "faccao": "federacao", "pai": "ceres", "raioOrbita": 2.2e6, "fase": 1.0, "tamanho": 180, "atracavel": false, "misseis": 4, "despistadores": 2, "chanceInterceptar": 0.6, "aceleracaoMax": 6.0},
     {"id": "gralha", "nome": "Corsário Gralha", "curto": "Gralha", "tipo": "nave", "faccao": "corsarios", "pai": "ceres", "raioOrbita": 3.0e6, "fase": 2.0, "tamanho": 70, "atracavel": false, "oculto": true, "misseis": 3, "despistadores": 1, "chanceDespistar": 0.4, "defesa": 0.35, "aceleracaoMax": 8.0}
   ],
-  "nave": {"nome": "Garça de Gelo", "massaSeca": 240000, "carga": 30000, "combustivel": 90000, "nomeCarga": "30 t de gelo d'água", "perto": "porto_ceres", "altitude": 30000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 9.8, "velocidadeExaustao": 1.2e7},
+  "nave": {"nome": "Garça de Gelo", "massaSeca": 240000, "carga": 30000, "combustivel": 90000, "nomeCarga": "30 t de gelo d'água", "perto": "porto_ceres", "altitude": 30000, "alvo": "arsenal_ares", "casco": 100, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 14.0, "velocidadeExaustao": 1.6e7},
   "creditos": 600,
   "reputacao": {"coalizao": 0, "federacao": 5, "liga": 15, "corsarios": -50, "natural": 0},
   "personagens": [

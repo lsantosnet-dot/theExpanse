@@ -365,7 +365,7 @@ object StationScreen {
         if (gnd != null) {
             d.text(230f, 28f, "Superfície", Palette.AMBER, 16f, bold = true)
             val gs = g.sim.surfaceGravity(gnd)
-            d.text(230f, 44f, "g " + Fmt.dec(gs, 2) + " m/s² · empuxo " + Fmt.dec(g.sim.accelLimit, 2) + " m/s² · Δv " + Fmt.speed(g.sim.ship.deltaV) + if (g.sim.canTakeOff(gnd)) "" else " · sem empuxo para decolar", Palette.MUTED, 10f)
+            d.text(230f, 44f, "g " + Fmt.dec(gs, 2) + " m/s² · empuxo máx " + Fmt.dec(g.sim.ship.maxAccel, 2) + " m/s² · Δv " + Fmt.speed(g.sim.ship.deltaV) + (g.sim.takeoffThrust(gnd)?.let { " · decola a partir de $it%" } ?: " · sem empuxo para decolar"), Palette.MUTED, 10f)
         } else {
             d.text(230f, 28f, "Estação", Palette.AMBER, 16f, bold = true)
             d.text(230f, 44f, "Combustível reabastecido · Δv " + Fmt.speed(g.sim.ship.deltaV), Palette.MUTED, 10f)

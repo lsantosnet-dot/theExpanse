@@ -298,8 +298,8 @@
   "casco": 100,
   "despistadores": 0,
   "chanceDespistar": 0.5,
-  "aceleracaoMax": 9.8,
-  "velocidadeExaustao": 12000000.0
+  "aceleracaoMax": 14.0,
+  "velocidadeExaustao": 16000000.0
  },
  "creditos": 300,
  "reputacao": {

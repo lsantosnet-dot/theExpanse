@@ -438,7 +438,11 @@ class AppController(
             id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null; cam.reset(); cinematic = null; wasDocked = false }
             id == "rescue" -> s.callRescue()
             id == "continue" -> { s.continueFlying(); screen = Screen.FLIGHT }
-            id == "undock" -> if (sim.landedOn != null) { if (sim.canTakeOff(sim.landedOn!!)) { if (cinematic == null) cinematic = Cinematic(CinematicKind.TAKEOFF, animTime) } else say("Empuxo insuficiente para decolar: aumente o empuxo.") }
+            id == "undock" -> if (sim.landedOn != null) { val need = sim.takeoffThrust(sim.landedOn!!)
+                    if (need != null) {
+                        if (sim.thrustPct < need) { sim.setThrust(need); say("Empuxo ajustado para $need% para vencer a gravidade de ${sim.landedOn!!.name}.") }
+                        if (cinematic == null) cinematic = Cinematic(CinematicKind.TAKEOFF, animTime)
+                    } else say("A nave não tem empuxo para vencer a gravidade de ${sim.landedOn!!.name}.") }
                 else if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
             id == "skip" -> finishCinematic()
             id == "cam_l" || id == "cam_r" || id == "cam_u" || id == "cam_d" -> held.add(id)

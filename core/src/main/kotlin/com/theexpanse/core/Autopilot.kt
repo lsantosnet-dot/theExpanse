@@ -200,6 +200,6 @@ object Autopilot {
         val budget = aLim - pull
         if (budget <= 0.1 && b.def.atmoScale > 0.0) return AutopilotCommand((-(ship.vel - bv)).takeIf { it.length > 1.0 }?.angle, 0.0)
         val vDes = max(1.5, sqrt(2 * 0.45 * max(budget, 0.05) * max(alt, 0.0)))
-        return velocity(ship, ship.vel - bv, up * -vDes, aLim, gLocal, 0.5)
+        return velocity(ship, ship.vel - bv, up * -vDes, aLim, gLocal, 0.3)
     }
 }

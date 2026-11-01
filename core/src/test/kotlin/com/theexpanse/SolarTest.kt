@@ -80,7 +80,7 @@ class SolarTest {
         val sim = Simulation(world)
         val mars = world.body("marte")!!
         sim.ship.pos = mars.position(0.0) + com.theexpanse.core.Vec2(3.0e6, 0.0)
-        sim.ship.vel = mars.velocity(0.0)
+        sim.ship.vel = mars.velocity(0.0) + com.theexpanse.core.Vec2(500.0, 0.0)
         sim.step(0.14)
         assertEquals(Status.CRASHED, sim.status)
         assertEquals("Marte", sim.crashedInto)

@@ -115,8 +115,8 @@ object Autopilot {
      * que fecha a diferença em [Config.VELOCITY_TAU] segundos e cancela a gravidade diferencial [gravDiff] (a da nave
      * menos a da referência), gira para ela e só queima quando já está apontando para lá.
      */
-    fun velocity(ship: Ship, vRel: Vec2, desired: Vec2, aLim: Double, gravDiff: Vec2): AutopilotCommand {
-        val a = (desired - vRel) / Config.VELOCITY_TAU - gravDiff
+    fun velocity(ship: Ship, vRel: Vec2, desired: Vec2, aLim: Double, gravDiff: Vec2, tau: Double = Config.VELOCITY_TAU): AutopilotCommand {
+        val a = (desired - vRel) / tau - gravDiff
         val mag = a.length
         if (mag < Config.VELOCITY_DEADBAND) return AutopilotCommand(null, 0.0)
         val err = abs(wrapAngle(a.angle - ship.angle))
@@ -125,10 +125,12 @@ object Autopilot {
     }
 
     /** Interceptação da nave do jogador, limitada pelo Δv que sobra para não gastar mais combustível do que existe. */
-    fun intercept(world: World, t: Double, ship: Ship, targetPos: Vec2, targetVel: Vec2, thrustPct: Int): AutopilotCommand {
+    fun intercept(world: World, t: Double, ship: Ship, targetPos: Vec2, targetVel: Vec2, thrustPct: Int, stopDist: Double = 3000.0): AutopilotCommand {
         val aLim = ship.maxAccel * thrustPct / 100.0
         val vRel = ship.vel - targetVel
         val vCap = max(1500.0, 0.42 * (ship.deltaV + vRel.length))
+        // saindo da superfície (ou de perto dela): sobe na vertical até passar da zona do corpo, para não mergulhar no chão
+        climbOut(world, t, ship, targetPos, aLim)?.let { return it }
         // desvio de corpos sólidos: tem prioridade sobre a interceptação, e some assim que a passagem fica segura
         // (só age quando a aceleração lateral necessária já é uma fração relevante da do motor: corpos distantes ficam de fora)
         val danger = threat(world, t, ship.pos, ship.vel, targetPos)?.takeIf { it.accelNeeded >= 0.002 * aLim }
@@ -138,12 +140,66 @@ object Autopilot {
             val a = min(aLim, max(0.3 * aLim, 1.5 * danger.accelNeeded))
             return AutopilotCommand(danger.direction.angle, a * f)
         }
-        val aCmd = rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, 3000.0, vCap) ?: return AutopilotCommand(null, 0.0)
+        val aCmd = rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, stopDist, vCap) ?: return AutopilotCommand(null, 0.0)
         val mag = aCmd.length
         if (mag <= 0.03) return AutopilotCommand(null, 0.0)
         val desired = aCmd.angle
         val err = abs(wrapAngle(desired - ship.angle))
         val f = ((0.45 - err) / 0.35).coerceIn(0.0, 1.0)
         return AutopilotCommand(desired, min(mag, aLim) * f)
+    }
+
+    /** Altitude (acima da superfície) a partir da qual a nave já está fora da zona do corpo e pode tomar a rota. */
+    fun clearAltitude(radius: Double): Double = radius * 0.2 + 100_000.0
+
+    /**
+     * Subida vertical: se a nave está baixo sobre um corpo sólido que não é o destino, o piloto sobe a uma velocidade
+     * que cresce com a altitude, anulando a velocidade lateral. Devolve null quando não há o que subir.
+     */
+    fun climbOut(world: World, t: Double, ship: Ship, targetPos: Vec2, aLim: Double): AutopilotCommand? {
+        for (b in world.solid) {
+            if (!b.landable) continue
+            val radius = b.def.radius
+            val bp = b.position(t)
+            if ((targetPos - bp).length < radius * 4.0) continue // o destino orbita perto do corpo: a aproximação cuida disso
+            val r = ship.pos - bp
+            val dist = max(r.length, 1.0)
+            val alt = dist - radius
+            if (alt >= clearAltitude(radius)) continue
+            val up = r / dist
+            val gLocal = world.gravity(ship.pos, t) - world.gravity(bp, t)
+            val pull = max(0.0, -(gLocal dot up))
+            val vUp = min(1500.0, 60.0 + 0.8 * sqrt(2 * max(aLim - pull, 0.1) * max(alt, 0.0)))
+            return velocity(ship, ship.vel - b.velocity(t), up * vUp, aLim, gLocal, 0.5)
+        }
+        return null
+    }
+
+    /** Altitude do portão: a partir dela o piloto deixa a rota e começa a descida vertical. */
+    fun landingGate(b: Body): Double = max(20_000.0, 0.03 * b.def.radius)
+
+    /**
+     * Pouso assistido num corpo sólido. Longe: segue a rota de interceptação até pairar a ~1,4 portões de altitude.
+     * Perto: desce na vertical, anulando a velocidade lateral e seguindo um perfil de frenagem que usa 45% da
+     * aceleração que sobra depois de vencer a gravidade local, até tocar a 2 m/s. Sem empuxo para vencer a gravidade
+     * e com atmosfera, deixa o arrasto (paraquedas) fazer o trabalho.
+     */
+    fun land(world: World, t: Double, ship: Ship, b: Body, thrustPct: Int): AutopilotCommand {
+        val aLim = ship.maxAccel * thrustPct / 100.0
+        val bp = b.position(t)
+        val bv = b.velocity(t)
+        val radius = b.def.radius
+        val r = ship.pos - bp
+        val dist = max(r.length, 1.0)
+        val alt = dist - radius
+        val gate = landingGate(b)
+        if (alt > gate * 1.5) return intercept(world, t, ship, bp, bv, thrustPct, radius + gate * 1.4)
+        val up = r / dist
+        val gLocal = world.gravity(ship.pos, t) - world.gravity(bp, t)
+        val pull = max(0.0, -(gLocal dot up))
+        val budget = aLim - pull
+        if (budget <= 0.1 && b.def.atmoScale > 0.0) return AutopilotCommand((-(ship.vel - bv)).takeIf { it.length > 1.0 }?.angle, 0.0)
+        val vDes = max(1.5, sqrt(2 * 0.45 * max(budget, 0.05) * max(alt, 0.0)))
+        return velocity(ship, ship.vel - bv, up * -vDes, aLim, gLocal, 0.5)
     }
 }

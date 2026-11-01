@@ -351,17 +351,25 @@ object StationScreen {
         d.line(210f, 0f, 210f, Layout.H, Palette.PANEL_EDGE, 1.5f)
         d.text(14f, 28f, Ui.clip(b.name, 13f, 190f), Palette.INK, 13f, bold = true)
         d.text(14f, 44f, b.faction.name, b.faction.argb, 10f)
-        d.text(14f, 58f, "T+ " + Fmt.clock(g.sim.time) + " · atracado", Palette.MUTED, 9f)
+        d.text(14f, 58f, "T+ " + Fmt.clock(g.sim.time) + if (g.sim.landedOn != null) " · pousado" else " · atracado", Palette.MUTED, 9f)
         ui.add("open_notebook", 12f, 76f, 186f, 36f, "CADERNO · ${g.story.facts.size} " + (if (g.story.facts.size == 1) "pista" else "pistas"))
         ui.add("open_hold", 12f, 116f, 186f, 36f, "PORÃO E NAVE")
         ui.add("open_news", 12f, 156f, 186f, 36f, "NOTÍCIAS E FACÇÕES")
         ui.add("open_map", 12f, 196f, 186f, 36f, "MAPA")
         ui.add("open_route", 12f, 236f, 186f, 36f, "PLANEJAR ROTA")
         ui.add("menu", 12f, 276f, 186f, 36f, "MENU")
-        ui.add("undock", 12f, 330f, 186f, 48f, "DESATRACAR", active = true)
+        val ground = g.sim.landedOn
+        ui.add("undock", 12f, 330f, 186f, 48f, if (ground != null) "DECOLAR" else "DESATRACAR", active = true, enabled = ground == null || g.sim.canTakeOff(ground))
 
-        d.text(230f, 28f, "Estação", Palette.AMBER, 16f, bold = true)
-        d.text(230f, 44f, "Combustível reabastecido · Δv " + Fmt.speed(g.sim.ship.deltaV), Palette.MUTED, 10f)
+        val gnd = g.sim.landedOn
+        if (gnd != null) {
+            d.text(230f, 28f, "Superfície", Palette.AMBER, 16f, bold = true)
+            val gs = g.sim.surfaceGravity(gnd)
+            d.text(230f, 44f, "g " + Fmt.dec(gs, 2) + " m/s² · empuxo " + Fmt.dec(g.sim.accelLimit, 2) + " m/s² · Δv " + Fmt.speed(g.sim.ship.deltaV) + if (g.sim.canTakeOff(gnd)) "" else " · sem empuxo para decolar", Palette.MUTED, 10f)
+        } else {
+            d.text(230f, 28f, "Estação", Palette.AMBER, 16f, bold = true)
+            d.text(230f, 44f, "Combustível reabastecido · Δv " + Fmt.speed(g.sim.ship.deltaV), Palette.MUTED, 10f)
+        }
         val people = g.charactersAt(b)
         var y = 62f
         d.text(230f, y + 8f, "PESSOAS AQUI", Palette.MUTED, 9f)

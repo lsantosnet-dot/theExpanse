@@ -21,6 +21,7 @@ class Body(val def: BodyDef, val faction: FactionDef, val parent: Body?, parentG
     val shortName: String get() = def.shortName
     val kind: BodyKind get() = def.kind
     val dockable: Boolean get() = def.dockable
+    val landable: Boolean get() = def.landable
     val size: Double get() = def.size
     val orbitRadius: Double get() = def.orbitRadius
     val radius: Double get() = def.radius

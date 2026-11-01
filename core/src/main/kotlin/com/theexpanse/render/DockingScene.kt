@@ -6,7 +6,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-enum class CinematicKind(val duration: Double) { DOCK(7.2), UNDOCK(4.6) }
+enum class CinematicKind(val duration: Double) { DOCK(7.2), UNDOCK(4.6), LAND(8.5), TAKEOFF(7.0) }
 
 /**
  * Cena de atracação: a nave faz a aproximação final à baía da estação, alinha com propulsores de manobra,
@@ -20,6 +20,7 @@ object DockingScene {
     private fun smooth(u: Float) = u.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
 
     fun draw(d: Draw, g: GameSession, kind: CinematicKind, t: Double, anim: Double): List<Button> {
+        if (kind == CinematicKind.LAND || kind == CinematicKind.TAKEOFF) return LandingScene.draw(d, g, kind, t, anim)
         val ui = Buttons(d)
         val u = (t / kind.duration).toFloat().coerceIn(0f, 1f)
         val station = g.sim.dockedAt ?: g.world.bodies.first()

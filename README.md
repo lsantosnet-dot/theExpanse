@@ -36,6 +36,7 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 - **Sistema Solar real**: órbitas keplerianas elípticas em hierarquia (luas em torno de planetas, estações em torno
   de luas), gravidade de vários corpos e colisão com planetas. A campanha **Rota do Gelo** voa de Ceres a Marte
   (239 milhões de km) em ~5,7 dias de jogo com o piloto automático, ~5 minutos reais em escala de cruzeiro.
+- **Pouso em planetas e luas**: INTERCEPTAR num corpo sólido faz a descida assistida (portão de altitude, frenagem vertical contra a gravidade local, toque a menos de 6 m/s, ou 15 m/s com atmosfera e paraquedas). Gigantes gasosos (`"pousavel": false`) não têm superfície. Há cena de pouso e de decolagem; decolar exige empuxo maior que a gravidade de superfície, e o piloto sobe na vertical antes de tomar a rota. A campanha **Base na Lua** pousa suprimentos na Base Selene e volta.
 - **Escolta e abordagem** no motor: `ia` com `escoltar` faz uma nave acompanhar você, interceptar mísseis e atirar em
   hostis; `abordar` faz uma nave chegar e abordá-lo; o militar aborda de perto e devagar (chance = 1 − `defesa`).
 - **Vocabulário ampliado**: gatilhos `abordado`, `abordagem`, `casco_abaixo`, `combustivel_abaixo`, `a_cada`,
@@ -60,8 +61,8 @@ ajuda de uma IA) e jogá-las no aparelho sem recompilar.
 - **Perseguição**: a fragata do Cálice passa a ser integrada (3 m/s², para a 20 km) quando você corta o rádio.
 - **Campanhas** incluídas: **Cálice** (mercador; política e rádio, 8 finais), **O silêncio do Albatroz** (mercador;
   mistério de investigação, 6 pistas, 3 suspeitos, 4 finais), **Emboscada sobre Aurélia** (mercador atacado por
-  fragata com mísseis), **Patrulha do Tribunal** (militar: cruzador da Coalizão contra um corsário) e **Rota do Gelo**
-  (Sistema Solar real: escolta, corsários, abordagem, pedágio).
+  fragata com mísseis), **Patrulha do Tribunal** (militar: cruzador da Coalizão contra um corsário) **Rota do Gelo**
+  (Sistema Solar real: escolta, corsários, abordagem, pedágio) e **Base na Lua** (pouso e decolagem na superfície, prazo com bônus).
 
 ### Telas (geradas pelo próprio código em `docs/preview`)
 

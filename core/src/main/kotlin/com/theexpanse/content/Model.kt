@@ -29,6 +29,10 @@ class BodyDef(
     val hidden: Boolean = false, val defense: Double = 0.4, val interceptChance: Double = 0.5,
     /** Aceleração máxima de uma nave controlada pelo computador (m/s²). */
     val maxAccel: Double = 3.0,
+    /** Dá para pousar? (planetas e luas sólidos sim; gigantes gasosos não.) */
+    val landable: Boolean = false,
+    /** Atmosfera: altura de escala (m) e velocidade terminal na superfície (m/s) com paraquedas. 0 = sem atmosfera. */
+    val atmoScale: Double = 0.0, val atmoTerminal: Double = 0.0,
 )
 
 class ShipDef(

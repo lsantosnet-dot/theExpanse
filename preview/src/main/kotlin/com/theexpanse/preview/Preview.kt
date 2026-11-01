@@ -336,6 +336,37 @@ private fun docking() {
     println("gravado sequencia_atracacao.png")
 }
 
+/** Pouso e decolagem em Marte (com atmosfera) e na Lua (sem), em seis instantes cada. */
+private fun landing() {
+    for ((id, tag) in listOf("marte" to "marte", "lua" to "lua")) {
+        val c = AppController(MemoryStorage(), seed = { 7L })
+        c.press("home_play:rota_do_gelo")
+        val g = c.session!!
+        val body = g.world.body(id)!!
+        g.sim.selectTarget(body)
+        val radial = body.position(g.sim.time).unit()
+        g.sim.ship.pos = body.position(g.sim.time) + radial * (body.def.radius + 4000.0)
+        g.sim.ship.vel = body.velocity(g.sim.time)
+        g.sim.setThrust(100); g.sim.setAutopilot(AutopilotMode.INTERCEPT)
+        var guard = 0
+        while (g.sim.status == Status.FLYING && guard++ < 400_000) g.sim.step(Config.SUBSTEP)
+        println("pouso $id: ${g.sim.status} em ${g.sim.landedOn?.name}")
+        c.frame()
+        for (kind in listOf(CinematicKind.LAND, CinematicKind.TAKEOFF)) {
+            if (kind == CinematicKind.TAKEOFF) { c.press("skip"); c.press("undock"); c.frame() }
+            val frames = ArrayList<BufferedImage>()
+            var at = 0.0
+            for (m in listOf(0.06, 0.3, 0.55, 0.7, 0.84, 0.95)) {
+                c.animate(m * kind.duration - at); at = m * kind.duration
+                frames.add(Raster.render(c.frame(), 1f))
+            }
+            val name = if (kind == CinematicKind.LAND) "pouso" else "decolagem"
+            ImageIO.write(mosaic(frames, 2), "png", File(outDir, "sequencia_${name}_$tag.png"))
+            println("gravado sequencia_${name}_$tag.png")
+        }
+    }
+}
+
 /** Painel com chegada em tempo de jogo e tempo real; câmera girada na cabine e na externa. */
 private fun panelAndCamera() {
     val c = AppController(MemoryStorage(), seed = { 9L })
@@ -505,6 +536,7 @@ fun main(args: Array<String>) {
     outDir.mkdirs()
     if (System.getenv("ONLY_PREFLIGHT") != null) { preflight(); accusations(); return }
     if (System.getenv("ONLY_RADAR") != null) { radar(); return }
+    if (System.getenv("ONLY_LANDING") != null) { landing(); return }
     if (System.getenv("ONLY_TEMPLATE") != null) {
         File(outDir.parentFile, "the_expanse_template.md").writeText(com.theexpanse.content.Template.build())
         println("gravado the_expanse_template.md")
@@ -517,6 +549,7 @@ fun main(args: Array<String>) {
     patrol()
     radar()
     docking()
+    landing()
     panelAndCamera()
     solar()
     boarding()

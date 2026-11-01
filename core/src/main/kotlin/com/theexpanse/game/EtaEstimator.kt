@@ -41,7 +41,7 @@ class EtaEstimator {
         if (k != key || (work == null && clock - lastStart > REFRESH)) {
             key = k
             lastStart = clock
-            if (!sim.target.dockable) {
+            if (!sim.target.dockable && !sim.target.landable) {
                 val p = sim.prediction()
                 kind = Kind.CLOSEST; seconds = p.closestTime; startedAt = sim.time; work = null
                 return

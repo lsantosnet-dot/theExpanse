@@ -13,7 +13,7 @@ class ContentTest {
 
     @Test
     fun builtinPackagesDecodeAndValidate() {
-        for (name in listOf("calice", "albatroz", "patrulha", "emboscada")) {
+        for (name in listOf("calice", "albatroz", "patrulha", "emboscada", "rota_do_gelo", "base_lunar")) {
             val r = Decoder.decode(text(name))
             assertTrue(r.errors.isEmpty(), "$name: ${r.errors}")
             val v = Validator.validate(r.pack!!)
@@ -107,5 +107,24 @@ class ContentTest {
         val ship = Decoder.decode(noAmmo).pack!!.ship
         kotlin.test.assertEquals(0, ship.missiles)
         kotlin.test.assertEquals(4, ship.decoys)
+    }
+}
+
+class LandingContentTest {
+    private fun pack(landable: String, trigger: String = "lua") =
+        Decoder.decode(Builtin.text("base_lunar")!!.replace("\"id\": \"base_lunar\"", "\"id\": \"x_$landable\"").let {
+            if (landable == "false") it.replaceFirst("\"id\": \"lua\"", "\"pousavel\": false, \"id\": \"lua\"") else it
+        })
+
+    @Test
+    fun landingTriggerOnALandableMoonIsAccepted() {
+        val v = Validator.validate(pack("true").pack!!)
+        assertTrue(v.ok, v.errors.toString())
+    }
+
+    @Test
+    fun landingTriggerOnANonLandableBodyIsRejected() {
+        val v = Validator.validate(pack("false").pack!!)
+        assertTrue(v.errors.any { it.contains("nem pousável") }, v.errors.toString())
     }
 }

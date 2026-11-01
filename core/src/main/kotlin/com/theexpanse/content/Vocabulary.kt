@@ -13,7 +13,7 @@ object Vocabulary {
 
     val triggers = listOf(
         Spec("inicio", "No começo da partida.", emptyList()),
-        Spec("atracar", "Quando a nave atraca em um corpo atracável.", listOf(f("local", "id de corpo", "onde atracou"))),
+        Spec("atracar", "Quando a nave atraca numa estação/destroço atracável OU pousa num planeta/lua pousável (o pouso conta como atracar).", listOf(f("local", "id de corpo", "onde atracou"))),
         Spec("distancia", "Quando a distância entre dois corpos passa a ficar dentro do limite.", listOf(
             f("de", "\"jogador\" ou id de corpo", "origem"), f("ate", "id de corpo", "destino"),
             f("menorQue", "número (m)", "dispara ao ficar abaixo disto", false), f("maiorQue", "número (m)", "dispara ao ficar acima disto", false),
@@ -54,7 +54,7 @@ object Vocabulary {
         Spec("contador", "Valor de um contador numérico da história.", listOf(f("nome", "texto", "nome do contador"), f("min", "inteiro", "mínimo", false), f("max", "inteiro", "máximo", false))),
         Spec("casco", "Casco do jogador em % (0-100).", listOf(f("min", "número", "mínimo", false), f("max", "número", "máximo", false))),
         Spec("combustivel", "Combustível do jogador em % (0-100).", listOf(f("min", "número", "mínimo", false), f("max", "número", "máximo", false))),
-        Spec("atracado", "A nave está atracada (em um lugar específico, se informado).", listOf(f("local", "id de corpo", "onde (opcional)", false))),
+        Spec("atracado", "A nave está atracada ou pousada (num lugar específico, se informado).", listOf(f("local", "id de corpo", "onde (opcional)", false))),
         Spec("corpo_vivo", "Uma nave existe (ou não) no jogo.", listOf(f("corpo", "id de corpo", "qual"), f("valor", "verdadeiro/falso", "padrão: verdadeiro", false))),
         Spec("distancia", "Distância entre dois corpos (ou do jogador a um corpo).", listOf(f("de", "\"jogador\" ou id de corpo", "origem"), f("ate", "id de corpo", "destino"), f("menorQue", "número (m)", "limite", false), f("maiorQue", "número (m)", "limite", false))),
         Spec("tempo_maior", "O tempo de missão passou de um valor.", listOf(f("segundos", "número (s)", "tempo"))),
@@ -116,6 +116,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - `escalaTempo` é quantos segundos de jogo passam por segundo real no nível "cruzeiro" do relógio (1440 = um dia de jogo por minuto real; uma viagem de 5 dias dura 5 minutos).
 - Naves de facções aparecem como **cruzadores estelares**; `estilo` escolhe o desenho (terrano, marciano, cinturao ou generico).
 - **Corpos reais**: um corpo pode orbitar outro (`pai`), com órbita elíptica (`excentricidade`, `argPeriapse`), e ter massa (`gm`) e raio (`raio`): planetas e luas puxam a nave e a destroem se ela encostar rápido demais: com velocidade relativa abaixo de 6 m/s (15 m/s com atmosfera) ela **pousa**. Todo planeta ou lua é pousável (`pousavel`, padrão `true`); marque `"pousavel": false` nos gigantes gasosos. O INTERCEPTAR num corpo pousável faz a descida assistida e o pouso; pousar conta como atracar (`atracar` com o `local` do corpo). Com `escalaAtmosfera` (m) e `velTerminalAtmosfera` (m/s, com paraquedas) o corpo ganha atmosfera com arrasto. Decolar exige empuxo maior que a gravidade de superfície. `tipo: "planeta"` desenha uma esfera (`cor` opcional). O corpo central pode ser uma estrela (`planeta.tipo: "estrela"`; o Sol tem gm 1.32712e20 e raio 6.957e8). Em escala solar, ajuste a nave: `aceleracaoMax` (m/s²) e `velocidadeExaustao` (m/s), por exemplo 6 e 5e6.
+- **Missões de pouso**: para uma missão que termina na superfície, use um planeta ou lua com `pousavel` (o padrão para `tipo: "planeta"`; `false` nos gigantes gasosos) e o gatilho `atracar` com o `local` do corpo. Exemplo: `{"id": "r_pouso", "quando": {"tipo": "atracar", "local": "lua"}, "se": {"tipo": "tem_carga"}, "entao": [{"tipo": "perder_carga"}, {"tipo": "creditos", "delta": 1400}, {"tipo": "missao", "id": "m_entrega", "estado": "concluida"}]}`. Aponte `nave.alvo` para o corpo, e o jogador usa INTERCEPTAR: o piloto automático faz a descida assistida. Para encerrar só ao voltar, use `atracar` na estação de origem (o jogador precisa decolar; isso exige empuxo maior que a gravidade de superfície, `gm / raio²`). Confira se `aceleracaoMax` da nave vence essa gravidade (Terra: 9,82 m/s²; Marte: 3,71; Lua: 1,62). Toque a menos de 6 m/s é pouso (15 m/s se o corpo tem atmosfera); acima disso a nave é destruída.
 - **Escolta e abordagem**: `ia` com `escoltar` faz uma nave acompanhar o jogador, interceptar mísseis (`chanceInterceptar`) e atacar hostis. `ia` com `abordar` faz uma nave chegar ao jogador e abordá-lo (gatilho `abordado`). O jogador militar pode abordar uma nave de perto e devagar (gatilho `abordagem`; a chance de sucesso é 1 − `defesa` do corpo).
 - Uma nave hostil só dispara se um efeito `ia` com `atacar` a liberar. Use `corpo_destruido` para reagir quando o jogador (militar) a abater.
 

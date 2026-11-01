@@ -75,7 +75,7 @@ object Validator {
                 if (b.kind == BodyKind.SHIP && b.dockable) err("$w: uma nave não pode ser atracável (use tipo estacao ou destroco).")
                 if (b.kind == BodyKind.PLANET) {
                     if (b.radius <= 0.0) err("$w: um planeta precisa de 'raio' positivo.")
-                    if (b.dockable) err("$w: planetas não são atracáveis (a nave se destrói ao encostar).")
+                    if (b.dockable) err("$w: planetas não são atracáveis; para pousar use \"pousavel\" (padrão dos planetas).")
                 }
                 if (b.landable && b.kind != BodyKind.PLANET) err("$w: só planetas e luas podem ter \"pousavel\" (estações e naves usam \"atracavel\").")
                 if (b.atmoScale < 0.0 || b.atmoTerminal < 0.0 || (b.atmoScale > 0.0) != (b.atmoTerminal > 0.0)) err("$w: atmosfera pede 'escalaAtmosfera' e 'velTerminalAtmosfera', os dois positivos.")
@@ -110,7 +110,7 @@ object Validator {
                 when (val t = r.trigger) {
                     is Trigger.Dock -> {
                         need("corpo", t.place, p.body(t.place) != null, "$w.quando.local")
-                        p.body(t.place)?.let { if (!it.dockable) err("$w: '${t.place}' não é atracável (marque \"atracavel\": true).") }
+                        p.body(t.place)?.let { if (!it.dockable && !it.landable) err("$w: '${t.place}' não é atracável nem pousável (marque \"atracavel\": true numa estação, ou use um planeta/lua com \"pousavel\": true).") }
                     }
                     is Trigger.Distance -> {
                         if (t.from != "jogador") need("corpo", t.from, p.body(t.from) != null, "$w.quando.de")

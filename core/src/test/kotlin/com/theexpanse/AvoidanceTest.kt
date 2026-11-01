@@ -219,11 +219,11 @@ class StationRetargetTest {
     }
 
     @Test
-    fun interceptOnAPlanetAimsAtItsStation() {
+    fun interceptOnALandablePlanetKeepsThePlanetAsTarget() {
         val c = iceRun()
         val sim = c.session!!.sim
         c.press("ap_intercept")
-        assertEquals("arsenal_ares", sim.target.id)
+        assertEquals("marte", sim.target.id)
         assertNotNull(c.preflight)
     }
 

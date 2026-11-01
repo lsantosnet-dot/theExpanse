@@ -77,6 +77,8 @@ object Validator {
                     if (b.radius <= 0.0) err("$w: um planeta precisa de 'raio' positivo.")
                     if (b.dockable) err("$w: planetas não são atracáveis (a nave se destrói ao encostar).")
                 }
+                if (b.landable && b.kind != BodyKind.PLANET) err("$w: só planetas e luas podem ter \"pousavel\" (estações e naves usam \"atracavel\").")
+                if (b.atmoScale < 0.0 || b.atmoTerminal < 0.0 || (b.atmoScale > 0.0) != (b.atmoTerminal > 0.0)) err("$w: atmosfera pede 'escalaAtmosfera' e 'velTerminalAtmosfera', os dois positivos.")
                 if (b.defense < 0.0 || b.defense > 1.0) err("$w: 'defesa' deve ficar entre 0 e 1.")
             }
             unique("bloco", p.blocks.map { it.id })

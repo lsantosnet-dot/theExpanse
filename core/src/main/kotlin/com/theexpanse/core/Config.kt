@@ -21,6 +21,10 @@ object Config {
     const val DOCK_DISTANCE = 20_000.0
     const val DOCK_SPEED = 20.0
 
+    /** Pouso: velocidade relativa máxima no toque (m/s); com atmosfera valem paraquedas e amortecedores. */
+    const val LAND_SPEED = 6.0
+    const val LAND_SPEED_ATM = 15.0
+
     /** Perseguidor: aceleração máxima e distância de parada (m). */
     const val PURSUER_ACCEL = 3.0
     const val PURSUER_STOP = 20_000.0

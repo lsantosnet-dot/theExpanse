@@ -130,7 +130,7 @@ object Decoder {
             }
             val bodies = n.nodes("corpos", true).map { bn ->
                 bn.only(setOf("id", "nome", "curto", "tipo", "faccao", "raioOrbita", "fase", "tamanho", "atracavel", "misseis", "despistadores", "chanceDespistar",
-                    "pai", "excentricidade", "argPeriapse", "gm", "raio", "cor", "oculto", "defesa", "chanceInterceptar", "aceleracaoMax"))
+                    "pai", "excentricidade", "argPeriapse", "gm", "raio", "cor", "oculto", "defesa", "chanceInterceptar", "aceleracaoMax", "pousavel", "escalaAtmosfera", "velTerminalAtmosfera"))
                 val kindKey = bn.str("tipo") ?: "estacao"
                 val kind = BodyKind.values().firstOrNull { it.key == kindKey } ?: run {
                     bn.err("'tipo' deve ser estacao, nave, destroco ou planeta"); BodyKind.STATION
@@ -146,6 +146,8 @@ object Decoder {
                     bn.num("gm", false) ?: 0.0, bn.num("raio", false) ?: 0.0, bn.str("cor", false)?.let { color(bn, it) },
                     bn.bool("oculto", false), bn.num("defesa", false) ?: 0.4, bn.num("chanceInterceptar", false) ?: 0.5,
                     bn.num("aceleracaoMax", false) ?: 3.0,
+                    bn.bool("pousavel", kind == BodyKind.PLANET),
+                    bn.num("escalaAtmosfera", false) ?: 0.0, bn.num("velTerminalAtmosfera", false) ?: 0.0,
                 )
             }
             val ship = n.child("nave")?.let { sn ->

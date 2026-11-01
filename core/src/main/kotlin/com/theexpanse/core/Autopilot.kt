@@ -115,8 +115,8 @@ object Autopilot {
      * que fecha a diferença em [Config.VELOCITY_TAU] segundos e cancela a gravidade diferencial [gravDiff] (a da nave
      * menos a da referência), gira para ela e só queima quando já está apontando para lá.
      */
-    fun velocity(ship: Ship, vRel: Vec2, desired: Vec2, aLim: Double, gravDiff: Vec2): AutopilotCommand {
-        val a = (desired - vRel) / Config.VELOCITY_TAU - gravDiff
+    fun velocity(ship: Ship, vRel: Vec2, desired: Vec2, aLim: Double, gravDiff: Vec2, tau: Double = Config.VELOCITY_TAU): AutopilotCommand {
+        val a = (desired - vRel) / tau - gravDiff
         val mag = a.length
         if (mag < Config.VELOCITY_DEADBAND) return AutopilotCommand(null, 0.0)
         val err = abs(wrapAngle(a.angle - ship.angle))
@@ -125,7 +125,7 @@ object Autopilot {
     }
 
     /** Interceptação da nave do jogador, limitada pelo Δv que sobra para não gastar mais combustível do que existe. */
-    fun intercept(world: World, t: Double, ship: Ship, targetPos: Vec2, targetVel: Vec2, thrustPct: Int): AutopilotCommand {
+    fun intercept(world: World, t: Double, ship: Ship, targetPos: Vec2, targetVel: Vec2, thrustPct: Int, stopDist: Double = 3000.0): AutopilotCommand {
         val aLim = ship.maxAccel * thrustPct / 100.0
         val vRel = ship.vel - targetVel
         val vCap = max(1500.0, 0.42 * (ship.deltaV + vRel.length))
@@ -138,12 +138,40 @@ object Autopilot {
             val a = min(aLim, max(0.3 * aLim, 1.5 * danger.accelNeeded))
             return AutopilotCommand(danger.direction.angle, a * f)
         }
-        val aCmd = rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, 3000.0, vCap) ?: return AutopilotCommand(null, 0.0)
+        val aCmd = rendezvous(world, t, ship.pos, ship.vel, targetPos, targetVel, aLim, stopDist, vCap) ?: return AutopilotCommand(null, 0.0)
         val mag = aCmd.length
         if (mag <= 0.03) return AutopilotCommand(null, 0.0)
         val desired = aCmd.angle
         val err = abs(wrapAngle(desired - ship.angle))
         val f = ((0.45 - err) / 0.35).coerceIn(0.0, 1.0)
         return AutopilotCommand(desired, min(mag, aLim) * f)
+    }
+
+    /** Altitude do portão: a partir dela o piloto deixa a rota e começa a descida vertical. */
+    fun landingGate(b: Body): Double = max(20_000.0, 0.03 * b.def.radius)
+
+    /**
+     * Pouso assistido num corpo sólido. Longe: segue a rota de interceptação até pairar a ~1,4 portões de altitude.
+     * Perto: desce na vertical, anulando a velocidade lateral e seguindo um perfil de frenagem que usa 45% da
+     * aceleração que sobra depois de vencer a gravidade local, até tocar a 2 m/s. Sem empuxo para vencer a gravidade
+     * e com atmosfera, deixa o arrasto (paraquedas) fazer o trabalho.
+     */
+    fun land(world: World, t: Double, ship: Ship, b: Body, thrustPct: Int): AutopilotCommand {
+        val aLim = ship.maxAccel * thrustPct / 100.0
+        val bp = b.position(t)
+        val bv = b.velocity(t)
+        val radius = b.def.radius
+        val r = ship.pos - bp
+        val dist = max(r.length, 1.0)
+        val alt = dist - radius
+        val gate = landingGate(b)
+        if (alt > gate * 1.5) return intercept(world, t, ship, bp, bv, thrustPct, radius + gate * 1.4)
+        val up = r / dist
+        val gLocal = world.gravity(ship.pos, t) - world.gravity(bp, t)
+        val pull = max(0.0, -(gLocal dot up))
+        val budget = aLim - pull
+        if (budget <= 0.1 && b.def.atmoScale > 0.0) return AutopilotCommand((-(ship.vel - bv)).takeIf { it.length > 1.0 }?.angle, 0.0)
+        val vDes = max(1.5, sqrt(2 * 0.45 * max(budget, 0.05) * max(alt, 0.0)))
+        return velocity(ship, ship.vel - bv, up * -vDes, aLim, gLocal, 0.5)
     }
 }

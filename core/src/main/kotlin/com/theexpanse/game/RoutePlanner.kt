@@ -35,7 +35,7 @@ class RoutePlanJob(sim: Simulation, val pcts: List<Int> = listOf(20, 50, 100), p
         c.setThrust(pct)
         c.setAutopilot(AutopilotMode.INTERCEPT)
         val limit = maxOf(minLimit, 4.0 * 2.0 * sqrt(c.distanceTo() / (c.accelLimit * 0.85)))
-        Run(pct, c, c.time, c.ship.fuel, limit, c.target.dockable).also {
+        Run(pct, c, c.time, c.ship.fuel, limit, c.target.dockable || c.target.landable).also {
             if (!it.dockable && !simulateUndockable) it.result = RouteOption(pct, RouteOutcome.NOT_DOCKABLE, 0.0, 0.0, c.ship.fuelCapacity)
         }
     }

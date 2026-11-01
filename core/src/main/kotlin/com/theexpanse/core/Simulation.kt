@@ -256,7 +256,9 @@ class Simulation(val world: World, seed: Long = 1L) {
 
     /** Aviso: se nada mudar, a nave bate neste corpo, em tantos segundos de jogo. */
     fun collisionWarning(): Pair<String, Double>? =
-        if (status != Status.FLYING) null else Autopilot.collisionCourse(world, time, ship.pos, ship.vel)?.let { (o, eta) -> o.name to eta }
+        if (status != Status.FLYING) null
+        else if (autopilot == AutopilotMode.INTERCEPT && target.landable) null // descida assistida: o piloto vai tocar o chão de propósito
+        else Autopilot.collisionCourse(world, time, ship.pos, ship.vel)?.let { (o, eta) -> o.name to eta }
 
     fun adjustThrust(deltaSteps: Int) { thrustPct = (thrustPct + 10 * deltaSteps).coerceIn(10, 100) }
 
@@ -306,7 +308,7 @@ class Simulation(val world: World, seed: Long = 1L) {
         val b = dockedAt ?: return
         val pos = position(b)
         val radial = pos.unit()
-        ship.pos = pos + radial * 25_000.0
+        ship.pos = pos + radial * (if (b.kind == com.theexpanse.content.BodyKind.PLANET) b.def.radius + 1.0 else 25_000.0)
         ship.vel = velocity(b)
         ship.angle = radial.angle
         ship.omega = 0.0
@@ -549,7 +551,7 @@ class Simulation(val world: World, seed: Long = 1L) {
                 if (manualEngine) burn = accelLimit
             }
             AutopilotMode.INTERCEPT -> {
-                val cmd = Autopilot.intercept(world, time, s, tgtPos, tgtVel, thrustPct)
+                val cmd = if (tgt.landable && alive(tgt)) Autopilot.land(world, time, s, tgt, thrustPct) else Autopilot.intercept(world, time, s, tgtPos, tgtVel, thrustPct)
                 desired = cmd.desiredAngle
                 burn = cmd.burn
                 hold = desired == null
@@ -605,11 +607,41 @@ class Simulation(val world: World, seed: Long = 1L) {
         stepDynamics(h)
         val a = world.gravity(s.pos, time) + Vec2.fromAngle(s.angle) * accel
         s.vel = s.vel + a * h
+        applyAtmosphere(h)
         s.pos = s.pos + s.vel * h
         time += h
         pruneEffects()
         checkEvents()
     }
+
+    /**
+     * Arrasto quadrático na atmosfera dos corpos que têm uma: a = g0·(v/vt)²·e^(-alt/H), em relação ao corpo (a
+     * atmosfera acompanha o planeta). Aplicado de forma implícita (v ← v/(1+k|v|h)) para não explodir em passos grandes.
+     */
+    private fun applyAtmosphere(h: Double) {
+        val s = ship
+        for (b in world.solid) {
+            val def = b.def
+            if (def.atmoScale <= 0.0 || def.gm <= 0.0) continue
+            val bp = position(b)
+            val alt = (s.pos - bp).length - def.radius
+            if (alt > def.atmoScale * 10.0) continue
+            val bv = velocity(b)
+            val rel = s.vel - bv
+            val g0 = def.gm / (def.radius * def.radius)
+            val k = g0 / (def.atmoTerminal * def.atmoTerminal) * kotlin.math.exp(-alt.coerceAtLeast(0.0) / def.atmoScale)
+            s.vel = bv + rel / (1.0 + k * rel.length * h)
+        }
+    }
+
+    /** Gravidade na superfície de um corpo (m/s²). */
+    fun surfaceGravity(b: Body): Double = if (b.def.radius > 0.0) b.def.gm / (b.def.radius * b.def.radius) else 0.0
+
+    /** A nave consegue sair do chão deste corpo? (Empuxo atual maior que a gravidade de superfície.) */
+    fun canTakeOff(b: Body): Boolean = accelLimit > surfaceGravity(b) * 1.02
+
+    /** O corpo onde a nave está pousada (não atracada numa estação), ou null. */
+    val landedOn: Body? get() = dockedAt?.takeIf { it.kind == com.theexpanse.content.BodyKind.PLANET }
 
     private fun stepDynamics(h: Double) {
         for ((id, d) in dynamics) {
@@ -811,6 +843,19 @@ class Simulation(val world: World, seed: Long = 1L) {
         if (status != Status.FLYING) return
         val hit = world.collision(s.pos, time)
         if (hit != null) {
+            val ground = world.solid.firstOrNull { it.name == hit }
+            val limit = if (ground != null && ground.def.atmoScale > 0.0) Config.LAND_SPEED_ATM else Config.LAND_SPEED
+            if (ground != null && ground.landable && alive(ground) && (s.vel - velocity(ground)).length < limit) {
+                status = Status.DOCKED
+                dockedAt = ground
+                s.burnAccel = 0.0
+                s.turnAlpha = 0.0
+                s.omega = 0.0
+                autopilot = AutopilotMode.OFF
+                missiles.clear()
+                events.add(SimEvent.Docked(ground))
+                return
+            }
             status = Status.CRASHED
             crashedInto = hit
             s.burnAccel = 0.0

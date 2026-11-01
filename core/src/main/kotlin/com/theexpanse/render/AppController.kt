@@ -239,7 +239,7 @@ class AppController(
     private fun trackDock() {
         val s = session ?: return
         val docked = s.sim.status == Status.DOCKED
-        if (docked && !wasDocked && cinematic == null) cinematic = Cinematic(CinematicKind.DOCK, animTime)
+        if (docked && !wasDocked && cinematic == null && s.sim.landedOn == null) cinematic = Cinematic(CinematicKind.DOCK, animTime)
         wasDocked = docked
     }
 
@@ -366,7 +366,7 @@ class AppController(
     private fun retargetToStation() {
         val sim = session?.sim ?: return
         val t = sim.target
-        if (t.dockable) return
+        if (t.dockable || t.landable) return
         val st = stationOf(t) ?: return
         sim.selectTarget(st)
         say("Alvo: ${st.name}, em órbita de ${t.name}. Não dá para atracar no planeta.")
@@ -387,7 +387,7 @@ class AppController(
         val p = preflight ?: return
         if (!p.job.advance(8_000)) return
         preflight = null
-        val v = PreflightText.verdict(p) { name -> s.sim.bodies.firstOrNull { it.name == name }?.let(::stationOf) }
+        val v = PreflightText.verdict(p, { name -> s.sim.bodies.firstOrNull { it.name == name } }, ::stationOf)
         if (v == null) {
             s.sim.setAutopilot(AutopilotMode.INTERCEPT)
             p.mine?.let { say("Rota verificada: chegada em ${Fmt.duration(it.seconds)} · combustível ${Fmt.int(it.fuelPct)}%") }
@@ -438,7 +438,8 @@ class AppController(
             id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null; cam.reset(); cinematic = null; wasDocked = false }
             id == "rescue" -> s.callRescue()
             id == "continue" -> { s.continueFlying(); screen = Screen.FLIGHT }
-            id == "undock" -> if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
+            id == "undock" -> if (sim.landedOn != null) { if (sim.canTakeOff(sim.landedOn!!)) { s.undock(); wasDocked = false; screen = Screen.FLIGHT } else say("Empuxo insuficiente para decolar: aumente o empuxo.") }
+                else if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
             id == "skip" -> finishCinematic()
             id == "cam_l" || id == "cam_r" || id == "cam_u" || id == "cam_d" -> held.add(id)
             id == "board" -> s.board()

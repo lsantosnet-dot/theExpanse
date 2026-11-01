@@ -57,7 +57,7 @@ class RoutePlanJob(sim: Simulation, val pcts: List<Int> = listOf(20, 50, 100), p
             if (r.result != null) continue
             val c = r.c
             while (left > 0 && c.status == Status.FLYING && c.time - r.t0 < r.limit && !r.arrived) {
-                c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
+                c.step(stepFor(c.distanceTo()))
                 if (c.ship.fuel < r.minFuel) r.minFuel = c.ship.fuel
                 // alvo que não atraca (nave, destroços): chegar perto e devagar conta como chegada
                 if (!r.dockable && c.distanceTo() < Config.DOCK_DISTANCE && c.relativeVelocity().length < Config.DOCK_SPEED) r.arrived = true
@@ -76,6 +76,14 @@ class RoutePlanJob(sim: Simulation, val pcts: List<Int> = listOf(20, 50, 100), p
         }
         return done
     }
+}
+
+/** Passo da estimativa: longe do alvo o piloto só cruza, então passos grandes bastam (e a verificação não demora minutos). */
+private fun stepFor(distance: Double): Double = when {
+    distance > 2e10 -> 0.7
+    distance > 2e9 -> 0.5
+    distance > 2e7 -> 0.28
+    else -> Config.SUBSTEP
 }
 
 object RoutePlanner {

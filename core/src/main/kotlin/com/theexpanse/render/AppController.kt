@@ -366,7 +366,7 @@ class AppController(
     /** Avança a verificação e decide: rota boa engaja o piloto, rota ruim abre o aviso. */
     private fun stepPreflight(s: GameSession) {
         val p = preflight ?: return
-        if (!p.job.advance(60_000)) return
+        if (!p.job.advance(8_000)) return
         preflight = null
         val v = PreflightText.verdict(p)
         if (v == null) {

@@ -50,6 +50,19 @@ class RoutePlanJob(sim: Simulation, val pcts: List<Int> = listOf(20, 50, 100), p
         return ((r.c.time - r.t0) / r.limit).toFloat().coerceIn(0f, 0.99f)
     }
 
+    /**
+     * Roda por no máximo [millis] milissegundos de relógio real, em lotes pequenos, para a interface nunca travar
+     * (num celular cada passo custa muito mais que num computador). Devolve true se terminou tudo.
+     */
+    fun advanceFor(millis: Long): Boolean {
+        val end = System.nanoTime() + millis * 1_000_000L
+        while (!done) {
+            advance(400)
+            if (System.nanoTime() >= end) break
+        }
+        return done
+    }
+
     /** Roda até [budget] passos no total; devolve true se terminou tudo. */
     fun advance(budget: Int): Boolean {
         var left = budget

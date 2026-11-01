@@ -59,7 +59,11 @@ class EtaEstimator {
         val c = work ?: return
         var n = 0
         val limit = limitFor(c)
-        while (n++ < budgetSteps && c.status == Status.FLYING && c.time - workT0 < limit) c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
+        val end = System.nanoTime() + 6_000_000L // no máximo 6 ms por quadro: o estimador nunca trava a interface
+        while (n++ < budgetSteps && c.status == Status.FLYING && c.time - workT0 < limit) {
+            if ((n and 127) == 0 && System.nanoTime() >= end) break
+            c.step(if (c.distanceTo() > 2e7) 0.28 else Config.SUBSTEP)
+        }
         if (c.status == Status.DOCKED) {
             kind = Kind.ARRIVAL; seconds = c.time - workT0; startedAt = workT0; work = null
         } else if (c.status != Status.FLYING || c.time - workT0 >= limit) {

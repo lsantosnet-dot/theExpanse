@@ -127,6 +127,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - A nave começa perto de um corpo (`nave.perto`), com a carga do contrato a bordo. Ao atracar, o combustível é reabastecido.
 - **Todo mistério precisa ter solução alcançável**: toda pista usada numa dedução ou condição precisa ser revelada por alguma regra ou diálogo; todo objeto exigido precisa ser entregue por algum efeito. O jogo simula o pacote ao importar e recusa se encontrar um final inalcançável.
 - Cada final deve ter `manchete` (uma frase de jornal).
+- **Diga ao jogador qual alvo marcar.** No painel, `ALVO` mostra o corpo selecionado e o jogador troca de alvo tocando em `ALVO`; o piloto automático (INTERCEPTAR) vai ao alvo selecionado. A nave já começa com `nave.alvo` selecionado, mas a mensagem inicial (`r_inicio`) e o `texto` da missão devem citar o **nome do corpo de destino** e deixar claro se é uma estação (atraca) ou um planeta/lua (pousa). Exemplo certo: "levar o gelo ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares." Nunca escreva só "leve a Marte" quando o destino é uma estação.
+- **Δv e empuxo andam juntos.** O jogo simula o piloto automático ao importar e recusa o pacote se o Δv da nave (`velocidadeExaustao` × ln da razão de massas) não chega ao destino. Se você subir `aceleracaoMax` (por exemplo para 14, para decolar da Terra), a viagem exige mais Δv: suba também `velocidadeExaustao` (1,6e7 funciona na escala solar) ou o combustível.
 
 ## Estrutura do arquivo
 ```
@@ -137,7 +139,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
   "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB", "estilo": "terrano|marciano|cinturao|generico"}],
   "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco|planeta", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4, "pai": "id", "excentricidade": 0.0, "argPeriapse": 0.0, "gm": 0, "raio": 0, "cor": "#RRGGBB", "oculto": false, "defesa": 0.4, "chanceInterceptar": 0.5, "aceleracaoMax": 3.0, "pousavel": true, "escalaAtmosfera": 8500, "velTerminalAtmosfera": 9}],
-  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5},
+  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 6.0, "velocidadeExaustao": 5e6},
   "creditos": 500, "reputacao": {"id da facção": 0},
   "objetos": [{"id": "...", "nome": "...", "massa": 40}],
   "fatos": [{"id": "...", "texto": "..."}],
@@ -171,5 +173,12 @@ ${describe(effects)}
 3. `deducoes` combinam pistas no caderno e liberam consequências.
 4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
+
+## Como montar uma missão de pouso (entrega na superfície)
+1. Use planetas e luas reais no `planeta`/`corpos` (Sistema Solar: Terra, Lua, Marte, Ceres, Titã...). Todo `tipo: "planeta"` é pousável por padrão; marque `"pousavel": false` nos gigantes gasosos (Júpiter, Saturno), que não têm superfície. Atmosfera é opcional (`escalaAtmosfera`, `velTerminalAtmosfera`): Terra 8500 e 9, Marte 11100 e 45.
+2. Aponte `nave.alvo` para o planeta ou lua de destino e use a nave de escala solar: `aceleracaoMax` 14 e `velocidadeExaustao` 1,6e7. A **Terra** é pousável e permite decolar (a 80% de empuxo ou mais); a Lua e Marte também.
+3. O pouso conta como atracar: gatilho `{"tipo": "atracar", "local": "lua"}` com `se: {"tipo": "tem_carga"}`, e efeitos `perder_carga` (descarrega), `creditos` e `missao`. Para uma segunda etapa, ative outra missão (`missao` com `estado: "ativa"`) e termine com `atracar` na estação de origem: o jogador precisa decolar de volta (o botão DECOLAR ajusta o empuxo sozinho).
+4. Um prazo vira bônus: `tempo` com `depoisDe` marca `flag` de atraso, e as regras de entrega escolhem o pagamento pela flag.
+5. Na mensagem inicial e no `texto` da missão, cite o corpo de destino e diga: "Selecione ALVO <corpo> e toque em INTERC.: o piloto automático faz a descida." O exemplo completo mais abaixo (Base na Lua) segue esse modelo.
 """.trimIndent()
 }

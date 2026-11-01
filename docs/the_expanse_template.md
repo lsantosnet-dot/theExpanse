@@ -19,6 +19,8 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
 - A nave começa perto de um corpo (`nave.perto`), com a carga do contrato a bordo. Ao atracar, o combustível é reabastecido.
 - **Todo mistério precisa ter solução alcançável**: toda pista usada numa dedução ou condição precisa ser revelada por alguma regra ou diálogo; todo objeto exigido precisa ser entregue por algum efeito. O jogo simula o pacote ao importar e recusa se encontrar um final inalcançável.
 - Cada final deve ter `manchete` (uma frase de jornal).
+- **Diga ao jogador qual alvo marcar.** No painel, `ALVO` mostra o corpo selecionado e o jogador troca de alvo tocando em `ALVO`; o piloto automático (INTERCEPTAR) vai ao alvo selecionado. A nave já começa com `nave.alvo` selecionado, mas a mensagem inicial (`r_inicio`) e o `texto` da missão devem citar o **nome do corpo de destino** e deixar claro se é uma estação (atraca) ou um planeta/lua (pousa). Exemplo certo: "levar o gelo ao Arsenal Ares, a estação em órbita de Marte (o planeta não é o destino). Marque ALVO Arsenal Ares." Nunca escreva só "leve a Marte" quando o destino é uma estação.
+- **Δv e empuxo andam juntos.** O jogo simula o piloto automático ao importar e recusa o pacote se o Δv da nave (`velocidadeExaustao` × ln da razão de massas) não chega ao destino. Se você subir `aceleracaoMax` (por exemplo para 14, para decolar da Terra), a viagem exige mais Δv: suba também `velocidadeExaustao` (1,6e7 funciona na escala solar) ou o combustível.
 
 ## Estrutura do arquivo
 ```
@@ -29,7 +31,7 @@ Você vai escrever **um único arquivo JSON** que o jogo importa sem recompilar.
   "planeta": {"nome": "Aurélia", "gm": 1e17, "raio": 6e7},
   "facoes": [{"id": "...", "nome": "...", "cor": "#RRGGBB", "estilo": "terrano|marciano|cinturao|generico"}],
   "corpos": [{"id": "...", "nome": "...", "curto": "...", "tipo": "estacao|nave|destroco|planeta", "faccao": "id", "raioOrbita": 3.2e8, "fase": 0.0, "tamanho": 150, "atracavel": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.4, "pai": "id", "excentricidade": 0.0, "argPeriapse": 0.0, "gm": 0, "raio": 0, "cor": "#RRGGBB", "oculto": false, "defesa": 0.4, "chanceInterceptar": 0.5, "aceleracaoMax": 3.0, "pousavel": true, "escalaAtmosfera": 8500, "velTerminalAtmosfera": 9}],
-  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5},
+  "nave": {"nome": "...", "massaSeca": 240000, "carga": 40000, "combustivel": 32000, "nomeCarga": "...", "perto": "id de corpo", "altitude": 40000, "alvo": "id de corpo", "casco": 100, "misseis": 0, "despistadores": 4, "chanceDespistar": 0.5, "aceleracaoMax": 6.0, "velocidadeExaustao": 5e6},
   "creditos": 500, "reputacao": {"id da facção": 0},
   "objetos": [{"id": "...", "nome": "...", "massa": 40}],
   "fatos": [{"id": "...", "texto": "..."}],
@@ -127,6 +129,13 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
 3. `deducoes` combinam pistas no caderno e liberam consequências.
 4. `acusacoes` decidem o final conforme o que o jogador sabe e carrega. Uma acusação cujo final é de `derrota` é um palpite errado: gasta uma das `tentativasAcusacao` (padrão 3), aplica só as penalidades (reputação, créditos), descarta o suspeito e o jogo continua; na última tentativa o final acontece. Finais de vitória ou neutros encerram o caso na hora. Use 1 para voltar à regra de uma só acusação.
 5. Distâncias reais dão peso à história: um personagem que foge em 10 dias obriga o jogador a escolher a rota.
+
+## Como montar uma missão de pouso (entrega na superfície)
+1. Use planetas e luas reais no `planeta`/`corpos` (Sistema Solar: Terra, Lua, Marte, Ceres, Titã...). Todo `tipo: "planeta"` é pousável por padrão; marque `"pousavel": false` nos gigantes gasosos (Júpiter, Saturno), que não têm superfície. Atmosfera é opcional (`escalaAtmosfera`, `velTerminalAtmosfera`): Terra 8500 e 9, Marte 11100 e 45.
+2. Aponte `nave.alvo` para o planeta ou lua de destino e use a nave de escala solar: `aceleracaoMax` 14 e `velocidadeExaustao` 1,6e7. A **Terra** é pousável e permite decolar (a 80% de empuxo ou mais); a Lua e Marte também.
+3. O pouso conta como atracar: gatilho `{"tipo": "atracar", "local": "lua"}` com `se: {"tipo": "tem_carga"}`, e efeitos `perder_carga` (descarrega), `creditos` e `missao`. Para uma segunda etapa, ative outra missão (`missao` com `estado: "ativa"`) e termine com `atracar` na estação de origem: o jogador precisa decolar de volta (o botão DECOLAR ajusta o empuxo sozinho).
+4. Um prazo vira bônus: `tempo` com `depoisDe` marca `flag` de atraso, e as regras de entrega escolhem o pagamento pela flag.
+5. Na mensagem inicial e no `texto` da missão, cite o corpo de destino e diga: "Selecione ALVO <corpo> e toque em INTERC.: o piloto automático faz a descida." O exemplo completo mais abaixo (Base na Lua) segue esse modelo.
 
 ## Exemplo completo (um mistério válido)
 
@@ -255,6 +264,81 @@ Um diálogo sem `escolhas` tem só o botão "Continuar". Num diálogo, `{chance}
     "Cargueiro Albatroz perde o reator em órbita de Aurélia; tripulação resgatada.",
     "Seguradora Atlas paga o casco do Albatroz em tempo recorde.",
     "Coalizão e Federação trocam acusações sobre a rota do Albatroz."
+  ]
+}
+
+```
+
+## Exemplo completo de missão de pouso (Base na Lua: pouso, entrega, decolagem e volta)
+
+```json
+{
+  "formato": 1,
+  "id": "base_lunar",
+  "titulo": "Base na Lua (Pouso)",
+  "resumo": "Pouse de verdade. Leve suprimentos da Estação Meridiano à superfície da Lua: o piloto automático conduz a descida, você aterrissa na Base Selene e depois decola de volta. Prazo curto paga mais.",
+  "autor": "The Expanse (campanha incluída)",
+  "papel": {"tipo": "mercador"},
+  "escalaTempo": 1440,
+  "planeta": {"nome": "Sol", "tipo": "estrela", "gm": 1.32712440018e+20, "raio": 695700000.0},
+  "facoes": [
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "federacao", "nome": "Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
+    {"id": "natural", "nome": "Corpos naturais", "cor": "#8A95A8", "estilo": "generico"}
+  ],
+  "corpos": [
+    {"id": "mercurio", "nome": "Mercúrio", "curto": "Mercúrio", "tipo": "planeta", "faccao": "natural", "raioOrbita": 57909050000.0, "excentricidade": 0.2056, "argPeriapse": 1.3519, "fase": 3.05, "gm": 22031868000000.0, "raio": 2439700.0, "cor": "#A8A29A"},
+    {"id": "venus", "nome": "Vênus", "curto": "Vênus", "tipo": "planeta", "faccao": "natural", "raioOrbita": 108208000000.0, "excentricidade": 0.0068, "argPeriapse": 2.2957, "fase": 0.8805, "gm": 324858592000000.0, "raio": 6051800.0, "cor": "#E3C27A", "escalaAtmosfera": 15900, "velTerminalAtmosfera": 10},
+    {"id": "terra", "nome": "Terra", "curto": "Terra", "tipo": "planeta", "faccao": "natural", "raioOrbita": 149597870700.0, "excentricidade": 0.0167, "argPeriapse": 1.7967, "fase": 6.2399, "gm": 398600441800000.0, "raio": 6371000.0, "cor": "#4F8FE8", "escalaAtmosfera": 8500, "velTerminalAtmosfera": 9},
+    {"id": "lua", "nome": "Lua", "curto": "Lua", "tipo": "planeta", "faccao": "natural", "pai": "terra", "raioOrbita": 384400000.0, "excentricidade": 0.0549, "fase": 2.0, "gm": 4904800000000.0, "raio": 1737400.0, "cor": "#B9B9B0"},
+    {"id": "marte", "nome": "Marte", "curto": "Marte", "tipo": "planeta", "faccao": "natural", "raioOrbita": 227939200000.0, "excentricidade": 0.0934, "argPeriapse": 5.865, "fase": 0.338, "gm": 42828370000000.0, "raio": 3389500.0, "cor": "#C8603A", "escalaAtmosfera": 11100, "velTerminalAtmosfera": 45},
+    {"id": "ceres", "nome": "Ceres", "curto": "Ceres", "tipo": "planeta", "faccao": "natural", "raioOrbita": 414050000000.0, "excentricidade": 0.0758, "argPeriapse": 2.686, "fase": 3.5, "gm": 62628000000.0, "raio": 473000.0, "cor": "#A39E94"},
+    {"id": "jupiter", "nome": "Júpiter", "curto": "Júpiter", "tipo": "planeta", "faccao": "natural", "raioOrbita": 778500000000.0, "excentricidade": 0.0489, "argPeriapse": 0.257, "fase": 0.343, "gm": 1.26686534e+17, "raio": 69911000.0, "cor": "#D9B48A", "pousavel": false},
+    {"id": "ganimedes", "nome": "Ganimedes", "curto": "Ganimedes", "tipo": "planeta", "faccao": "natural", "pai": "jupiter", "raioOrbita": 1070400000.0, "excentricidade": 0.0013, "fase": 1.0, "gm": 9887000000000.0, "raio": 2634000.0, "cor": "#9C9488"},
+    {"id": "saturno", "nome": "Saturno", "curto": "Saturno", "tipo": "planeta", "faccao": "natural", "raioOrbita": 1433530000000.0, "excentricidade": 0.0565, "argPeriapse": 1.6132, "fase": 5.542, "gm": 3.7931187e+16, "raio": 58232000.0, "cor": "#E0CF9E", "pousavel": false},
+    {"id": "encelado", "nome": "Encélado", "curto": "Encélado", "tipo": "planeta", "faccao": "natural", "pai": "saturno", "raioOrbita": 238020000.0, "excentricidade": 0.0047, "fase": 0.3, "gm": 7211000000.0, "raio": 252100.0, "cor": "#EDEFF2"},
+    {"id": "reia", "nome": "Reia", "curto": "Reia", "tipo": "planeta", "faccao": "natural", "pai": "saturno", "raioOrbita": 527040000.0, "excentricidade": 0.001, "fase": 2.6, "gm": 153940000000.0, "raio": 763800.0, "cor": "#B8B5AE"},
+    {"id": "titan", "nome": "Titã", "curto": "Titã", "tipo": "planeta", "faccao": "natural", "pai": "saturno", "raioOrbita": 1221870000.0, "excentricidade": 0.0288, "fase": 4.1, "gm": 8978100000000.0, "raio": 2574700.0, "cor": "#D6A24A", "escalaAtmosfera": 21000, "velTerminalAtmosfera": 6},
+    {"id": "estacao_meridiano", "nome": "Estação Meridiano", "curto": "Meridiano", "tipo": "estacao", "faccao": "coalizao", "pai": "terra", "raioOrbita": 42000000.0, "fase": 0.4, "tamanho": 150},
+    {"id": "base_selene", "nome": "Base Selene", "curto": "Selene", "tipo": "estacao", "faccao": "coalizao", "pai": "lua", "raioOrbita": 2600000.0, "fase": 1.1, "tamanho": 120},
+    {"id": "arsenal_ares", "nome": "Arsenal Ares", "curto": "Ares", "tipo": "estacao", "faccao": "federacao", "pai": "marte", "raioOrbita": 9400000.0, "fase": 2.2, "tamanho": 150},
+    {"id": "porto_ceres", "nome": "Porto Ceres", "curto": "P. Ceres", "tipo": "estacao", "faccao": "liga", "pai": "ceres", "raioOrbita": 1500000.0, "fase": 0.2, "tamanho": 150},
+    {"id": "entreposto_ganimedes", "nome": "Entreposto Ganimedes", "curto": "Entreposto", "tipo": "estacao", "faccao": "liga", "pai": "ganimedes", "raioOrbita": 6500000.0, "fase": 0.8, "tamanho": 130},
+    {"id": "posto_tita", "nome": "Posto Titã", "curto": "P. Titã", "tipo": "estacao", "faccao": "liga", "pai": "titan", "raioOrbita": 4200000.0, "fase": 1.7, "tamanho": 130}
+  ],
+  "nave": {"nome": "Cargueiro Selene", "massaSeca": 240000, "carga": 25000, "combustivel": 90000, "nomeCarga": "25 t de equipamento médico e água", "perto": "estacao_meridiano", "altitude": 30000, "alvo": "lua", "casco": 100, "despistadores": 0, "chanceDespistar": 0.5, "aceleracaoMax": 14.0, "velocidadeExaustao": 16000000.0},
+  "creditos": 300,
+  "reputacao": {"coalizao": 0, "federacao": 0, "liga": 0, "natural": 0},
+  "personagens": [
+    {"id": "dra_vega", "nome": "Dra. Vega", "papel": "médica-chefe da Base Selene", "faccao": "coalizao"}
+  ],
+  "dialogos": [
+    {"id": "d_contrato", "personagem": "dra_vega", "texto": "“Cargueiro Selene, aqui é a Dra. Vega, da Base Selene. Nossa enfermaria está sem equipamento e a cisterna está quase seca. A base fica na superfície, na plataforma A-1: o piloto automático faz a descida assistida, mas você precisa de empuxo para frear. Posso pagar mais se chegar em 12 horas.”", "escolhas": [{"texto": "Aceitar o prazo de 12 horas", "detalhe": "Bônus: 2400 créditos se pousar a tempo, 1400 se atrasar. Coalizão +2.", "efeitos": [{"tipo": "flag", "nome": "urgente"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 2}, {"tipo": "mensagem", "texto": "Prazo de 12 h aceito. Pouse na Lua, na plataforma A-1 da Base Selene."}]}, {"texto": "Entregar sem pressa", "detalhe": "Paga 1400 créditos, sem prazo.", "efeitos": [{"tipo": "mensagem", "texto": "Sem prazo. Pouse na Lua, na plataforma A-1 da Base Selene."}]}]}
+  ],
+  "blocos": [],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [{"tipo": "dialogo", "id": "d_contrato"}, {"tipo": "mensagem", "texto": "Missão: pousar na Lua com 25 t de suprimentos. Selecione ALVO Lua e toque em INTERC.: o piloto automático faz a descida."}]},
+    {"id": "r_prazo", "quando": {"tipo": "tempo", "depoisDe": 43200}, "se": {"tipo": "e", "condicoes": [{"tipo": "flag", "nome": "urgente"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "entregou"}}]}, "entao": [{"tipo": "flag", "nome": "atrasou"}, {"tipo": "mensagem", "texto": "O prazo de 12 horas estourou: o bônus foi perdido, mas a base ainda espera a entrega."}]},
+    {"id": "r_pouso_rapido", "quando": {"tipo": "atracar", "local": "lua"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "flag", "nome": "urgente"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "atrasou"}}]}, "entao": [{"tipo": "perder_carga"}, {"tipo": "creditos", "delta": 2400}, {"tipo": "flag", "nome": "entregou"}, {"tipo": "flag", "nome": "rapido"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 5}, {"tipo": "missao", "id": "m_entrega", "estado": "concluida"}, {"tipo": "missao", "id": "m_volta", "estado": "ativa"}, {"tipo": "noticia", "texto": "Base Selene recebe suprimentos dentro do prazo; enfermaria reabre."}, {"tipo": "mensagem", "texto": "Carga entregue a tempo: +2400 créditos. Agora decole e volte à Estação Meridiano."}]},
+    {"id": "r_pouso", "quando": {"tipo": "atracar", "local": "lua"}, "se": {"tipo": "e", "condicoes": [{"tipo": "tem_carga"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "entregou"}}]}, "entao": [{"tipo": "perder_carga"}, {"tipo": "creditos", "delta": 1400}, {"tipo": "flag", "nome": "entregou"}, {"tipo": "reputacao", "faccao": "coalizao", "delta": 3}, {"tipo": "missao", "id": "m_entrega", "estado": "concluida"}, {"tipo": "missao", "id": "m_volta", "estado": "ativa"}, {"tipo": "noticia", "texto": "Base Selene recebe equipamento médico e água; a cisterna volta a encher."}, {"tipo": "mensagem", "texto": "Carga entregue: +1400 créditos. Agora decole (precisa de empuxo acima de 1,62 m/s²) e volte à Estação Meridiano."}]},
+    {"id": "r_volta_rapido", "quando": {"tipo": "atracar", "local": "estacao_meridiano"}, "se": {"tipo": "e", "condicoes": [{"tipo": "flag", "nome": "entregou"}, {"tipo": "flag", "nome": "rapido"}]}, "entao": [{"tipo": "creditos", "delta": 300}, {"tipo": "missao", "id": "m_volta", "estado": "concluida"}, {"tipo": "final", "id": "rapido"}]},
+    {"id": "r_volta", "quando": {"tipo": "atracar", "local": "estacao_meridiano"}, "se": {"tipo": "e", "condicoes": [{"tipo": "flag", "nome": "entregou"}, {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "rapido"}}]}, "entao": [{"tipo": "creditos", "delta": 300}, {"tipo": "missao", "id": "m_volta", "estado": "concluida"}, {"tipo": "final", "id": "entregue"}]},
+    {"id": "r_combustivel", "quando": {"tipo": "combustivel_abaixo", "pct": 25}, "entao": [{"tipo": "mensagem", "texto": "ALERTA: combustível abaixo de 25%. Pousar e decolar gasta propelente."}]},
+    {"id": "r_destruida", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_entrega", "estado": "falhou"}, {"tipo": "final", "id": "destruido"}]}
+  ],
+  "missoes": [
+    {"id": "m_entrega", "titulo": "Suprimentos para a Lua", "texto": "Pousar na plataforma A-1 da Base Selene, na superfície da Lua, com 25 t de equipamento médico e água. Selecione ALVO Lua e use INTERC. para a descida assistida.", "inicial": true},
+    {"id": "m_volta", "titulo": "Volta para casa", "texto": "Decolar da Lua e atracar na Estação Meridiano, em órbita da Terra."}
+  ],
+  "finais": [
+    {"id": "rapido", "titulo": "ENTREGA RELÂMPAGO", "tipo": "vitoria", "manchete": "Cargueiro pousa na Lua dentro do prazo e volta à órbita; Base Selene reabre a enfermaria."},
+    {"id": "entregue", "titulo": "SUPRIMENTOS ENTREGUES", "tipo": "vitoria", "manchete": "Cargueiro entrega suprimentos na Base Selene e decola de volta; a base agradece."},
+    {"id": "destruido", "titulo": "NAVE DESTRUÍDA", "tipo": "derrota", "manchete": "Cargueiro Selene se perde na rota para a Lua; Coalizão abre inquérito."}
+  ],
+  "noticias": [
+    "Base Selene pede suprimentos: enfermaria sem equipamento e cisterna quase seca.",
+    "Coalizão reforça a ponte de carga Terra–Lua."
   ]
 }
 

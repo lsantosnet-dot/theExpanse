@@ -128,3 +128,30 @@ class LandingContentTest {
         assertTrue(v.errors.any { it.contains("nem pousável") }, v.errors.toString())
     }
 }
+
+class ExportedTemplateTest {
+    private val t = Template.build()
+
+    @Test
+    fun templateExplainsLandingAndEarthTakeoff() {
+        for (s in listOf("pousavel", "escalaAtmosfera", "velTerminalAtmosfera", "A Terra é uma opção de pouso e de decolagem", "Como montar uma missão de pouso", "aceleracaoMax", "velocidadeExaustao"))
+            assertTrue(t.contains(s), "o template exportado não menciona: $s")
+    }
+
+    @Test
+    fun templateTellsAuthorsToNameTheTarget() {
+        assertTrue(t.contains("Diga ao jogador qual alvo marcar"))
+        assertTrue(t.contains("Marque ALVO"))
+    }
+
+    @Test
+    fun templateShipsAValidLandingExample() {
+        val marker = "## Exemplo completo de missão de pouso"
+        assertTrue(t.contains(marker))
+        val json = t.substringAfter(marker).substringAfter("```json\n").substringBefore("\n```")
+        val r = Decoder.decode(json)
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+        assertTrue(Validator.validate(r.pack!!).ok)
+        assertTrue(r.pack!!.bodies.any { it.landable })
+    }
+}

@@ -170,9 +170,9 @@ class UiTest {
         val c = controller()
         val good = Builtin.text("albatroz")!!.replace("\"id\": \"albatroz\"", "\"id\": \"albatroz_b\"").replace("O silêncio do Albatroz", "Albatroz B")
         assertTrue(c.importText("b.json", good))
-        assertEquals(6, c.entries.size)
+        assertEquals(7, c.entries.size)
         assertTrue(c.storage.packages().containsKey("albatroz_b"))
-        c.homePage = 1
+        c.homePage = 99
         c.frame()
         assertTrue(c.frame().buttons.any { it.id == "home_del:albatroz_b" })
 
@@ -184,12 +184,12 @@ class UiTest {
         val broken = Builtin.text("albatroz")!!.replace("\"id\": \"albatroz\"", "\"id\": \"albatroz_c\"").replace("{\"tipo\": \"dar_objeto\", \"objeto\": \"caixa_preta\"}, ", "")
         assertTrue(!c.importText("c.json", broken))
         assertTrue(c.errors.any { it.contains("nunca é alcançável") })
-        assertEquals(6, c.entries.size, "pacote inválido não é instalado")
+        assertEquals(7, c.entries.size, "pacote inválido não é instalado")
         c.press("back")
-        c.homePage = 1
+        c.homePage = 99
         c.frame()
         c.tap("home_del:albatroz_b")
-        assertEquals(5, c.entries.size)
+        assertEquals(6, c.entries.size)
     }
 
     @Test

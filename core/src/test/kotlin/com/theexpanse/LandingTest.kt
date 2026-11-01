@@ -58,3 +58,39 @@ class LandingTest {
         assertNotNull(mars.def.atmoScale.takeIf { it > 0 })
     }
 }
+
+class LunarMissionTest {
+    private fun fly(g: com.theexpanse.game.GameSession, id: String, pct: Int = 100) {
+        g.sim.selectTarget(g.world.body(id)!!)
+        g.sim.setThrust(pct)
+        g.sim.setAutopilot(AutopilotMode.INTERCEPT)
+        var n = 0
+        while (g.sim.status == Status.FLYING && !g.ended && n++ < 4_000_000) g.stepFixed(com.theexpanse.core.Config.SUBSTEP)
+    }
+
+    @Test
+    fun packIsValid() {
+        val r = com.theexpanse.content.Decoder.decode(com.theexpanse.content.Builtin.text("base_lunar")!!)
+        assertNotNull(r.pack, r.errors.toString())
+        assertTrue(r.errors.isEmpty(), r.errors.toString())
+    }
+
+    @Test
+    fun deliverOnTheMoonInTimeThenTakeOffAndReturn() {
+        val g = com.theexpanse.game.GameSession(com.theexpanse.content.Builtin.pack("base_lunar"), 11)
+        g.choose(0) // aceita o prazo de 12 h
+        fly(g, "lua")
+        assertEquals("lua", g.sim.landedOn?.id)
+        assertEquals(300 + 2400, g.story.credits, "bônus do prazo")
+        assertEquals(0.0, g.sim.ship.cargo, 1e-9)
+        // decolar e voltar à estação
+        assertTrue(g.sim.canTakeOff(g.sim.landedOn!!))
+        g.undock()
+        assertEquals(Status.FLYING, g.sim.status)
+        fly(g, "estacao_meridiano")
+        println("VOLTA: status=${g.sim.status} crash=${g.sim.crashedInto} docked=${g.sim.dockedAt?.id} fuel=${g.sim.ship.fuel} t=${g.sim.time} ap=${g.sim.autopilot} dist=${g.sim.distanceTo()}")
+        assertTrue(g.ended, "final ao voltar")
+        assertEquals("rapido", g.story.ending)
+        assertEquals(300 + 2400 + 300, g.story.credits)
+    }
+}

@@ -308,8 +308,14 @@ class Simulation(val world: World, seed: Long = 1L) {
         val b = dockedAt ?: return
         val pos = position(b)
         val radial = pos.unit()
-        ship.pos = pos + radial * (if (b.kind == com.theexpanse.content.BodyKind.PLANET) b.def.radius + 1.0 else 25_000.0)
-        ship.vel = velocity(b)
+        if (b.kind == com.theexpanse.content.BodyKind.PLANET) {
+            // decolagem: sobe a 200 m, já a 30 m/s para cima e apontando para fora do corpo, para o piloto não cair de volta antes de queimar
+            ship.pos = pos + radial * (b.def.radius + 200.0)
+            ship.vel = velocity(b) + radial * 30.0
+        } else {
+            ship.pos = pos + radial * 25_000.0
+            ship.vel = velocity(b)
+        }
         ship.angle = radial.angle
         ship.omega = 0.0
         status = Status.FLYING

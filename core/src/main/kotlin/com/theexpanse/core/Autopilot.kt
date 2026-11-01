@@ -129,6 +129,8 @@ object Autopilot {
         val aLim = ship.maxAccel * thrustPct / 100.0
         val vRel = ship.vel - targetVel
         val vCap = max(1500.0, 0.42 * (ship.deltaV + vRel.length))
+        // saindo da superfície (ou de perto dela): sobe na vertical até passar da zona do corpo, para não mergulhar no chão
+        climbOut(world, t, ship, targetPos, aLim)?.let { return it }
         // desvio de corpos sólidos: tem prioridade sobre a interceptação, e some assim que a passagem fica segura
         // (só age quando a aceleração lateral necessária já é uma fração relevante da do motor: corpos distantes ficam de fora)
         val danger = threat(world, t, ship.pos, ship.vel, targetPos)?.takeIf { it.accelNeeded >= 0.002 * aLim }
@@ -145,6 +147,32 @@ object Autopilot {
         val err = abs(wrapAngle(desired - ship.angle))
         val f = ((0.45 - err) / 0.35).coerceIn(0.0, 1.0)
         return AutopilotCommand(desired, min(mag, aLim) * f)
+    }
+
+    /** Altitude (acima da superfície) a partir da qual a nave já está fora da zona do corpo e pode tomar a rota. */
+    fun clearAltitude(radius: Double): Double = radius * 0.2 + 100_000.0
+
+    /**
+     * Subida vertical: se a nave está baixo sobre um corpo sólido que não é o destino, o piloto sobe a uma velocidade
+     * que cresce com a altitude, anulando a velocidade lateral. Devolve null quando não há o que subir.
+     */
+    fun climbOut(world: World, t: Double, ship: Ship, targetPos: Vec2, aLim: Double): AutopilotCommand? {
+        for (b in world.solid) {
+            if (!b.landable) continue
+            val radius = b.def.radius
+            val bp = b.position(t)
+            if ((targetPos - bp).length < radius * 4.0) continue // o destino orbita perto do corpo: a aproximação cuida disso
+            val r = ship.pos - bp
+            val dist = max(r.length, 1.0)
+            val alt = dist - radius
+            if (alt >= clearAltitude(radius)) continue
+            val up = r / dist
+            val gLocal = world.gravity(ship.pos, t) - world.gravity(bp, t)
+            val pull = max(0.0, -(gLocal dot up))
+            val vUp = min(1500.0, 60.0 + 0.8 * sqrt(2 * max(aLim - pull, 0.1) * max(alt, 0.0)))
+            return velocity(ship, ship.vel - b.velocity(t), up * vUp, aLim, gLocal, 0.5)
+        }
+        return null
     }
 
     /** Altitude do portão: a partir dela o piloto deixa a rota e começa a descida vertical. */

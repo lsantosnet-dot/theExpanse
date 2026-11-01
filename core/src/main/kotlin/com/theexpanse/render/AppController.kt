@@ -239,7 +239,7 @@ class AppController(
     private fun trackDock() {
         val s = session ?: return
         val docked = s.sim.status == Status.DOCKED
-        if (docked && !wasDocked && cinematic == null && s.sim.landedOn == null) cinematic = Cinematic(CinematicKind.DOCK, animTime)
+        if (docked && !wasDocked && cinematic == null) cinematic = Cinematic(if (s.sim.landedOn != null) CinematicKind.LAND else CinematicKind.DOCK, animTime)
         wasDocked = docked
     }
 
@@ -288,7 +288,7 @@ class AppController(
     private fun finishCinematic() {
         val c = cinematic ?: return
         cinematic = null
-        if (c.kind == CinematicKind.UNDOCK) {
+        if (c.kind == CinematicKind.UNDOCK || c.kind == CinematicKind.TAKEOFF) {
             session?.undock()
             wasDocked = false
             screen = Screen.FLIGHT
@@ -438,7 +438,7 @@ class AppController(
             id == "restart" -> { held.clear(); sim.manualTurn = 0; sim.manualEngine = false; s.restart(); screen = Screen.FLIGHT; selectedFacts.clear(); selectedSuspect = null; deduceText = null; cam.reset(); cinematic = null; wasDocked = false }
             id == "rescue" -> s.callRescue()
             id == "continue" -> { s.continueFlying(); screen = Screen.FLIGHT }
-            id == "undock" -> if (sim.landedOn != null) { if (sim.canTakeOff(sim.landedOn!!)) { s.undock(); wasDocked = false; screen = Screen.FLIGHT } else say("Empuxo insuficiente para decolar: aumente o empuxo.") }
+            id == "undock" -> if (sim.landedOn != null) { if (sim.canTakeOff(sim.landedOn!!)) { if (cinematic == null) cinematic = Cinematic(CinematicKind.TAKEOFF, animTime) } else say("Empuxo insuficiente para decolar: aumente o empuxo.") }
                 else if (cinematic == null) cinematic = Cinematic(CinematicKind.UNDOCK, animTime)
             id == "skip" -> finishCinematic()
             id == "cam_l" || id == "cam_r" || id == "cam_u" || id == "cam_d" -> held.add(id)

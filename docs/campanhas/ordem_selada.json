@@ -1,0 +1,273 @@
+{
+  "formato": 1,
+  "id": "ordem_selada",
+  "titulo": "Ordem Selada (Marte)",
+  "resumo": "Você comanda o cruzador marciano Vigília de Tharsis. A ordem é clara: destruir perto de Ceres o cargueiro Mariposa, que estaria levando as ogivas que mataram a corveta Sentinela. Mas a ordem veio selada, sem passar pelo Estado-Maior, e há gente demais querendo que ninguém aborde aquele cargueiro. Combate, investigação e manipulação militar.",
+  "autor": "Campanha criada para The Expanse",
+  "papel": {"tipo": "militar", "faccao": "federacao"},
+  "escalaTempo": 1440,
+  "planeta": {"nome": "Sol", "tipo": "estrela", "gm": 1.32712440018e20, "raio": 6.957e8},
+  "facoes": [
+    {"id": "federacao", "nome": "Armada da Federação Marciana", "cor": "#E8645A", "estilo": "marciano"},
+    {"id": "liga", "nome": "Liga do Cinturão", "cor": "#3FD0B8", "estilo": "cinturao"},
+    {"id": "coalizao", "nome": "Coalizão Terrana", "cor": "#5B9BF0", "estilo": "terrano"},
+    {"id": "consorcio", "nome": "Consórcio Hélice", "cor": "#C9A06A", "estilo": "generico"},
+    {"id": "natural", "nome": "Corpos naturais", "cor": "#8A95A8", "estilo": "generico"}
+  ],
+  "corpos": [
+    {"id": "terra", "nome": "Terra", "curto": "Terra", "tipo": "planeta", "faccao": "natural", "raioOrbita": 1.495978707e11, "excentricidade": 0.0167, "argPeriapse": 1.7967, "fase": 6.2399, "gm": 3.986004418e14, "raio": 6.371e6, "cor": "#4F8FE8", "escalaAtmosfera": 8500, "velTerminalAtmosfera": 9},
+    {"id": "lua", "nome": "Lua", "curto": "Lua", "tipo": "planeta", "faccao": "natural", "pai": "terra", "raioOrbita": 3.844e8, "excentricidade": 0.0549, "fase": 2.0, "gm": 4.9048e12, "raio": 1.7374e6, "cor": "#B9B9B0"},
+    {"id": "marte", "nome": "Marte", "curto": "Marte", "tipo": "planeta", "faccao": "natural", "raioOrbita": 2.279392e11, "excentricidade": 0.0934, "argPeriapse": 5.865, "fase": 0.338, "gm": 4.282837e13, "raio": 3.3895e6, "cor": "#C8603A", "escalaAtmosfera": 11100, "velTerminalAtmosfera": 45},
+    {"id": "ceres", "nome": "Ceres", "curto": "Ceres", "tipo": "planeta", "faccao": "natural", "raioOrbita": 4.1405e11, "excentricidade": 0.0758, "argPeriapse": 2.686, "fase": 3.5, "gm": 6.2628e10, "raio": 4.73e5, "cor": "#A39E94"},
+    {"id": "jupiter", "nome": "Júpiter", "curto": "Júpiter", "tipo": "planeta", "faccao": "natural", "raioOrbita": 7.785e11, "excentricidade": 0.0489, "argPeriapse": 0.257, "fase": 0.343, "gm": 1.26686534e17, "raio": 6.9911e7, "cor": "#D9B48A", "pousavel": false},
+
+    {"id": "estaleiro_olimpo", "nome": "Estaleiro Olimpo", "curto": "Olimpo", "tipo": "estacao", "faccao": "federacao", "pai": "marte", "raioOrbita": 9.4e6, "fase": 2.2, "tamanho": 160},
+    {"id": "escuta_tharsis", "nome": "Posto de Escuta Tharsis", "curto": "Tharsis", "tipo": "estacao", "faccao": "federacao", "pai": "marte", "raioOrbita": 2.0e7, "fase": 0.6, "tamanho": 110},
+    {"id": "porto_ceres", "nome": "Porto Ceres", "curto": "P. Ceres", "tipo": "estacao", "faccao": "liga", "pai": "ceres", "raioOrbita": 1.5e6, "fase": 0.2, "tamanho": 150},
+    {"id": "destrocos_sentinela", "nome": "Destroços da Sentinela", "curto": "Sentinela", "tipo": "destroco", "faccao": "federacao", "pai": "ceres", "raioOrbita": 4.0e6, "fase": 2.8, "tamanho": 60, "atracavel": true},
+
+    {"id": "mariposa", "nome": "Cargueiro Mariposa", "curto": "Mariposa", "tipo": "nave", "faccao": "liga", "pai": "ceres", "raioOrbita": 2.6e6, "fase": 1.2, "tamanho": 90, "atracavel": false, "misseis": 0, "despistadores": 2, "chanceDespistar": 0.3, "defesa": 0.15, "aceleracaoMax": 3.0},
+    {"id": "fragata_omega", "nome": "Fragata sem transponder", "curto": "Ômega", "tipo": "nave", "faccao": "consorcio", "pai": "ceres", "raioOrbita": 3.4e6, "fase": 4.0, "tamanho": 80, "atracavel": false, "oculto": true, "misseis": 4, "despistadores": 2, "chanceDespistar": 0.35, "defesa": 0.55, "aceleracaoMax": 9.0},
+    {"id": "vigia_liga", "nome": "Patrulheiro Âmbar", "curto": "Âmbar", "tipo": "nave", "faccao": "liga", "pai": "ceres", "raioOrbita": 5.5e6, "fase": 5.0, "tamanho": 120, "atracavel": false, "oculto": true, "misseis": 0, "despistadores": 2, "aceleracaoMax": 6.0}
+  ],
+  "nave": {"nome": "Cruzador Vigília de Tharsis", "massaSeca": 600000, "carga": 0, "combustivel": 220000, "nomeCarga": "sem carga", "perto": "estaleiro_olimpo", "altitude": 30000, "alvo": "mariposa", "casco": 220, "misseis": 10, "despistadores": 10, "chanceDespistar": 0.45, "aceleracaoMax": 14.0, "velocidadeExaustao": 1.6e7},
+  "creditos": 0,
+  "reputacao": {"federacao": 20, "liga": -15, "coalizao": -5, "consorcio": 10, "natural": 0},
+  "objetos": [
+    {"id": "fragmento_missil", "nome": "Fragmento de míssil da Sentinela", "massa": 35},
+    {"id": "registro_hx9", "nome": "Registros de lançamento do lote HX-9", "massa": 0.2},
+    {"id": "dra_solano", "nome": "Dra. Imara Solano (passageira sob sua proteção)", "massa": 80}
+  ],
+  "fatos": [
+    {"id": "f_canal_paralelo", "texto": "A Ordem Sigma-7 saiu direto do gabinete do Almirante Varga, sem número de protocolo do Estado-Maior."},
+    {"id": "f_sinal_sentinela", "texto": "Os últimos 40 segundos da Sentinela registram um míssil com assinatura de propulsão marciana, não do Cinturão."},
+    {"id": "f_fragmento", "texto": "O fragmento do míssil traz o número de série do lote HX-9, fabricado pelo Consórcio Hélice só para a Armada."},
+    {"id": "f_sem_ogivas", "texto": "O Mariposa não leva ogivas: o porão tem água, filtros e uma única passageira."},
+    {"id": "f_passageira", "texto": "A passageira é a Dra. Imara Solano, engenheira do Consórcio Hélice que fugiu de Marte com provas."},
+    {"id": "f_registros", "texto": "Os registros do lote HX-9 mostram que o míssil que matou a Sentinela foi retirado do paiol com autorização do gabinete de Varga."},
+    {"id": "f_codigo_gabinete", "texto": "A fragata sem transponder usava códigos de autorização emitidos pelo gabinete do Almirante Varga."},
+    {"id": "f_espiao", "texto": "O oficial de comunicações Pell mandava relatórios cifrados ao gabinete de Varga, fora da cadeia de comando."},
+    {"id": "f_contrato_guerra", "texto": "Uma semana depois da Sentinela, o Consórcio Hélice ganhou um contrato de guerra de 40 bilhões assinado por Varga."}
+  ],
+  "personagens": [
+    {"id": "alm_varga", "nome": "Almirante Ilídio Varga", "papel": "comandante da Frota Exterior", "faccao": "federacao"},
+    {"id": "imediata_korin", "nome": "Imediata Sasha Korin", "papel": "sua imediata", "faccao": "federacao"},
+    {"id": "ten_quessada", "nome": "Tenente Dario Quessada", "papel": "analista de sinais", "faccao": "federacao", "local": "escuta_tharsis", "dialogo": "d_quessada"},
+    {"id": "cap_aroeira", "nome": "Capitã Lena Aroeira", "papel": "capitã do Mariposa", "faccao": "liga"},
+    {"id": "solano", "nome": "Dra. Imara Solano", "papel": "engenheira de armas foragida", "faccao": "consorcio"},
+    {"id": "inspetora_maru", "nome": "Inspetora-Geral Tove Maru", "papel": "corregedoria da Armada", "faccao": "federacao", "local": "estaleiro_olimpo", "dialogo": "d_maru"},
+    {"id": "despachante_ito", "nome": "Despachante Nel Ito", "papel": "controle de tráfego do Porto Ceres", "faccao": "liga", "local": "porto_ceres", "dialogo": "d_ito"},
+    {"id": "cap_ambar", "nome": "Capitão Oruã", "papel": "comandante do Patrulheiro Âmbar", "faccao": "liga"}
+  ],
+  "dialogos": [
+    {
+      "id": "d_ordem", "personagem": "alm_varga",
+      "texto": "“Comandante, aqui é o Almirante Varga. Há nove dias a corveta Sentinela foi destruída perto de Ceres, com 31 tripulantes. A inteligência diz que as ogivas saíram do Cinturão no cargueiro Mariposa, que ainda está em órbita de Ceres. Ordem Sigma-7: intercepte e destrua o Mariposa. Sem abordagem. Sem conversa. A guerra que vem depende do seu silêncio.”",
+      "escolhas": [
+        {"texto": "“Entendido, Almirante. Cumpriremos.”", "detalhe": "Armada +3.",
+         "efeitos": [{"tipo": "reputacao", "faccao": "federacao", "delta": 3}, {"tipo": "flag", "nome": "obediente"}, {"tipo": "mensagem", "texto": "Ordem aceita. Alvo: Cargueiro Mariposa, em órbita de Ceres."}]},
+        {"texto": "Pedir confirmação ao Estado-Maior pelo canal oficial", "detalhe": "Revela uma pista. Varga não vai gostar. Armada -2.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_canal_paralelo"}, {"tipo": "reputacao", "faccao": "federacao", "delta": -2}, {"tipo": "flag", "nome": "desconfiado"}], "proximo": "d_ordem_seca"}
+      ]
+    },
+    {
+      "id": "d_ordem_seca", "personagem": "alm_varga",
+      "texto": "“O Estado-Maior não tem esta ordem porque o Estado-Maior vaza, Comandante. Ela é selada por um motivo. Não me faça repetir: o Mariposa deve deixar de existir.”"
+    },
+    {
+      "id": "d_korin", "personagem": "imediata_korin",
+      "texto": "“Comandante, uma coisa me incomoda. O tenente Pell, das comunicações, está mandando pacotes cifrados a cada manobra nossa. O destino não é o Estado-Maior: é o gabinete do Almirante. Alguém quer saber o que fazemos antes de nós mesmos.”",
+      "escolhas": [
+        {"texto": "Deter o tenente Pell e ler os pacotes", "detalhe": "Revela uma pista. Armada -1.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_espiao"}, {"tipo": "flag", "nome": "pell_detido"}, {"tipo": "reputacao", "faccao": "federacao", "delta": -1}, {"tipo": "mensagem", "texto": "Pell foi detido. Os pacotes descreviam cada manobra sua ao gabinete de Varga."}]},
+        {"texto": "Deixar como está", "detalhe": "Varga continua sabendo de tudo.", "efeitos": [{"tipo": "flag", "nome": "pell_livre"}]}
+      ]
+    },
+    {
+      "id": "d_quessada", "personagem": "ten_quessada",
+      "texto": "“Comandante, a Escuta Tharsis grava tudo o que se fala entre Marte e o Cinturão. A Sentinela mandou um último pacote antes de morrer. Ninguém pediu para ouvir. Estranho, não?”",
+      "escolhas": [
+        {"texto": "Ouvir o último pacote da Sentinela", "detalhe": "Revela uma pista.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_sinal_sentinela"}]},
+        {"texto": "Pedir que rastreie os registros do lote HX-9", "detalhe": "Usa os registros da Dra. Solano. Revela uma pista.",
+         "se": {"tipo": "sabe", "fato": "f_registros"}, "bloqueio": "Requer os registros do lote HX-9.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_codigo_gabinete"}, {"tipo": "revelar_fato", "fato": "f_contrato_guerra"}]},
+        {"texto": "Pedir os contratos assinados depois da Sentinela", "detalhe": "Usa a pista do fragmento. Revela uma pista.",
+         "se": {"tipo": "sabe", "fato": "f_fragmento"}, "bloqueio": "Requer a pista do fragmento do míssil.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_contrato_guerra"}]},
+        {"texto": "Voltar depois"}
+      ]
+    },
+    {
+      "id": "d_ito", "personagem": "despachante_ito",
+      "texto": "“Um cruzador marciano atracado no Porto Ceres. Que honra. A Liga inspecionou o Mariposa antes de ele sair do cais, Comandante. Se vocês acham que há ogivas lá, alguém mentiu para vocês.”",
+      "escolhas": [
+        {"texto": "Pedir o relatório da inspeção", "detalhe": "Revela uma pista. Liga +3.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_sem_ogivas"}, {"tipo": "reputacao", "faccao": "liga", "delta": 3}]},
+        {"texto": "Ir embora"}
+      ]
+    },
+    {
+      "id": "d_mariposa", "personagem": "cap_aroeira",
+      "texto": "“Cruzador marciano, aqui é a Capitã Aroeira, do Mariposa. Seus mísseis estão travados em nós, eu sei. Mas eu não tenho ogivas. Tenho água, filtros e uma passageira que o seu almirante quer morta. Aborde se quiser ver. Atire se for covarde.”",
+      "escolhas": [
+        {"texto": "Abrir fogo, conforme a Ordem Sigma-7", "detalhe": "Selecione o Mariposa e dispare. O caso se encerra com ele.",
+         "efeitos": [{"tipo": "ia", "corpo": "mariposa", "comportamento": "fugir"}, {"tipo": "flag", "nome": "fogo_mariposa"}, {"tipo": "mensagem", "texto": "Ordem de fogo. O Mariposa acelera para fugir: dispare antes que saia do alcance."}]},
+        {"texto": "Ordenar que pare e se prepare para abordagem", "detalhe": "Aproxime-se devagar e use ABORDAR. Chance alta: o Mariposa não resiste.",
+         "efeitos": [{"tipo": "flag", "nome": "inspecao"}, {"tipo": "ia", "corpo": "mariposa", "comportamento": "orbitar"}, {"tipo": "mensagem", "texto": "O Mariposa cortou os motores. Chegue a poucos km, iguale a velocidade (IGUALAR) e toque em ABORDAR."}]}
+      ]
+    },
+    {
+      "id": "d_solano", "personagem": "solano",
+      "texto": "“Então o senhor abordou em vez de atirar. Ótimo, Comandante: talvez ainda haja uma Armada. Eu projetei o lote HX-9. A Sentinela não foi atingida pelo Cinturão: foi atingida por um míssil nosso, retirado do paiol com a senha do gabinete do Almirante Varga. Eu trouxe os registros. Por isso querem o Mariposa em pedaços.”",
+      "escolhas": [
+        {"texto": "Receber os registros e trazer a doutora a bordo", "detalhe": "Revela duas pistas. Você ganha os registros e uma passageira.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_passageira"}, {"tipo": "revelar_fato", "fato": "f_registros"}, {"tipo": "revelar_fato", "fato": "f_sem_ogivas"},
+                     {"tipo": "dar_objeto", "objeto": "registro_hx9"}, {"tipo": "dar_objeto", "objeto": "dra_solano"}, {"tipo": "flag", "nome": "solano_a_bordo"},
+                     {"tipo": "reputacao", "faccao": "liga", "delta": 10}, {"tipo": "ia", "corpo": "mariposa", "comportamento": "fugir"},
+                     {"tipo": "agendar", "bloco": "b_fragata", "segundos": 900},
+                     {"tipo": "mensagem", "texto": "A Dra. Solano está a bordo com os registros. O Mariposa segue livre."}]},
+        {"texto": "Receber só os registros e deixá-la no Mariposa", "detalhe": "Revela duas pistas. Ela fica exposta.",
+         "efeitos": [{"tipo": "revelar_fato", "fato": "f_passageira"}, {"tipo": "revelar_fato", "fato": "f_registros"}, {"tipo": "revelar_fato", "fato": "f_sem_ogivas"},
+                     {"tipo": "dar_objeto", "objeto": "registro_hx9"}, {"tipo": "flag", "nome": "solano_no_mariposa"},
+                     {"tipo": "reputacao", "faccao": "liga", "delta": 4}, {"tipo": "ia", "corpo": "mariposa", "comportamento": "fugir"},
+                     {"tipo": "agendar", "bloco": "b_fragata", "segundos": 900},
+                     {"tipo": "mensagem", "texto": "Você tem os registros. O Mariposa parte com a Dra. Solano."}]}
+      ]
+    },
+    {
+      "id": "d_varga_ultimato", "personagem": "alm_varga",
+      "texto": "“Comandante, fui informado de que o senhor abordou o Mariposa. Isso é insubordinação. Uma unidade amiga está a caminho para concluir o que o senhor não teve coragem de fazer. Fique fora do caminho dela, ou será tratado como traidor.”",
+      "escolhas": [
+        {"texto": "“Unidade amiga sem transponder, Almirante?”", "detalhe": "Armada -3. Prepare os despistadores.",
+         "efeitos": [{"tipo": "reputacao", "faccao": "federacao", "delta": -3}, {"tipo": "mensagem", "texto": "A fragata sem transponder armou os mísseis. Selecione-a como ALVO e dispare, ou tente abordá-la."}]},
+        {"texto": "Calar e se preparar para o combate", "detalhe": "Sem resposta.",
+         "efeitos": [{"tipo": "mensagem", "texto": "A fragata sem transponder armou os mísseis. Selecione-a como ALVO e dispare."}]}
+      ]
+    },
+    {
+      "id": "d_maru", "personagem": "inspetora_maru",
+      "texto": "“Comandante, a corregedoria não abre inquérito contra um almirante por intuição. Traga-me algo que pare de pé no tribunal: de onde veio o míssil, quem autorizou e quem lucrou.”",
+      "escolhas": [
+        {"texto": "Entregar os registros e as conclusões do caderno", "detalhe": "Exige a dedução sobre o mandante e os registros do HX-9.",
+         "se": {"tipo": "e", "condicoes": [{"tipo": "deduziu", "id": "ded_mandante"}, {"tipo": "tem_objeto", "objeto": "registro_hx9"}]},
+         "bloqueio": "Faltam provas: deduza quem armou o incidente e traga os registros do HX-9.",
+         "efeitos": [{"tipo": "flag", "nome": "inquerito_aberto"}, {"tipo": "reputacao", "faccao": "federacao", "delta": 5},
+                     {"tipo": "mensagem", "texto": "A Inspetora Maru abriu o inquérito. Agora faça a acusação no Caderno."}], "proximo": "d_maru_fim"},
+        {"texto": "Voltar depois"}
+      ]
+    },
+    {
+      "id": "d_maru_fim", "personagem": "inspetora_maru",
+      "texto": "“Isto basta. O inquérito está aberto, e o Almirante Varga perdeu o direito de dar ordens seladas. Formalize a acusação, Comandante. A Armada precisa ouvir isso de quem esteve lá.”"
+    },
+    {
+      "id": "d_ambar", "personagem": "cap_ambar",
+      "texto": "“Cruzador marciano, aqui é o Patrulheiro Âmbar, da Liga. Vamos acompanhar vocês. Se o Mariposa sofrer um arranhão, Ceres vai saber quem foi.”"
+    }
+  ],
+  "blocos": [
+    {"id": "b_fragata", "efeitos": [
+      {"tipo": "revelar_corpo", "corpo": "fragata_omega"},
+      {"tipo": "emboscar", "corpo": "fragata_omega", "distancia": 40000},
+      {"tipo": "ia", "corpo": "fragata_omega", "comportamento": "atacar"},
+      {"tipo": "flag", "nome": "fragata_ativa"},
+      {"tipo": "mensagem", "texto": "CONTATO HOSTIL: fragata sem transponder a 40 km, mísseis armados!"},
+      {"tipo": "dialogo", "id": "d_varga_ultimato"}
+    ]}
+  ],
+  "regras": [
+    {"id": "r_inicio", "quando": {"tipo": "inicio"}, "entao": [
+      {"tipo": "dialogo", "id": "d_ordem"},
+      {"tipo": "mensagem", "texto": "Ordem Sigma-7: destruir o Cargueiro Mariposa, uma nave em órbita de Ceres. ALVO já marca Cargueiro Mariposa: toque em INTERC. Antes, se quiser, visite o Posto de Escuta Tharsis (estação em órbita de Marte)."}]},
+    {"id": "r_korin", "quando": {"tipo": "tempo", "depoisDe": 86400}, "entao": [{"tipo": "dialogo", "id": "d_korin"}]},
+    {"id": "r_noticia_dia3", "quando": {"tipo": "tempo", "depoisDe": 259200}, "entao": [{"tipo": "noticia", "texto": "Parlamento de Marte vota verba de guerra contra o Cinturão; Consórcio Hélice sobe 18% na bolsa."}]},
+    {"id": "r_sentinela", "quando": {"tipo": "atracar", "local": "destrocos_sentinela"}, "entao": [
+      {"tipo": "dar_objeto", "objeto": "fragmento_missil"}, {"tipo": "revelar_fato", "fato": "f_fragmento"},
+      {"tipo": "mensagem", "texto": "Nos destroços da Sentinela, a equipe recolheu um fragmento de míssil com número de série legível."}]},
+    {"id": "r_contato", "quando": {"tipo": "distancia", "de": "jogador", "ate": "mariposa", "menorQue": 3.0e7}, "entao": [
+      {"tipo": "mensagem", "texto": "Contato com o Mariposa. A capitã responde no rádio."}, {"tipo": "dialogo", "id": "d_mariposa"}]},
+    {"id": "r_abordagem_ok", "quando": {"tipo": "abordagem", "corpo": "mariposa", "resultado": "sucesso"}, "entao": [
+      {"tipo": "flag", "nome": "abordou"}, {"tipo": "dialogo", "id": "d_solano"}]},
+    {"id": "r_abordagem_falha", "quando": {"tipo": "abordagem", "corpo": "mariposa", "resultado": "falha"}, "repetir": true, "entao": [
+      {"tipo": "mensagem", "texto": "A equipe de abordagem não conseguiu acoplar. Iguale a velocidade e tente de novo."}]},
+    {"id": "r_fragata_abordada", "quando": {"tipo": "abordagem", "corpo": "fragata_omega", "resultado": "sucesso"}, "entao": [
+      {"tipo": "revelar_fato", "fato": "f_codigo_gabinete"}, {"tipo": "destruir_corpo", "corpo": "fragata_omega", "explosao": false},
+      {"tipo": "reputacao", "faccao": "consorcio", "delta": -20},
+      {"tipo": "mensagem", "texto": "Fragata capturada! Os fuzileiros acharam mercenários do Consórcio Hélice e códigos do gabinete de Varga."}]},
+    {"id": "r_fragata_abatida", "quando": {"tipo": "corpo_destruido", "corpo": "fragata_omega"}, "se": {"tipo": "nao", "condicao": {"tipo": "sabe", "fato": "f_codigo_gabinete"}}, "entao": [
+      {"tipo": "revelar_fato", "fato": "f_codigo_gabinete"}, {"tipo": "reputacao", "faccao": "consorcio", "delta": -20},
+      {"tipo": "mensagem", "texto": "Fragata abatida. Nos destroços, o transmissor ainda repete códigos de autorização do gabinete de Varga."}]},
+    {"id": "r_mariposa_abatido_cego", "quando": {"tipo": "corpo_destruido", "corpo": "mariposa"}, "se": {"tipo": "nao", "condicao": {"tipo": "flag", "nome": "abordou"}}, "entao": [
+      {"tipo": "reputacao", "faccao": "federacao", "delta": 10}, {"tipo": "reputacao", "faccao": "liga", "delta": -40},
+      {"tipo": "missao", "id": "m_sigma", "estado": "concluida"}, {"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "final", "id": "ordem_cumprida"}]},
+    {"id": "r_mariposa_abatido_sabendo", "quando": {"tipo": "corpo_destruido", "corpo": "mariposa"}, "se": {"tipo": "flag", "nome": "abordou"}, "entao": [
+      {"tipo": "reputacao", "faccao": "liga", "delta": -50}, {"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "final", "id": "cumplice"}]},
+    {"id": "r_casco", "quando": {"tipo": "casco_abaixo", "pct": 35}, "entao": [{"tipo": "mensagem", "texto": "ALERTA: casco abaixo de 35%! Use os despistadores entre 20 e 45 s antes do impacto."}]},
+    {"id": "r_combustivel", "quando": {"tipo": "combustivel_abaixo", "pct": 25}, "entao": [{"tipo": "mensagem", "texto": "Combustível abaixo de 25%. Atraque no Porto Ceres ou no Estaleiro Olimpo para reabastecer."}]},
+    {"id": "r_destruido", "quando": {"tipo": "nave_destruida"}, "entao": [{"tipo": "missao", "id": "m_sigma", "estado": "falhou"}, {"tipo": "final", "id": "perdido"}]}
+  ],
+  "deducoes": [
+    {"id": "ded_falsa_bandeira", "precisa": ["f_sinal_sentinela", "f_fragmento"], "conclusao": "A Sentinela foi destruída por um míssil marciano do lote HX-9. O Cinturão não a atacou: foi uma operação de bandeira falsa.",
+     "efeitos": [{"tipo": "flag", "nome": "bandeira_falsa"}, {"tipo": "missao", "id": "m_verdade", "estado": "ativa"}]},
+    {"id": "ded_testemunha", "precisa": ["f_canal_paralelo", "f_passageira"], "conclusao": "A ordem selada de destruir o Mariposa sem abordagem existia para calar a Dra. Solano, não para deter ogivas.",
+     "efeitos": [{"tipo": "flag", "nome": "queima_de_arquivo"}]},
+    {"id": "ded_vigiado", "precisa": ["f_espiao", "f_canal_paralelo"], "conclusao": "Varga montou a missão por fora da cadeia de comando e pôs um espião no seu cruzador para garantir o silêncio."},
+    {"id": "ded_mandante", "precisa": ["f_registros", "f_codigo_gabinete", "f_contrato_guerra"], "conclusao": "O Almirante Varga autorizou o míssil que matou a Sentinela, mandou a fragata do Consórcio Hélice apagar a testemunha e assinou o contrato de guerra que enriquece o consórcio.",
+     "efeitos": [{"tipo": "flag", "nome": "mandante"}, {"tipo": "missao", "id": "m_verdade", "estado": "ativa"}]}
+  ],
+  "missoes": [
+    {"id": "m_sigma", "titulo": "Ordem Sigma-7", "texto": "Interceptar e destruir o Cargueiro Mariposa, nave da Liga em órbita de Ceres. ALVO Cargueiro Mariposa e INTERC. O Posto de Escuta Tharsis (estação em órbita de Marte) e os Destroços da Sentinela (em órbita de Ceres) também podem ser visitados.", "inicial": true},
+    {"id": "m_verdade", "titulo": "Quem matou a Sentinela", "texto": "Reunir provas de quem destruiu a Sentinela, levá-las à Inspetora-Geral Maru no Estaleiro Olimpo (estação em órbita de Marte) e acusar o responsável no Caderno."}
+  ],
+  "suspeitos": [
+    {"id": "s_liga", "nome": "Liga do Cinturão", "texto": "Segundo a inteligência da Armada, as ogivas saíram do Cinturão no Mariposa."},
+    {"id": "s_coalizao", "nome": "Coalizão Terrana", "texto": "A Terra ganha com uma guerra entre Marte e o Cinturão."},
+    {"id": "s_helice", "nome": "Consórcio Hélice", "texto": "Fabrica os mísseis da Armada e lucra com qualquer guerra."},
+    {"id": "s_varga", "nome": "Almirante Ilídio Varga", "texto": "Deu a Ordem Sigma-7 por fora do Estado-Maior."}
+  ],
+  "acusacoes": [
+    {"id": "ac_varga_total", "suspeito": "s_varga",
+     "se": {"tipo": "e", "condicoes": [{"tipo": "deduziu", "id": "ded_mandante"}, {"tipo": "deduziu", "id": "ded_falsa_bandeira"}, {"tipo": "flag", "nome": "inquerito_aberto"}, {"tipo": "tem_objeto", "objeto": "dra_solano"}]},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "missao", "id": "m_sigma", "estado": "falhou"}, {"tipo": "reputacao", "faccao": "liga", "delta": 30}, {"tipo": "reputacao", "faccao": "consorcio", "delta": -50}, {"tipo": "final", "id": "verdade_testemunha"}]},
+    {"id": "ac_varga_provas", "suspeito": "s_varga",
+     "se": {"tipo": "e", "condicoes": [{"tipo": "deduziu", "id": "ded_mandante"}, {"tipo": "flag", "nome": "inquerito_aberto"}]},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "missao", "id": "m_sigma", "estado": "falhou"}, {"tipo": "reputacao", "faccao": "liga", "delta": 20}, {"tipo": "reputacao", "faccao": "consorcio", "delta": -40}, {"tipo": "final", "id": "verdade"}]},
+    {"id": "ac_varga_parcial", "suspeito": "s_varga", "se": {"tipo": "deduziu", "id": "ded_falsa_bandeira"},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "final", "id": "afastado"}]},
+    {"id": "ac_varga_vazia", "suspeito": "s_varga",
+     "efeitos": [{"tipo": "reputacao", "faccao": "federacao", "delta": -30}, {"tipo": "final", "id": "corte_marcial"}]},
+    {"id": "ac_helice_parcial", "suspeito": "s_helice", "se": {"tipo": "deduziu", "id": "ded_falsa_bandeira"},
+     "efeitos": [{"tipo": "missao", "id": "m_verdade", "estado": "concluida"}, {"tipo": "reputacao", "faccao": "consorcio", "delta": -30}, {"tipo": "final", "id": "bode_expiatorio"}]},
+    {"id": "ac_helice_vazia", "suspeito": "s_helice",
+     "efeitos": [{"tipo": "reputacao", "faccao": "consorcio", "delta": -20}, {"tipo": "final", "id": "processado"}]},
+    {"id": "ac_liga", "suspeito": "s_liga",
+     "efeitos": [{"tipo": "reputacao", "faccao": "liga", "delta": -50}, {"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "final", "id": "guerra_cinturao"}]},
+    {"id": "ac_coalizao", "suspeito": "s_coalizao",
+     "efeitos": [{"tipo": "reputacao", "faccao": "coalizao", "delta": -50}, {"tipo": "missao", "id": "m_verdade", "estado": "falhou"}, {"tipo": "final", "id": "guerra_terra"}]}
+  ],
+  "tentativasAcusacao": 2,
+  "finais": [
+    {"id": "verdade_testemunha", "titulo": "A ORDEM QUE NÃO FOI CUMPRIDA", "tipo": "vitoria", "manchete": "Comandante desobedece ordem selada, salva testemunha e derruba o Almirante Varga; verba de guerra contra o Cinturão é suspensa."},
+    {"id": "verdade", "titulo": "BANDEIRA FALSA EXPOSTA", "tipo": "vitoria", "manchete": "Corregedoria da Armada prende o Almirante Varga por forjar o ataque à Sentinela; Consórcio Hélice perde o contrato de guerra."},
+    {"id": "afastado", "titulo": "VERDADE PELA METADE", "tipo": "neutro", "manchete": "Almirante Varga é afastado por 'irregularidades', mas o inquérito sobre a Sentinela é arquivado por falta de provas."},
+    {"id": "bode_expiatorio", "titulo": "O BODE EXPIATÓRIO", "tipo": "neutro", "manchete": "Consórcio Hélice paga multa recorde pelo míssil da Sentinela; Almirante Varga é condecorado pela 'investigação'."},
+    {"id": "ordem_cumprida", "titulo": "ORDEM CUMPRIDA", "tipo": "derrota", "manchete": "Cruzador marciano destrói cargueiro do Cinturão perto de Ceres; Marte declara guerra e o Consórcio Hélice bate recorde na bolsa."},
+    {"id": "cumplice", "titulo": "CÚMPLICE", "tipo": "derrota", "manchete": "Comandante que sabia a verdade destrói o Mariposa mesmo assim; a guerra começa e as provas viram poeira."},
+    {"id": "corte_marcial", "titulo": "CORTE MARCIAL", "tipo": "derrota", "manchete": "Comandante acusa almirante sem provas e é levado à corte marcial; Ordem Sigma-7 é entregue a outro cruzador."},
+    {"id": "processado", "titulo": "ACUSAÇÃO SEM PROVAS", "tipo": "derrota", "manchete": "Consórcio Hélice processa comandante da Armada por difamação; o caso Sentinela continua sem culpados."},
+    {"id": "guerra_cinturao", "titulo": "A GUERRA QUE ELES QUERIAM", "tipo": "derrota", "manchete": "Relatório de comandante marciano culpa a Liga pela Sentinela; Marte bloqueia Ceres e a guerra começa."},
+    {"id": "guerra_terra", "titulo": "INIMIGO ERRADO", "tipo": "derrota", "manchete": "Marte acusa a Terra pelo ataque à Sentinela; Coalizão rompe relações e as duas frotas entram em alerta."},
+    {"id": "perdido", "titulo": "CRUZADOR PERDIDO", "tipo": "derrota", "manchete": "Cruzador Vigília de Tharsis é perdido perto de Ceres; Almirante Varga culpa o Cinturão e pede a guerra."}
+  ],
+  "noticias": [
+    "Corveta marciana Sentinela é destruída perto de Ceres; 31 mortos.",
+    "Almirante Varga: 'O Cinturão vai pagar pela Sentinela.'",
+    "Liga do Cinturão nega envolvimento e pede investigação independente.",
+    "Consórcio Hélice anuncia nova linha de mísseis para a Armada."
+  ],
+  "emboscadas": [
+    {"id": "e_ambar", "nave": "vigia_liga", "faccao": "liga", "chance": 0.3, "perto": "ceres", "raio": 2.0e9, "comportamento": "perseguir", "distancia": 30000, "intervalo": 10800,
+     "mensagem": "CONTATO: o Patrulheiro Âmbar, da Liga, colou na sua popa a 30 km.", "efeitos": [{"tipo": "dialogo", "id": "d_ambar"}, {"tipo": "noticia", "texto": "Liga do Cinturão acompanha cruzador marciano em órbita de Ceres."}]}
+  ]
+}
